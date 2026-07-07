@@ -1,0 +1,80 @@
+import { useState, useCallback, useRef } from 'react';
+import { gsap } from 'gsap';
+import FadeContent from '../fade-content/FadeContent';
+import Grainient from '../grainient/Grainient';
+import SplashText from './SplashText';
+import './logo-animation.css';
+
+interface LogoAnimationProps { onEnter: () => void; }
+
+export function LogoAnimation({ onEnter }: LogoAnimationProps) {
+  const [phase, setPhase] = useState<'logo-fade'|'logo-move'|'text-enter'|'interactive'|'enter'>('logo-fade');
+  const [showClickHint, setShowClickHint] = useState(false);
+  const logoRef = useRef<HTMLDivElement>(null);
+  const enteredRef = useRef(false);
+
+  const hasText = phase === 'text-enter' || phase === 'interactive' || phase === 'enter';
+
+  const handleLogoFadeComplete = useCallback(() => {
+    setPhase('logo-move');
+    if (logoRef.current) {
+      gsap.to(logoRef.current, {
+        scale: 0.62, x: -15, duration: 1, ease: 'power3.out',
+        onComplete: () => setPhase('text-enter')
+      });
+    }
+  }, []);
+
+  const handleTextAnimationComplete = useCallback(() => {
+    setPhase('interactive');
+    setTimeout(() => setShowClickHint(true), 500);
+  }, []);
+
+  const handleClick = () => {
+    if ((phase === 'interactive' || phase === 'text-enter') && !enteredRef.current) {
+      enteredRef.current = true;
+      setPhase('enter');
+      setTimeout(onEnter, 600);
+    }
+  };
+
+  return (
+    <div className={`splash-screen ${phase}`} onClick={handleClick}>
+      <div className="splash-bg">
+        <Grainient color1="#ffffff" color2="#f5f5dc" color3="#766A5E"
+          timeSpeed={0.25} warpStrength={1.0} warpFrequency={5.0} warpSpeed={2.0}
+          warpAmplitude={50.0} rotationAmount={500.0} noiseScale={2.0} grainAmount={0.1}
+          grainScale={2.0} contrast={1.5} gamma={1.0} saturation={1.0} zoom={0.9} />
+      </div>
+
+      <div className="splash-content">
+        <div className="splash-group">
+
+          <div ref={logoRef} className="splash-logo-motion">
+            <div className="splash-logo-wrapper">
+              <FadeContent blur={true} duration={2000} ease="ease-out" initialOpacity={0}
+                onComplete={handleLogoFadeComplete}>
+                <img src="/logo.png" alt="IvyM" className="splash-logo-img" />
+              </FadeContent>
+            </div>
+          </div>
+
+          <div className="splash-text-container">
+            <SplashText
+              active={hasText}
+              onComplete={handleTextAnimationComplete}
+            />
+          </div>
+
+        </div>
+
+        {showClickHint && (
+          <div className="splash-enter-hint">
+            <span>点击任意位置进入</span>
+            <div className="splash-enter-arrow">↓</div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,106 @@
+@font-face {
+  font-family: 'KingnamMaiyuan';
+  src: url('/fonts/KingnamMaiyuan-II-Regular.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+.splash-screen {
+  position: fixed; inset: 0;
+  width: 100vw; height: 100vh;
+  z-index: 9999; overflow: hidden; cursor: pointer;
+  opacity: 1;
+  transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.splash-screen.enter { opacity: 0; pointer-events: none; }
+
+.splash-bg {
+  position: absolute; inset: 0;
+  width: 100vw; height: 100vh; z-index: 1;
+}
+
+.splash-content {
+  position: relative;
+  width: 100%; height: 100%;
+  z-index: 10;
+}
+
+/* Logo — 绝对居中 */
+.splash-logo-wrapper {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.splash-logo-img {
+  width: 160px; height: 160px;
+  object-fit: contain;
+  border-radius: 16px;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.12);
+}
+
+/* 文字 — absolute + margin-left */
+.splash-text-container {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translateY(-50%);
+  margin-left: 80px;
+  font-size: 52px;
+  font-weight: 900;
+  letter-spacing: 3px;
+  user-select: none;
+  font-family: 'KingnamMaiyuan', 'Inter', sans-serif;
+  white-space: nowrap;
+  visibility: hidden;
+}
+
+.splash-screen.text-enter .splash-text-container,
+.splash-screen.interactive .splash-text-container {
+  visibility: visible;
+}
+
+.split-char {
+  display: inline-block;
+  color: #000000;
+  will-change: transform, opacity;
+  margin-right: 2px;
+}
+
+.splash-enter-hint {
+  position: absolute;
+  bottom: 48px; left: 50%;
+  transform: translateX(-50%);
+  display: flex; flex-direction: column;
+  align-items: center; gap: 8px;
+  z-index: 20;
+  font-family: 'Inter', sans-serif;
+  animation: hint-pulse 2s ease-in-out infinite;
+}
+
+.splash-enter-hint span {
+  font-size: 14px;
+  color: rgba(99,102,241,0.5);
+  letter-spacing: 2px;
+}
+
+.splash-enter-arrow {
+  font-size: 20px;
+  color: rgba(99,102,241,0.4);
+}
+
+@keyframes hint-pulse {
+  0%, 100% { opacity: 0.4; transform: translateX(-50%) translateY(0); }
+  50% { opacity: 1; transform: translateX(-50%) translateY(6px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .splash-text-container,
+  .splash-enter-hint,
+  .splash-logo-wrapper {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
