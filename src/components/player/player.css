@@ -173,6 +173,10 @@
   -webkit-text-stroke: 0.5px #333;
 }
 
+.player-btn-save {
+  border-radius: 8px !important;
+}
+
 .player-btn.active .iconfont {
   color: #333;
 }

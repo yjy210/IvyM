@@ -295,7 +295,7 @@ export default function Player() {
               </button>
             </div>
 
-            <button className="player-btn" data-popup-btn onClick={() => setShowSaveToPlaylist(!showSaveToPlaylist)} title="收藏到歌单">
+            <button className="player-btn player-btn-save" data-popup-btn onClick={() => setShowSaveToPlaylist(!showSaveToPlaylist)} title="收藏到歌单">
               <i className="iconfont icon-bold icon-shoucang" />
             </button>
           </div>
