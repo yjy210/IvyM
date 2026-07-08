@@ -1,33 +1,31 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import './toast.css';
 
 interface ToastProps {
   message: string | null;
   duration?: number;
-  onHide?: () => void;
 }
 
-export default function Toast({ message, duration = 3000, onHide }: ToastProps) {
+export default function Toast({ message, duration = 4000 }: ToastProps) {
   const [visible, setVisible] = useState(false);
-  const [text, setText] = useState('');
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (message) {
-      setText(message);
       setVisible(true);
-      const timer = setTimeout(() => {
-        setVisible(false);
-        onHide?.();
-      }, duration);
-      return () => clearTimeout(timer);
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = setTimeout(() => setVisible(false), duration);
+    } else {
+      setVisible(false);
     }
-  }, [message, duration, onHide]);
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, [message, duration]);
 
-  if (!visible) return null;
+  if (!visible || !message) return null;
 
   return (
     <div className="toast">
-      <span>{text}</span>
+      <span>{message}</span>
     </div>
   );
 }

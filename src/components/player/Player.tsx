@@ -127,10 +127,12 @@ export default function Player() {
       .catch(() => setUserVip(false));
   }, []);
 
-  // VIP 歌曲开始时提示
+  // VIP 歌曲开始时提示（4秒后自动清除状态）
   useEffect(() => {
     if (currentSong?.vip && !userVip) {
       setVipWarning({ platform: 'netease', message: '开通会员畅听完整版' });
+      const timer = setTimeout(() => setVipWarning(null), 4000);
+      return () => clearTimeout(timer);
     }
   }, [currentSong, userVip]);
 
@@ -172,7 +174,8 @@ export default function Player() {
 
     // 检测是否为试听截断（实际播放时长 < 歌曲总时长 50%）
     if (duration > 0 && currentTime < duration * 0.5) {
-      setVipWarning({ platform: 'netease', message: '当前试听已结束，开通会员畅听完整版' });
+      setVipWarning({ platform: 'netease', message: '试听结束，开通会员畅听完整版' });
+      setTimeout(() => setVipWarning(null), 4000);
     }
 
     playNext();
@@ -465,11 +468,7 @@ export default function Player() {
       )}
 
       {/* VIP 歌曲 Toast 提示（黑底白字，自动消失） */}
-      <Toast
-        message={vipWarning?.message || null}
-        duration={4000}
-        onHide={() => setVipWarning(null)}
-      />
+      <Toast message={vipWarning?.message || null} duration={4000} />
     </>
   );
 }
