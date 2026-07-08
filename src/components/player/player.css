@@ -134,8 +134,35 @@
   flex: 1;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
+  position: relative;
+}
+
+.player-controls-left {
+  display: flex;
+  align-items: center;
   gap: 8px;
+  flex: 1;
+  justify-content: flex-start;
+  padding-left: 8px;
+}
+
+.player-controls-center {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.player-controls-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  justify-content: flex-end;
+  padding-right: 8px;
 }
 
 .player-btn {
