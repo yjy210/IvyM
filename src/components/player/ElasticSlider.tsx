@@ -45,33 +45,34 @@ export default function ElasticSlider({
   useMotionValueEvent(clientX, 'change', (latest) => {
     if (sliderRef.current) {
       const { left, right, top, bottom } = sliderRef.current.getBoundingClientRect();
-      let newValue;
+      let newestValue;
 
       if (vertical) {
+        // latest 在竖直模式下实际存储的是 clientY
         if (latest < top) {
           setRegion('left');
-          newValue = top - latest;
+          newestValue = top - latest;
         } else if (latest > bottom) {
           setRegion('right');
-          newValue = latest - bottom;
+          newestValue = latest - bottom;
         } else {
           setRegion('middle');
-          newValue = 0;
+          newestValue = 0;
         }
       } else {
         if (latest < left) {
           setRegion('left');
-          newValue = left - latest;
+          newestValue = left - latest;
         } else if (latest > right) {
           setRegion('right');
-          newValue = latest - right;
+          newestValue = latest - right;
         } else {
           setRegion('middle');
-          newValue = 0;
+          newestValue = 0;
         }
       }
 
-      overflow.jump(decay(newValue, MAX_OVERFLOW));
+      overflow.jump(decay(newestValue, MAX_OVERFLOW));
     }
   });
 
@@ -81,7 +82,7 @@ export default function ElasticSlider({
       if (vertical) {
         const { top, height } = sliderRef.current.getBoundingClientRect();
         newValue = startingValue + ((e.clientY - top) / height) * (maxValue - startingValue);
-        newValue = maxValue - newValue; // invert so top = high
+        newValue = maxValue - newValue;
       } else {
         const { left, width } = sliderRef.current.getBoundingClientRect();
         newValue = startingValue + ((e.clientX - left) / width) * (maxValue - startingValue);
@@ -93,7 +94,8 @@ export default function ElasticSlider({
 
       newValue = Math.min(Math.max(newValue, startingValue), maxValue);
       setValue(newValue);
-      clientX.jump(e.clientX);
+      // 竖直模式用 clientY，水平模式用 clientX
+      vertical ? clientX.jump(e.clientY) : clientX.jump(e.clientX);
       onChange?.(newValue);
     }
   };
@@ -160,8 +162,13 @@ export default function ElasticSlider({
               scaleY: useTransform(overflow, [0, MAX_OVERFLOW], [1, 0.8]),
               transformOrigin: useTransform(() => {
                 if (sliderRef.current) {
-                  const { left, width } = sliderRef.current.getBoundingClientRect();
-                  return clientX.get() < left + width / 2 ? 'right' : 'left';
+                  if (vertical) {
+                    const { top, height } = sliderRef.current.getBoundingClientRect();
+                    return clientX.get() < top + height / 2 ? 'bottom' : 'top';
+                  } else {
+                    const { left, width } = sliderRef.current.getBoundingClientRect();
+                    return clientX.get() < left + width / 2 ? 'right' : 'left';
+                  }
                 }
               }),
               height: useTransform(scale, [1, 1.2], [4, 8]),
