@@ -36,24 +36,32 @@ async function neteaseSearch(keyword, limit = 30) {
   const body = res.body || {};
   const songs = body.result?.songs || [];
 
+  // 收集需要查询封面专辑 ID（去重）
+  const albumIds = [...new Set(songs.map(s => s.album?.id).filter(Boolean))];
+  const albumPicCache = new Map();
+
+  // 并发获取封面（每个专辑只查一次）
+  await Promise.all(
+    albumIds.map(async (aid) => {
+      try {
+        const res = await api.album({ id: aid });
+        const picUrl = res.body?.album?.picUrl || '';
+        if (picUrl) albumPicCache.set(aid, picUrl);
+      } catch { /* ignore */ }
+    })
+  );
+
   return {
     code: songs.length > 0 ? 200 : 0,
-    data: await Promise.all(songs.map(async s => {
-      // 封面：NeteaseCloudMusicApi 返回 picId 而非 picIdUrl，需拼装 CDN URL
-      let cover = s.album?.picUrl || '';
-      if (!cover && s.album?.picId) {
-        cover = `https://p1.music.126.net/${s.album.picId}/${s.album.picId}.jpg?param=100y100`;
-      }
-      return {
-        id: String(s.id),
-        name: s.name,
-        artists: s.artists?.map(a => a.name).join(', ') || '',
-        album: s.album?.name || '',
-        duration: s.duration,
-        source: 'netease',
-        vip: s.fee === 1 || s.fee === 4, // 1=VIP, 4=付费专辑
-        cover,
-      };
+    data: songs.map(s => ({
+      id: String(s.id),
+      name: s.name,
+      artists: s.artists?.map(a => a.name).join(', ') || '',
+      album: s.album?.name || '',
+      duration: s.duration,
+      source: 'netease',
+      vip: s.fee === 1 || s.fee === 4,
+      cover: albumPicCache.get(s.album?.id) || '',
     })),
     total: body.result?.songCount || songs.length,
   };

@@ -220,13 +220,13 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
                           <span className="bound-nickname">{acc.nickname || '用户' + acc.userId}</span>
                           {acc.vip && (
                             <span className="bound-vip-inline">
-                              {acc.platform === 'netease' ? '黑胶VIP' : '豪华绿钻'}
+                              {acc.platform === 'qq' ? '豪华绿钻' : '黑胶VIP'}
                             </span>
                           )}
                         </div>
-                        <div className="bound-platform">
+                        <div className="bound-platform" style={{ color: platform.color }}>
                           {platform.icon && <img src={platform.icon} alt="" className="bound-platform-icon" />}
-                          ID: {acc.userId}
+                          {platform.name} · ID: {acc.userId}
                         </div>
                       </div>
                     </div>

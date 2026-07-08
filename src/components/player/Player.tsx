@@ -3,9 +3,11 @@ import { createPortal } from 'react-dom';
 import { usePlayerStore } from '../../stores/playerStore';
 import GlassSurface from './GlassSurface';
 import VolumeSlider from './VolumeSlider';
+import Toast from './Toast';
 import './player.css';
 import './GlassSurface.css';
 import './VolumeSlider.css';
+import './toast.css';
 
 interface Song {
   id: string;
@@ -446,19 +448,12 @@ export default function Player() {
         </div>
       )}
 
-      {/* VIP 歌曲提示弹窗 */}
-      {vipWarning && (
-        <div className="vip-warning-overlay" onClick={() => setVipWarning(null)}>
-          <div className="vip-warning-modal" onClick={e => e.stopPropagation()}>
-            <h3>🎵 当前歌曲无法播放</h3>
-            <p className="vip-warning-song">{currentSong?.name || '未知歌曲'}</p>
-            <p className="vip-warning-msg">{vipWarning.message}</p>
-            <button className="vip-warning-btn" onClick={() => setVipWarning(null)}>
-              确定
-            </button>
-          </div>
-        </div>
-      )}
+      {/* VIP 歌曲 Toast 提示（黑底白字，自动消失） */}
+      <Toast
+        message={vipWarning?.message || null}
+        duration={4000}
+        onHide={() => setVipWarning(null)}
+      />
     </>
   );
 }
