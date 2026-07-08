@@ -3,6 +3,8 @@
 @tailwind utilities;
 
 
+.login-btn-wrapper { position: relative; }
+
 /* === 全局基础样式 — 米白色主题 === */
 * {
   margin: 0;

@@ -3,11 +3,12 @@ import { TitleBar } from './components/TitleBar';
 import { WindowControls } from './components/WindowControls';
 import { LogoAnimation } from './components/splash/LogoAnimation';
 import Grainient from './components/grainient/Grainient';
-import { LoginModal } from './components/login-modal/LoginModal';
+import { LoginDropdown } from './components/login-dropdown/LoginDropdown';
+import './login-dropdown/login-dropdown.css';
 
 export default function App() {
   const [entered, setEntered] = useState(false);
-  const [showLogin, setShowLogin] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
 
   useEffect(() => {
     const updateMax = async () => {
@@ -44,16 +45,14 @@ export default function App() {
 
         {/* 右上角控制 - 登录 + 窗口控制 */}
         <div className="absolute top-4 right-4 z-50 flex items-center gap-3" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
-          <button
-            className="px-4 py-2 rounded-full bg-black/60 backdrop-blur-sm text-white text-xs font-medium hover:bg-black/80 transition-colors"
-            onClick={() => setShowLogin(true)}
-          >
-            登录
-          </button>
+          <div className="login-btn-wrapper" onMouseEnter={() => setShowDropdown(true)}>
+            <button className="px-4 py-2 rounded-full bg-black/60 backdrop-blur-sm text-white text-xs font-medium hover:bg-black/80 transition-colors">
+              登录
+            </button>
+            {showDropdown && <LoginDropdown onClose={() => setShowDropdown(false)} />}
+          </div>
           <WindowControls />
         </div>
-
-        <LoginModal visible={showLogin} onClose={() => setShowLogin(false)} />
       </div>
     </>
   );

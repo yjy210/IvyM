@@ -1,18 +1,28 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import './login-modal.css';
 
 interface LoginModalProps {
   visible: boolean;
+  platform: 'netease' | 'qq' | 'kugou';
   onClose: () => void;
+  onLoginSuccess?: (info: { nickname: string; avatar: string; vip: boolean; vipName: string; userId: string; cookie: string }) => void;
 }
 
 type Platform = 'netease' | 'qq' | 'kugou';
 
-export function LoginModal({ visible, onClose }: LoginModalProps) {
-  const [platform, setPlatform] = useState<Platform>('netease');
+export function LoginModal({ visible, platform, onClose, onLoginSuccess }: LoginModalProps) {
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (visible) {
+      setQrCode(null);
+      setError(null);
+      setStatus(null);
+    }
+  }, [visible]);
 
   if (!visible) return null;
 
@@ -22,30 +32,15 @@ export function LoginModal({ visible, onClose }: LoginModalProps) {
     setLoading(true);
     setError(null);
     try {
-      if (platform === 'netease') {
-        const res = await fetch(`${API_BASE}/api/netease/login/qr`);
-        const data = await res.json();
-        if (data.code === 200) {
-          setQrCode(data.data.qrimg);
-        } else {
-          setError(data.msg || '获取二维码失败');
-        }
-      } else if (platform === 'qq') {
-        const res = await fetch(`${API_BASE}/api/qq/login/qr`);
-        const data = await res.json();
-        if (data.code === 200) {
-          setQrCode(data.data.qrimg);
-        } else {
-          setError(data.msg || '获取二维码失败');
-        }
-      } else if (platform === 'kugou') {
-        const res = await fetch(`${API_BASE}/api/kugou/login/qr`);
-        const data = await res.json();
-        if (data.code === 200) {
-          setQrCode(data.data.qrimg);
-        } else {
-          setError(data.msg || '获取二维码失败');
-        }
+      const res = await fetch(`${API_BASE}/api/${platform}/login/qr`);
+      const data = await res.json();
+      if (data.code === 200) {
+        setQrCode(data.data.qrimg);
+        setStatus('请使用APP扫码登录');
+        // 开始轮询扫码状态
+        startPolling(data.data.unikey || data.data.sig || '');
+      } else {
+        setError(data.msg || '获取二维码失败');
       }
     } catch {
       setError('网络错误，请检查 API 服务器是否启动');
@@ -54,48 +49,57 @@ export function LoginModal({ visible, onClose }: LoginModalProps) {
     }
   };
 
-  const platforms: { id: Platform; name: string; icon: string }[] = [
-    { id: 'netease', name: '网易云音乐', icon: '🎵' },
-    { id: 'qq', name: 'QQ音乐', icon: '🎶' },
-    { id: 'kugou', name: '酷狗音乐', icon: '🎧' },
-  ];
+  const startPolling = (key: string) => {
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`${API_BASE}/api/${platform}/login/check?key=${key}`);
+        const data = await res.json();
+        if (data.code === 200 || data.code === 803) {
+          clearInterval(interval);
+          setStatus('登录成功！');
+          onLoginSuccess?.({
+            nickname: data.nickname || '用户',
+            avatar: data.avatar || '',
+            vip: data.vip || false,
+            vipName: data.vipName || '',
+            userId: data.userId || data.uin || '',
+            cookie: data.cookie || '',
+          });
+        } else if (data.code === 800) {
+          setStatus('二维码已过期，请刷新');
+          clearInterval(interval);
+        }
+      } catch {}
+    }, 2000);
+  };
+
+  const platformNames: Record<Platform, string> = {
+    netease: '网易云音乐',
+    qq: 'QQ音乐',
+    kugou: '酷狗音乐',
+  };
 
   return (
     <div className="login-overlay" onClick={onClose}>
       <div className="login-modal" onClick={e => e.stopPropagation()}>
         <div className="login-header">
-          <h3>登录账号</h3>
+          <h3>绑定{platformNames[platform]}</h3>
           <button className="login-close" onClick={onClose}>✕</button>
         </div>
 
-        {/* 平台选择 */}
-        <div className="login-tabs">
-          {platforms.map(p => (
-            <button
-              key={p.id}
-              className={`login-tab${platform === p.id ? ' active' : ''}`}
-              onClick={() => { setPlatform(p.id); setQrCode(null); setError(null); }}
-            >
-              <span>{p.icon}</span>
-              <span>{p.name}</span>
-            </button>
-          ))}
-        </div>
-
-        {/* 登录内容 */}
         <div className="login-body">
           {loading && <div className="login-loading">加载中...</div>}
-
           {error && <div className="login-error">{error}</div>}
+          {status && !error && <div className="login-status">{status}</div>}
 
           {qrCode ? (
             <div className="login-qr">
               <img src={qrCode} alt="登录二维码" />
-              <p>请使用{platforms.find(p => p.id === platform)?.name}APP扫码登录</p>
+              <p>请使用{platformNames[platform]}APP扫码登录</p>
             </div>
           ) : (
             <button className="login-btn" onClick={handleLogin} disabled={loading}>
-              {loading ? '加载中...' : `使用${platforms.find(p => p.id === platform)?.name}扫码登录`}
+              {loading ? '加载中...' : `获取${platformNames[platform]}登录二维码`}
             </button>
           )}
         </div>
@@ -103,3 +107,6 @@ export function LoginModal({ visible, onClose }: LoginModalProps) {
     </div>
   );
 }
+
+// 为了兼容旧的导入方式
+export default LoginModal;
