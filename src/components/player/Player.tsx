@@ -237,7 +237,7 @@ export default function Player() {
             {currentSong?.cover ? (
               <img src={currentSong.cover} alt="" className="player-cover" />
             ) : (
-              <div className="player-cover" />
+              <img src="/logo.png" alt="IvyM" className="player-cover" />
             )}
             <div className="player-text">
               <div className="player-song-name">{currentSong?.name || '未选择歌曲'}</div>
@@ -352,7 +352,7 @@ export default function Player() {
                   {song.cover ? (
                     <img src={song.cover} alt="" className="playlist-item-cover" />
                   ) : (
-                    <div className="playlist-item-cover" />
+                    <img src="/logo.png" alt="IvyM" className="playlist-item-cover" />
                   )}
                   <div className="playlist-item-info">
                     <div className="playlist-item-name">{song.name}</div>

@@ -208,7 +208,7 @@ export default function SearchBar() {
                 {song.cover ? (
                   <img src={song.cover} alt="" className="search-result-cover" />
                 ) : (
-                  <div className="search-result-cover" />
+                  <img src="/logo.png" alt="IvyM" className="search-result-cover" />
                 )}
                 <div className="search-result-info">
                   <div className="search-result-name">{song.name}</div>
