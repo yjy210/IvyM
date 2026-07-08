@@ -8,7 +8,7 @@ const { startApiServer } = require('../server/index');
 const PLATFORM_LOGIN_URLS = {
   netease: 'https://music.163.com/#/login',
   qq: 'https://y.qq.com/n/ryqq/profile',
-  kugou: 'https://www.kugou.com/',
+  kugou: 'https://www.kugou.com/login',
 };
 
 // 各平台 partition（隔离 session，避免污染主窗口）
@@ -19,11 +19,12 @@ const PLATFORM_PARTITIONS = {
 };
 
 // 各平台登录有效的关键 cookie 名（用于判断登录是否成功）
+// 注意：酷狗的 kg_mid/KG_FID 游客也有，不能作为登录凭证，只有 userid 能证明已登录
 const LOGIN_KEY_COOKIES = {
   netease: ['MUSIC_U', '__csrf', 'os'],
   // QQ 需要同时有 uin + music key (qm_keyst/qqmusic_key/music_key/skey)
   qq: ['uin', 'music_u', 'qm_keyst', 'qqmusic_key'],
-  kugou: ['kg_mid', 'KuGoo', 'KG_FID', 'userid'],
+  kugou: ['userid'], // 仅 userid 能证明酷狗已登录（kg_mid/KG_FID 游客也有）
 };
 
 // QQ 音乐关键 cookie：需要 uin AND music key 同时存在
@@ -366,8 +367,9 @@ ipcMain.handle('login:open', async (event, platform) => {
   const partition = PLATFORM_PARTITIONS[platform];
 
   // 先检查 partition 中是否已有有效 cookie（之前登录过，还没过期）
+  // 注意：酷狗跳过此检查，因为即使有 userid 也可能是旧 session 残留，必须走登录流程
   const existing = await getPlatformCookies(platform);
-  if (hasLoginCookies(platform, existing)) {
+  if (platform !== 'kugou' && hasLoginCookies(platform, existing)) {
     console.log(`[IvyM] ${platform} already logged in (cookie exists), auto-binding...`);
     const cookieStr = existing.map(c => `${c.name}=${c.value}`).join('; ');
     const userId = getUserIdFromCookies(platform, existing);
@@ -414,8 +416,15 @@ ipcMain.handle('login:open', async (event, platform) => {
       try {
         const cookies = await getPlatformCookies(platform);
         if (hasLoginCookies(platform, cookies)) {
-          console.log(`[IvyM] ${platform} login cookie detected, fetching user from page...`);
+          console.log(`[IvyM] ${platform} login cookie detected`);
           const cookieStr = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+
+          // 酷狗需要等页面加载完成（cookie 先于 DOM 出现）
+          if (platform === 'kugou') {
+            await new Promise(r => setTimeout(r, 3000));
+            if (loginWin.isDestroyed()) return;
+          }
+
           const userInfo = await getUserInfo(platform, cookieStr, loginWin);
           if (userInfo && (userInfo.nickname || userInfo.userId)) {
             finish({ platform, success: true, cookie: cookieStr, user: userInfo });
@@ -473,7 +482,10 @@ ipcMain.handle('login:clear', async (event, platform) => {
     try { await ses.cookies.remove(`${protocol}${domain}${c.path || '/'}`, c.name); } catch {}
   }
 
-  // 3) 清除网络缓存和认证
+  // 3) 关闭所有网络连接（断开 service worker / websocket）
+  await ses.closeAllConnections?.();
+
+  // 4) 清除网络缓存和认证
   await ses.clearCache();
   await ses.clearHostResolverCache();
   await ses.clearAuthCache();
