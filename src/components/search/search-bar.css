@@ -1,23 +1,30 @@
-/* ── Search Island ── */
-.search-island {
-  position: relative;
+/* ── 搜索 Island 容器（顶部居中） ── */
+.search-island-wrapper {
+  position: fixed;
+  top: 1.25rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
-  background: rgba(0, 0, 0, 0.04);
-  border: 1px solid rgba(0, 0, 0, 0.02);
-  border-radius: 999px;
-  overflow: hidden;
-  cursor: pointer;
-  flex-shrink: 0;
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.06);
-  transition: box-shadow 0.2s ease, background 0.2s ease;
 }
 
-.search-island:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+/* GlassSurface 覆盖为搜索框样式 */
+.search-island.glass-surface {
+  cursor: pointer;
+  overflow: hidden;
+  transition: box-shadow 0.2s ease;
+}
+
+.search-island.glass-surface:hover {
+  box-shadow:
+    0 0 2px 1px color-mix(in oklch, white, transparent 65%) inset,
+    0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+.search-island .glass-surface__content {
+  padding: 0;
 }
 
 /* 放大镜图标 */
@@ -53,13 +60,13 @@
   outline: none;
   background: transparent;
   font-size: 14px;
-  color: #fff;
+  color: #1a1a2e;
   width: 100%;
   font-family: inherit;
 }
 
 .s-input::placeholder {
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(0, 0, 0, 0.35);
 }
 
 /* 关闭按钮 */
@@ -75,7 +82,7 @@
 }
 
 .s-close-btn:hover svg {
-  stroke: #fff;
+  stroke: #333;
 }
 
 /* ── 搜索结果面板 ── */
@@ -89,21 +96,21 @@
   width: 90vw;
   max-width: 400px;
   max-height: 50vh;
-  background: rgba(20, 20, 35, 0.92);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(20px) saturate(1.8);
+  -webkit-backdrop-filter: blur(20px) saturate(1.8);
+  border: 1px solid rgba(0, 0, 0, 0.06);
   border-radius: 16px;
   padding: 0.4rem;
   overflow-y: auto;
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.12);
 }
 
 /* 分类标题 */
 .search-section-title {
   font-size: 10px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.35);
+  color: rgba(0, 0, 0, 0.35);
   text-transform: uppercase;
   letter-spacing: 1px;
   padding: 0.5rem 0.7rem 0.25rem;
@@ -125,11 +132,11 @@
 }
 
 .search-result-item:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(0, 0, 0, 0.04);
 }
 
 .search-result-item + .search-result-item {
-  border-top: 1px solid rgba(255, 255, 255, 0.03);
+  border-top: 1px solid rgba(0, 0, 0, 0.03);
   border-radius: 0;
 }
 
@@ -150,7 +157,7 @@
   width: 36px;
   height: 36px;
   border-radius: 5px;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(0, 0, 0, 0.04);
   flex-shrink: 0;
 }
 
@@ -163,7 +170,7 @@
 .search-result-name {
   font-size: 12px;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.85);
+  color: rgba(0, 0, 0, 0.85);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -171,7 +178,7 @@
 
 .search-result-artist {
   font-size: 10px;
-  color: rgba(255, 255, 255, 0.35);
+  color: rgba(0, 0, 0, 0.35);
   margin-top: 1px;
   white-space: nowrap;
   overflow: hidden;
@@ -188,12 +195,12 @@
 }
 
 .search-result-source.netease {
-  background: rgba(222, 56, 56, 0.12);
+  background: rgba(222, 56, 56, 0.08);
   color: #ec4141;
 }
 
 .search-result-source.qq {
-  background: rgba(49, 194, 124, 0.12);
+  background: rgba(49, 194, 124, 0.08);
   color: #31c27c;
 }
 
@@ -201,6 +208,6 @@
 .search-empty {
   text-align: center;
   padding: 1.5rem 1rem;
-  color: rgba(255, 255, 255, 0.25);
+  color: rgba(0, 0, 0, 0.3);
   font-size: 12px;
 }
