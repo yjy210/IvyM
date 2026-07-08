@@ -8,16 +8,15 @@
   background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(20px) saturate(1.8) brightness(1.1);
   -webkit-backdrop-filter: blur(20px) saturate(1.8) brightness(1.1);
-  border-radius: 16px;
+  border-radius: 0 0 20px 20px;
   border: 1px solid rgba(255, 255, 255, 0.3);
+  border-top: none;
   box-shadow:
     0 8px 32px 0 rgba(31, 38, 135, 0.15),
     0 2px 16px 0 rgba(31, 38, 135, 0.08),
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.5),
     inset 0 -1px 0 0 rgba(255, 255, 255, 0.3);
   z-index: 800;
   -webkit-app-region: no-drag;
-  overflow: hidden;
 }
 
 /* ── 进度条轨道 ── */
@@ -201,6 +200,9 @@
 /* ── 音量弹窗 ── */
 .player-volume-wrapper {
   position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .player-volume-popup {
@@ -215,6 +217,7 @@
   border-radius: 12px;
   padding: 16px 12px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  z-index: 9999;
   -webkit-app-region: no-drag;
 }
 
@@ -478,6 +481,24 @@
 
 .save-playlist-hint.has {
   color: #22c55e;
+}
+
+/* ── 收藏按钮 ── */
+.player-save-btn {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-app-region: no-drag;
+}
+
+.player-save-btn .folder-folder-btn {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
 }
 
 /* ── 无歌曲占位 ── */

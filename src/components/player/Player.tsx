@@ -1,8 +1,10 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { usePlayerStore } from '../../stores/playerStore';
 import ElasticSlider from './ElasticSlider';
+import Folder from './Folder';
 import './player.css';
 import './ElasticSlider.css';
+import './Folder.css';
 
 interface Song {
   id: string;
@@ -302,23 +304,11 @@ export default function Player() {
                   <svg viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
                 )}
               </button>
-              {showVolume && (
-                <div className="player-volume-popup">
-                  <div className="volume-slider">
-                    <ElasticSlider
-                      defaultValue={volume}
-                      startingValue={0}
-                      maxValue={100}
-                      onChange={setVolume}
-                    />
-                  </div>
-                </div>
-              )}
             </div>
 
-            <button className="player-btn" data-popup-btn onClick={() => setShowSaveToPlaylist(!showSaveToPlaylist)} title="收藏到歌单">
-              <svg viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
-            </button>
+            <div className="player-save-btn">
+              <Folder size={0.35} items={[]} />
+            </div>
           </div>
         </div>
       </div>

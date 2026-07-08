@@ -1,0 +1,71 @@
+.folder-folder-btn {
+  transition: all 0.2s ease-in;
+  cursor: pointer;
+}
+
+.folder-folder-btn .folder__back {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1.5px solid rgba(0, 0, 0, 0.7);
+  border-radius: 0px 6px 6px 6px;
+}
+
+.folder-folder-btn .folder__back::after {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1.5px solid rgba(0, 0, 0, 0.7);
+  border-bottom: none;
+}
+
+.folder-folder-btn .folder__front {
+  background: transparent;
+  border: 1.5px solid rgba(0, 0, 0, 0.7);
+  border-radius: 2px 6px 6px 6px;
+}
+
+.folder-folder-btn .paper {
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(0, 0, 0, 0.15);
+}
+
+.folder-folder-btn .paper:nth-child(2) {
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.folder-folder-btn .paper:nth-child(3) {
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.folder-folder-btn:hover .folder__front {
+  transform: skew(15deg) scaleY(0.6);
+}
+
+.folder-folder-btn:hover .right {
+  transform: skew(-15deg) scaleY(0.6);
+}
+
+.folder-folder-btn.open .folder__front {
+  transform: skew(15deg) scaleY(0.6);
+}
+
+.folder-folder-btn.open .right {
+  transform: skew(-15deg) scaleY(0.6);
+}
+
+.folder-folder-btn.open .paper:nth-child(1) {
+  transform: translate(-120%, -70%) rotateZ(-15deg);
+}
+
+.folder-folder-btn.open .paper:nth-child(2) {
+  transform: translate(10%, -70%) rotateZ(15deg);
+  height: 80%;
+}
+
+.folder-folder-btn.open .paper:nth-child(3) {
+  transform: translate(-50%, -100%) rotateZ(5deg);
+  height: 80%;
+}
+
+.folder-folder-btn:focus-visible {
+  outline: 2px solid #1a1a2e;
+  outline-offset: 4px;
+  border-radius: 6px;
+}
