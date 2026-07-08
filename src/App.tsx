@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { WindowControls } from './components/WindowControls';
+import { TitleBar } from './components/TitleBar';
 import { LogoAnimation } from './components/splash/LogoAnimation';
 import Grainient from './components/grainient/Grainient';
 
@@ -34,9 +34,7 @@ export default function App() {
           />
         </div>
 
-        <div className="absolute top-3 right-3 z-50">
-          <WindowControls />
-        </div>
+        <TitleBar />
 
         <div className="flex-1 overflow-y-auto z-10">
           {/* router placeholder */}
