@@ -1,8 +1,10 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { usePlayerStore } from '../../stores/playerStore';
 import GlassSurface from './GlassSurface';
+import VolumeSlider from './VolumeSlider';
 import './player.css';
 import './GlassSurface.css';
+import './VolumeSlider.css';
 
 interface Song {
   id: string;

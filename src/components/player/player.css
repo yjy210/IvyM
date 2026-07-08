@@ -24,7 +24,7 @@
   z-index: 0;
   pointer-events: none;
   overflow: hidden;
-  border-radius: 0 0 20px 20px;
+  border-radius: 0 0 20px 20px !important;
 }
 
 .player-glass .glass-surface__content {
@@ -155,7 +155,6 @@
 .player-layout {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   flex: 1;
   position: relative;
   min-width: 0;
@@ -167,9 +166,20 @@
   display: flex;
   align-items: center;
   gap: clamp(3px, 0.5vw, 8px);
-  flex-shrink: 1;
+  flex: 1;
   min-width: 0;
   z-index: 2;
+  height: 100%;
+}
+
+.player-left-tools {
+  justify-content: flex-start;
+  padding-left: 16px;
+}
+
+.player-right-tools {
+  justify-content: flex-end;
+  padding-right: 16px;
 }
 
 /* 播放控制组：绝对居中 */
@@ -182,6 +192,8 @@
   align-items: center;
   gap: clamp(3px, 0.5vw, 8px);
   z-index: 3;
+  flex-shrink: 0;
+  pointer-events: auto;
 }
 
 .player-song-info {
