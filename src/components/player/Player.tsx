@@ -38,9 +38,7 @@ export default function Player() {
   const [showVolume, setShowVolume] = useState(false);
   const [showPlaylist, setShowPlaylist] = useState(false);
   const [showLyrics, setShowLyrics] = useState(false);
-  const [showComments, setShowComments] = useState(false);
   const [showSaveToPlaylist, setShowSaveToPlaylist] = useState(false);
-  const [commentTab, setCommentTab] = useState<'netease' | 'qq'>('netease');
 
   // 喜欢的歌曲
   const [likes, setLikes] = useState<string[]>(() => {
@@ -122,7 +120,7 @@ export default function Player() {
 
   // 点击外部关闭弹窗
   useEffect(() => {
-    if (!showVolume && !showPlaylist && !showLyrics && !showComments && !showSaveToPlaylist) return;
+    if (!showVolume && !showPlaylist && !showLyrics && !showSaveToPlaylist) return;
     const handler = (e: MouseEvent) => {
       const target = e.target as Node;
       const popups = document.querySelectorAll('.player-popup, .player-volume-popup');
@@ -140,7 +138,7 @@ export default function Player() {
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, [showVolume, showPlaylist, showLyrics, showComments, showSaveToPlaylist]);
+  }, [showVolume, showPlaylist, showLyrics, showSaveToPlaylist]);
 
   const togglePlayMode = () => {
     const modes: Array<'sequence' | 'loop' | 'shuffle'> = ['sequence', 'loop', 'shuffle'];
@@ -201,11 +199,6 @@ export default function Player() {
 
   const progressPct = duration ? (currentTime / duration) * 100 : 0;
 
-  // 是否有两个平台的评论
-  const hasBothPlatforms = currentSong && searchResults &&
-    searchResults.netease.some((n: Song) => n.name === currentSong.name && n.artists === currentSong.artists) &&
-    searchResults.qq.some((q: Song) => q.name === currentSong.name && q.artists === currentSong.artists);
-
   return (
     <>
       <audio
@@ -250,10 +243,6 @@ export default function Player() {
           <div className="player-controls">
             <button className={`player-btn${isLiked ? ' liked' : ''}`} onClick={toggleLike} title="喜欢">
               <svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-            </button>
-
-            <button className="player-btn" data-popup-btn onClick={() => setShowComments(!showComments)} title="评论">
-              <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
             </button>
 
             <button className={`player-btn${playMode !== 'sequence' ? ' active' : ''}`} onClick={togglePlayMode} title={playMode === 'sequence' ? '顺序播放' : playMode === 'loop' ? '单曲循环' : '随机播放'}>
@@ -369,26 +358,6 @@ export default function Player() {
         </div>
       )}
 
-      {/* 评论区 */}
-      {showComments && (
-        <div className="player-popup">
-          <div className="player-popup-header">
-            <span className="player-popup-title">评论</span>
-            <button className="player-popup-close" onClick={() => setShowComments(false)}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#666" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
-          </div>
-          <div className="player-popup-body">
-            {hasBothPlatforms && (
-              <div className="comment-tabs">
-                <button className={`comment-tab${commentTab === 'netease' ? ' active' : ''}`} onClick={() => setCommentTab('netease')}>网易云音乐</button>
-                <button className={`comment-tab${commentTab === 'qq' ? ' active' : ''}`} onClick={() => setCommentTab('qq')}>QQ音乐</button>
-              </div>
-            )}
-            <div className="comment-empty">暂无评论</div>
-          </div>
-        </div>
-      )}
 
       {/* 收藏到歌单 */}
       {showSaveToPlaylist && (
