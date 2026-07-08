@@ -1,4 +1,4 @@
-const http = require('http');
+const https = require('https');
 
 const BASE = 'https://music.163.com';
 
@@ -6,7 +6,7 @@ function neteaseRequest(api, params = {}) {
   return new Promise((resolve, reject) => {
     const qs = new URLSearchParams(params).toString();
     const url = `${BASE}${api}?${qs}`;
-    const req = http.get(url, {
+    const req = https.get(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         'Referer': BASE,
@@ -39,6 +39,7 @@ async function neteaseSearch(keyword, limit = 30) {
     album: s.album?.name || '',
     duration: s.duration,
     source: 'netease',
+    fee: s.fee || 0, // 1=VIP, 0=免费
   }));
   return { code: 200, data: songs, total: res.result.songCount || songs.length };
 }
@@ -76,7 +77,7 @@ async function neteaseQrCheck(unikey) {
 
 async function neteaseUserInfo(cookie) {
   return new Promise((resolve, reject) => {
-    const req = http.get('https://music.163.com/api/nuser/account/get', {
+    const req = https.get('https://music.163.com/api/nuser/account/get', {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         'Referer': 'https://music.163.com',

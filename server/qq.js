@@ -1,4 +1,4 @@
-const http = require('http');
+const https = require('https');
 
 const BASE = 'https://c.y.qq.com';
 
@@ -12,7 +12,7 @@ function qqRequest(path, params = {}) {
       ...params,
     }).toString();
     const url = `${BASE}${path}?${qs}`;
-    const req = http.get(url, {
+    const req = https.get(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         'Referer': 'https://y.qq.com',
@@ -46,6 +46,7 @@ async function qqSearch(keyword, limit = 30) {
     album: s.albumname || '',
     duration: s.interval ? s.interval * 1000 : 0,
     source: 'qq',
+    fee: s.pay?.payplay === 1 ? 1 : 0, // 1=VIP, 0=免费
   }));
   return { code: 200, data: songs, total: res.data.song.totalnum || songs.length };
 }
@@ -106,7 +107,7 @@ async function qqQrCheck(sigx) {
 
 async function qqUserInfo(cookie) {
   return new Promise((resolve, reject) => {
-    const req = http.get('https://c.y.qq.com/rpc/fcgi-bin/cgi_get_portrait.fcg', {
+    const req = https.get('https://c.y.qq.com/rpc/fcgi-bin/cgi_get_portrait.fcg', {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         'Referer': 'https://y.qq.com',
