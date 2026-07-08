@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { usePlayerStore } from '../../stores/playerStore';
+import ElasticSlider from './ElasticSlider';
 import './player.css';
+import './ElasticSlider.css';
 
 export default function Player() {
   const currentSong = usePlayerStore(s => s.currentSong);
@@ -15,13 +17,13 @@ export default function Player() {
   const audioRef = useRef<HTMLAudioElement>(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [volume, setVolume] = useState(0.7);
+  const [volume, setVolume] = useState(70);
   const [songUrl, setSongUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showVolume, setShowVolume] = useState(false);
 
   const API_BASE = 'http://localhost:3001';
 
-  // 获取播放地址
   const fetchSongUrl = useCallback(async (song: typeof currentSong) => {
     if (!song) return;
     setLoading(true);
@@ -44,7 +46,6 @@ export default function Player() {
     }
   }, []);
 
-  // 当前歌曲变化时获取 URL
   useEffect(() => {
     if (currentSong) {
       fetchSongUrl(currentSong);
@@ -53,7 +54,6 @@ export default function Player() {
     }
   }, [currentSong, fetchSongUrl]);
 
-  // 播放/暂停控制
   useEffect(() => {
     if (!audioRef.current) return;
     if (isPlaying && songUrl) {
@@ -63,24 +63,18 @@ export default function Player() {
     }
   }, [isPlaying, songUrl]);
 
-  // 音量控制
   useEffect(() => {
     if (audioRef.current) {
-      audioRef.current.volume = volume;
+      audioRef.current.volume = volume / 100;
     }
   }, [volume]);
 
-  // 音频事件
   const onTimeUpdate = () => {
-    if (audioRef.current) {
-      setCurrentTime(audioRef.current.currentTime);
-    }
+    if (audioRef.current) setCurrentTime(audioRef.current.currentTime);
   };
 
   const onLoadedMetadata = () => {
-    if (audioRef.current) {
-      setDuration(audioRef.current.duration);
-    }
+    if (audioRef.current) setDuration(audioRef.current.duration);
   };
 
   const onEnded = () => {
@@ -94,34 +88,27 @@ export default function Player() {
     }
   };
 
-  // 进度条点击
-  const onProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!audioRef.current || !duration) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const pct = (e.clientX - rect.left) / rect.width;
-    audioRef.current.currentTime = pct * duration;
-  };
-
-  // 音量条点击
-  const onVolumeClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const pct = (e.clientX - rect.left) / rect.width;
-    setVolume(Math.max(0, Math.min(1, pct)));
-  };
-
-  // 切换播放模式
   const togglePlayMode = () => {
     const modes: Array<'sequence' | 'loop' | 'shuffle'> = ['sequence', 'loop', 'shuffle'];
     const idx = modes.indexOf(playMode);
     setPlayMode(modes[(idx + 1) % modes.length]);
   };
 
-  // 格式化时间
   const fmt = (s: number) => {
     if (!s || isNaN(s)) return '0:00';
     const m = Math.floor(s / 60);
     const sec = Math.floor(s % 60);
     return `${m}:${sec.toString().padStart(2, '0')}`;
+  };
+
+  const onProgressChange = (v: number) => {
+    if (audioRef.current && duration) {
+      audioRef.current.currentTime = (v / 100) * duration;
+    }
+  };
+
+  const onVolumeChange = (v: number) => {
+    setVolume(v);
   };
 
   return (
@@ -179,21 +166,46 @@ export default function Player() {
           </button>
         </div>
 
+        {/* 进度条（弹性滑块） */}
         <div className="player-progress-row">
           <span className="player-time">{fmt(currentTime)}</span>
-          <div className="player-progress" onClick={onProgressClick}>
-            <div className="player-progress-bar" style={{ width: duration ? `${(currentTime / duration) * 100}%` : '0%' }} />
+          <div className="player-progress">
+            <ElasticSlider
+              defaultValue={0}
+              startingValue={0}
+              maxValue={100}
+              className="progress-slider"
+              onChange={onProgressChange}
+            />
           </div>
           <span className="player-time">{fmt(duration)}</span>
         </div>
       </div>
 
       {/* 音量 */}
-      <div className="player-volume">
-        <svg viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
-        <div className="player-volume-slider" onClick={onVolumeClick}>
-          <div className="player-volume-bar" style={{ width: `${volume * 100}%` }} />
-        </div>
+      <div className="player-volume-wrapper">
+        <button
+          className="player-btn player-volume-btn"
+          onClick={() => setShowVolume(!showVolume)}
+          title="音量"
+        >
+          {volume >= 50 ? (
+            <svg viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+          ) : (
+            <svg viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+          )}
+        </button>
+        {showVolume && (
+          <div className="player-volume-popup">
+            <ElasticSlider
+              defaultValue={volume}
+              startingValue={0}
+              maxValue={100}
+              className="volume-slider"
+              onChange={onVolumeChange}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

@@ -40,15 +40,15 @@ async function neteaseSearch(keyword, limit = 30) {
     duration: s.duration,
     source: 'netease',
     fee: s.fee || 0, // 1=VIP, 0=免费
-    cover: s.album?.picId ? `https://p1.music.126.net/${s.album.picId}/${s.album.picId}.jpg?param=100y100` : '',
+    cover: s.album?.picUrl || '',
   }));
   return { code: 200, data: songs, total: res.result.songCount || songs.length };
 }
 
 async function neteaseSongUrl(id) {
-  const res = await neteaseRequest('/api/song/enhance/player/url', {
+  const res = await neteaseRequest('/song/url/v1', {
     ids: `[${id}]`,
-    br: 320000,
+    level: 'exhigh',
   });
   if (!res.data?.[0]?.url) return { code: -1, data: null };
   return { code: 200, data: { url: res.data[0].url, br: res.data[0].br } };
