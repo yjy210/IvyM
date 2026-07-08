@@ -16,18 +16,12 @@ const PLATFORM_PARTITIONS = {
   qq: 'persist:ivym-qq-login',
 };
 
-// 各平台登录有效的关键 cookie 名
-const LOGIN_KEY_COOKIES = {
-  netease: ['MUSIC_U', '__csrf', 'os'],
-  qq: ['uin', 'music_u', 'qm_keyst', 'qqmusic_key'],
-};
-
 // QQ 音乐关键 cookie：需要 uin AND music key 同时存在
 function qqHasValidLogin(cookies) {
   const names = cookies.map(c => c.name);
   const hasUin = names.includes('uin') || names.includes('wxuin') || names.includes('p_uin');
-  const hasMusicKey = names.includes('qm_keyst') || names.includes('qqmusic_key') ||
-    names.includes('music_key') || names.includes('p_skey') || names.includes('skey');
+  // 只认播放授权 key，skey/p_skey 太宽松（QQ 全站都有）
+  const hasMusicKey = names.includes('qm_keyst') || names.includes('qqmusic_key');
   return hasUin && hasMusicKey;
 }
 
@@ -117,10 +111,10 @@ async function getPlatformCookies(platform) {
 
 // 判断是否已有关键 cookie
 function hasLoginCookies(platform, cookies) {
-  if (platform === 'qq') return qqHasValidLogin(cookies);
-  const keys = LOGIN_KEY_COOKIES[platform] || [];
   const names = cookies.map(c => c.name);
-  return keys.some(k => names.includes(k));
+  if (platform === 'netease') return names.includes('MUSIC_U'); // 网易云只认 MUSIC_U
+  if (platform === 'qq') return qqHasValidLogin(cookies);
+  return false;
 }
 
 // 通用 https 请求（支持 GET/POST + params），返回 parsed JSON
@@ -150,7 +144,7 @@ function httpsRequest(url, { method = 'GET', headers = {}, body, params } = {}) 
     const req = https.request(options, (res) => {
       let data = '';
       res.on('data', chunk => data += chunk);
-      res.on('end', () => resolve(safeJsonParse(data) || data));
+      res.on('end', () => resolve(data));
     });
     req.on('error', reject);
     req.setTimeout(15000, () => { req.destroy(); reject(new Error('timeout')); });
@@ -310,68 +304,55 @@ ipcMain.handle('login:open', async (event, platform) => {
   const partition = PLATFORM_PARTITIONS[platform];
 
   return new Promise((resolve) => {
-    // 先检查是否已登录
-    getPlatformCookies(platform).then((existing) => {
-      if (hasLoginCookies(platform, existing)) {
-        console.log(`[IvyM] ${platform} already logged in, auto-binding...`);
-        const cookieStr = existing.map(c => `${c.name}=${c.value}`).join('; ');
-        const userId = getUserIdFromCookies(platform, existing);
-        mainWin?.webContents.send('login:result', {
-          platform,
-          success: true,
-          cookie: cookieStr,
-          user: { platform, nickname: '', avatar: '', userId, vip: false, vipName: '' },
-        });
-        return resolve({ platform, success: true });
-      }
+    let settled = false;
+    let pollTimer = null;
 
-      let settled = false;
-
-      const loginWin = new BrowserWindow({
-        width: 900,
-        height: 680,
-        minWidth: 700,
-        minHeight: 500,
-        title: `绑定${platform === 'netease' ? '网易云音乐' : 'QQ音乐'}账号`,
-        autoHideMenuBar: true,
-        icon: path.join(__dirname, '../build/logo.png'),
-        webPreferences: {
-          nodeIntegration: false,
-          contextIsolation: true,
-          sandbox: false,
-          partition,
-        },
-      });
-
-      const finish = async (result) => {
-        if (settled) return;
-        settled = true;
-        clearInterval(pollTimer);
-        if (!loginWin.isDestroyed()) loginWin.close();
-        mainWin?.webContents.send('login:result', result);
-        resolve(result);
-      };
-
-      const pollTimer = setInterval(async () => {
-        try {
-          const cookies = await getPlatformCookies(platform);
-          if (hasLoginCookies(platform, cookies)) {
-            const cookieStr = cookies.map(c => `${c.name}=${c.value}`).join('; ');
-            const userInfo = await getUserInfo(platform, cookieStr);
-            if (userInfo && (userInfo.nickname || userInfo.userId)) {
-              finish({ platform, success: true, cookie: cookieStr, user: userInfo });
-            }
-          }
-        } catch { /* ignore */ }
-      }, 1000);
-
-      loginWin.on('closed', async () => {
-        if (settled) return;
-        finish({ platform, success: false, msg: '已取消登录' });
-      });
-
-      loginWin.loadURL(url);
+    const loginWin = new BrowserWindow({
+      width: 900,
+      height: 680,
+      minWidth: 700,
+      minHeight: 500,
+      title: `绑定${platform === 'netease' ? '网易云音乐' : 'QQ音乐'}账号`,
+      autoHideMenuBar: true,
+      icon: path.join(__dirname, '../build/logo.png'),
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        sandbox: false,
+        partition,
+      },
     });
+
+    const finish = async (result) => {
+      if (settled) return;
+      settled = true;
+      if (pollTimer) clearInterval(pollTimer);
+      pollTimer = null;
+      if (!loginWin.isDestroyed()) loginWin.close();
+      mainWin?.webContents.send('login:result', result);
+      resolve(result);
+    };
+
+    pollTimer = setInterval(async () => {
+      try {
+        if (loginWin.isDestroyed()) return;
+        const cookies = await getPlatformCookies(platform);
+        if (hasLoginCookies(platform, cookies)) {
+          const cookieStr = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+          const userInfo = await getUserInfo(platform, cookieStr);
+          if (userInfo && (userInfo.nickname || userInfo.userId)) {
+            finish({ platform, success: true, cookie: cookieStr, user: userInfo });
+          }
+        }
+      } catch { /* ignore */ }
+    }, 1000);
+
+    loginWin.on('closed', async () => {
+      if (settled) return;
+      finish({ platform, success: false, msg: '已取消登录' });
+    });
+
+    loginWin.loadURL(url);
   });
 });
 
@@ -381,10 +362,12 @@ ipcMain.handle('login:clear', async (event, platform) => {
   if (!partition) return;
   const ses = session.fromPartition(partition);
 
+  // 1) 清除所有 storage
   await ses.clearStorageData({
     storages: ['cookies', 'localstorage', 'indexdb', 'cachestorage', 'serviceworkers', 'websql', 'fileSystems'],
   });
 
+  // 2) 兜底：确保 cookie 清掉
   const remaining = await ses.cookies.get({});
   for (const c of remaining) {
     const protocol = c.secure ? 'https://' : 'http://';
@@ -392,7 +375,12 @@ ipcMain.handle('login:clear', async (event, platform) => {
     try { await ses.cookies.remove(`${protocol}${domain}${c.path || '/'}`, c.name); } catch {}
   }
 
+  // 3) 关闭所有网络连接（断开 service worker / websocket）
+  await ses.closeAllConnections?.();
+
+  // 4) 清除网络缓存和认证
   await ses.clearCache();
+  await ses.clearHostResolverCache();
   await ses.clearAuthCache();
 
   console.log(`[IvyM] ${platform} session cleared (${remaining.length} cookies)`);
