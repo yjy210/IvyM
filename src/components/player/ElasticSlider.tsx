@@ -15,6 +15,7 @@ interface ElasticSliderProps {
   rightIcon?: React.ReactNode;
   onChange?: (value: number) => void;
   showValue?: boolean;
+  vertical?: boolean;
 }
 
 export default function ElasticSlider({
@@ -28,6 +29,7 @@ export default function ElasticSlider({
   rightIcon = null,
   onChange,
   showValue = false,
+  vertical = false,
 }: ElasticSliderProps) {
   const [value, setValue] = useState(defaultValue);
   const sliderRef = useRef<HTMLDivElement>(null);
@@ -42,18 +44,31 @@ export default function ElasticSlider({
 
   useMotionValueEvent(clientX, 'change', (latest) => {
     if (sliderRef.current) {
-      const { left, right } = sliderRef.current.getBoundingClientRect();
+      const { left, right, top, bottom } = sliderRef.current.getBoundingClientRect();
       let newValue;
 
-      if (latest < left) {
-        setRegion('left');
-        newValue = left - latest;
-      } else if (latest > right) {
-        setRegion('right');
-        newValue = latest - right;
+      if (vertical) {
+        if (latest < top) {
+          setRegion('left');
+          newValue = top - latest;
+        } else if (latest > bottom) {
+          setRegion('right');
+          newValue = latest - bottom;
+        } else {
+          setRegion('middle');
+          newValue = 0;
+        }
       } else {
-        setRegion('middle');
-        newValue = 0;
+        if (latest < left) {
+          setRegion('left');
+          newValue = left - latest;
+        } else if (latest > right) {
+          setRegion('right');
+          newValue = latest - right;
+        } else {
+          setRegion('middle');
+          newValue = 0;
+        }
       }
 
       overflow.jump(decay(newValue, MAX_OVERFLOW));
@@ -62,8 +77,15 @@ export default function ElasticSlider({
 
   const handlePointerMove = (e: React.PointerEvent) => {
     if (e.buttons > 0 && sliderRef.current) {
-      const { left, width } = sliderRef.current.getBoundingClientRect();
-      let newValue = startingValue + ((e.clientX - left) / width) * (maxValue - startingValue);
+      let newValue;
+      if (vertical) {
+        const { top, height } = sliderRef.current.getBoundingClientRect();
+        newValue = startingValue + ((e.clientY - top) / height) * (maxValue - startingValue);
+        newValue = maxValue - newValue; // invert so top = high
+      } else {
+        const { left, width } = sliderRef.current.getBoundingClientRect();
+        newValue = startingValue + ((e.clientX - left) / width) * (maxValue - startingValue);
+      }
 
       if (isStepped) {
         newValue = Math.round(newValue / stepSize) * stepSize;
@@ -92,7 +114,7 @@ export default function ElasticSlider({
   };
 
   return (
-    <div className={`slider-container ${className}`}>
+    <div className={`slider-container ${className} ${vertical ? 'vertical' : ''}`}>
       <motion.div
         onHoverStart={() => animate(scale, 1.2)}
         onHoverEnd={() => animate(scale, 1)}

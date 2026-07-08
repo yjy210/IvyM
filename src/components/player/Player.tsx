@@ -29,6 +29,7 @@ export default function Player() {
   const setPlaylist = usePlayerStore(s => s.setPlaylist);
 
   const audioRef = useRef<HTMLAudioElement>(null);
+  const volumeRef = useRef<HTMLDivElement>(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(70);
@@ -291,10 +292,9 @@ export default function Player() {
               <svg viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
             </button>
 
-            <div className="player-volume-wrapper">
+            <div className="player-volume-wrapper" ref={volumeRef}>
               <button
                 className="player-btn"
-                data-popup-btn
                 onClick={() => setShowVolume(!showVolume)}
                 title="音量"
               >
@@ -420,6 +420,27 @@ export default function Player() {
               })}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* 音量弹窗 - 在 player-bar 外部渲染 */}
+      {showVolume && volumeRef.current && (
+        <div
+          className="player-volume-popup"
+          style={{
+            position: 'fixed',
+            bottom: `${window.innerHeight - volumeRef.current.getBoundingClientRect().top + 8}px`,
+            left: `${volumeRef.current.getBoundingClientRect().left + volumeRef.current.offsetWidth / 2}px`,
+            transform: 'translateX(-50%)',
+          }}
+        >
+          <ElasticSlider
+            defaultValue={volume}
+            startingValue={0}
+            maxValue={100}
+            vertical
+            onChange={setVolume}
+          />
         </div>
       )}
     </>
