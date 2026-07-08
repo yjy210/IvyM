@@ -15,6 +15,7 @@
   -webkit-app-region: no-drag;
 }
 
+
 .player-glass {
   position: absolute !important;
   inset: 0;
@@ -109,9 +110,9 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  width: 33.33%;
-  max-width: 33.33%;
-  min-width: 0;
+  max-width: 25%;
+  min-width: 120px;
+  flex-shrink: 1;
 }
 
 .player-cover {
@@ -147,35 +148,53 @@
 
 /* ── 控制区布局 ── */
 .player-layout {
-  display: grid;
-  grid-template-columns: auto auto auto;
-  align-items: center;
-  flex: 1;
-  position: relative;
-}
-
-.player-left-tools {
   display: flex;
   align-items: center;
-  gap: 8px;
-  justify-self: start;
+  justify-content: space-between;
+  flex: 1;
+  position: relative;
+  min-width: 0;
+}
+
+.player-left-tools,
+.player-right-tools {
+  display: flex;
+  align-items: center;
+  gap: clamp(3px, 0.5vw, 8px);
+  flex-shrink: 1;
+  min-width: 0;
 }
 
 .player-center-tools {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: clamp(3px, 0.5vw, 8px);
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
+  flex-shrink: 0;
 }
 
-.player-right-tools {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  justify-self: end;
-  margin-left: auto;
+.player-song-info {
+  flex-shrink: 1;
+  min-width: 120px;
+  max-width: 25%;
+  overflow: hidden;
+}
+
+@media (max-width: 900px) {
+  .player-left-tools {
+    display: none;
+  }
+}
+
+@media (max-width: 700px) {
+  .player-right-tools > *:not(.playlist-btn) {
+    display: none;
+  }
+  .player-center-tools > *:not(.player-btn-play) {
+    display: none;
+  }
 }
 
 .player-btn {
