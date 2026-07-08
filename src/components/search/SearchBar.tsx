@@ -160,7 +160,7 @@ export default function SearchBar() {
 
   return (
     <>
-      <div className="search-island-wrapper" ref={islandRef}>
+      <div className="search-island-wrapper" ref={islandRef} onClick={!isOpen ? openSearch : undefined}>
         <GlassSurface
           width="100%"
           height={40}
@@ -181,8 +181,7 @@ export default function SearchBar() {
             <circle cx="11" cy="11" r="7" />
             <line x1="16.5" y1="16.5" x2="21" y2="21" />
           </svg>
-          <span className="s-click-area" onClick={openSearch} />
-          <div className="s-input-area">
+          <div className="s-input-area" onClick={e => e.stopPropagation()}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="11" cy="11" r="7" />
               <line x1="16.5" y1="16.5" x2="21" y2="21" />

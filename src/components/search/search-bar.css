@@ -35,18 +35,6 @@
   transform: translate(-50%, -50%);
   pointer-events: none;
   flex-shrink: 0;
-  z-index: 1;
-}
-
-/* 点击触发区域 — 覆盖整个圆 */
-.s-click-area {
-  position: absolute;
-  top: -8px;
-  left: -8px;
-  right: -8px;
-  bottom: -8px;
-  cursor: pointer;
-  z-index: 10;
 }
 
 /* 输入区域 */
@@ -77,16 +65,16 @@
   color: rgba(0, 0, 0, 0.35);
 }
 
-/* 关闭按钮 — 加大点击区域 */
+/* 关闭按钮 — 明确尺寸 */
 .s-close-btn {
+  width: 32px;
+  height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
   border: none;
   background: transparent;
   cursor: pointer;
-  padding: 8px;
-  margin-right: -8px;
   flex-shrink: 0;
   z-index: 10;
   position: relative;
