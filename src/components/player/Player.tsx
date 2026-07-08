@@ -3,7 +3,6 @@ import { usePlayerStore } from '../../stores/playerStore';
 import ElasticSlider from './ElasticSlider';
 import './player.css';
 import './ElasticSlider.css';
-import '/iconfont/iconfont.css';
 
 interface Song {
   id: string;
