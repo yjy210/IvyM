@@ -11,20 +11,36 @@ const PLATFORM_LOGIN_URLS = {
   kugou: 'https://www.kugou.com/login',
 };
 
-// 各平台 partition（隔离 session，避免污染主窗口）
+// 网易云/QQ 用固定 partition
 const PLATFORM_PARTITIONS = {
   netease: 'persist:ivym-netease-login',
   qq: 'persist:ivym-qq-login',
-  kugou: 'persist:ivym-kugou-login',
 };
 
-// 各平台登录有效的关键 cookie 名（用于判断登录是否成功）
-// 注意：酷狗的 kg_mid/KG_FID 游客也有，不能作为登录凭证，只有 userid 能证明已登录
+// 酷狗用动态 partition（每次登录创建全新浏览器环境，解绑后废弃）
+let kugouPartition = null;
+
+function getPartition(platform) {
+  if (platform === 'kugou') {
+    if (!kugouPartition) {
+      kugouPartition = `persist:ivym-kugou-${Date.now()}`;
+    }
+    return kugouPartition;
+  }
+  return getPartition(platform);
+}
+
+// 酷狗解绑：废弃当前 partition，下次登录创建新的
+function resetKugouPartition() {
+  kugouPartition = `persist:ivym-kugou-${Date.now()}`;
+  console.log('[IvyM] KuGou partition reset to:', kugouPartition);
+}
+
+// 各平台登录有效的关键 cookie 名
 const LOGIN_KEY_COOKIES = {
   netease: ['MUSIC_U', '__csrf', 'os'],
-  // QQ 需要同时有 uin + music key (qm_keyst/qqmusic_key/music_key/skey)
   qq: ['uin', 'music_u', 'qm_keyst', 'qqmusic_key'],
-  kugou: ['userid'], // 仅 userid 能证明酷狗已登录（kg_mid/KG_FID 游客也有）
+  // 酷狗不用 cookie 检测，用 DOM 检测（见 pollTimer 内）
 };
 
 // QQ 音乐关键 cookie：需要 uin AND music key 同时存在
@@ -112,7 +128,7 @@ function stripJsonp(text) {
 
 // 抓取指定 partition 下的 cookie
 async function getPlatformCookies(platform) {
-  const ses = session.fromPartition(PLATFORM_PARTITIONS[platform]);
+  const ses = session.fromPartition(getPartition(platform));
   const urls = COOKIE_URLS[platform] || [];
   let allCookies = [];
   for (const url of urls) {
@@ -364,7 +380,7 @@ async function getUserInfo(platform, cookieStr, loginWin) {
 // 打开平台官方登录窗口（独立 partition + 轮询 cookie + 自动关窗 + DOM 抓取用户信息）
 ipcMain.handle('login:open', async (event, platform) => {
   const url = PLATFORM_LOGIN_URLS[platform] || 'https://music.163.com/#/login';
-  const partition = PLATFORM_PARTITIONS[platform];
+  const partition = getPartition(platform);
 
   // 先检查 partition 中是否已有有效 cookie（之前登录过，还没过期）
   // 注意：酷狗跳过此检查，因为即使有 userid 也可能是旧 session 残留，必须走登录流程
@@ -406,25 +422,46 @@ ipcMain.handle('login:open', async (event, platform) => {
       if (settled) return;
       settled = true;
       clearInterval(pollTimer);
-      if (!loginWin.isDestroyed()) loginWin.destroy();
+      if (!loginWin.isDestroyed()) loginWin.close(); // close 比 destroy 温和，不断开 websocket
       mainWin?.webContents.send('login:result', result);
       resolve(result);
     };
 
-    // 轮询 cookie，每秒检测一次
+    // 轮询检测登录状态
     const pollTimer = setInterval(async () => {
       try {
+        // ===== 酷狗：检测页面 DOM 上的登录状态 =====
+        if (platform === 'kugou' && !loginWin.isDestroyed()) {
+          const isLoggedIn = await loginWin.webContents.executeJavaScript(`
+            (() => {
+              return Boolean(
+                document.querySelector('.user-avatar') ||
+                document.querySelector('.user-name') ||
+                document.querySelector('[class*="nickname"]') ||
+                document.querySelector('[class*="user_name"]') ||
+                (document.title && !/登录|login/i.test(document.title))
+              );
+            })()
+          `, false).catch(() => false);
+
+          if (isLoggedIn) {
+            console.log('[IvyM] KuGou DOM login detected, waiting for page load...');
+            await new Promise(r => setTimeout(r, 3000));
+            if (loginWin.isDestroyed()) return;
+
+            const cookies = await getPlatformCookies(platform);
+            const cookieStr = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+            const userInfo = await getUserInfo(platform, cookieStr, loginWin);
+            finish({ platform, success: true, cookie: cookieStr, user: userInfo });
+          }
+          return;
+        }
+
+        // ===== 网易云/QQ：检测 cookie =====
         const cookies = await getPlatformCookies(platform);
         if (hasLoginCookies(platform, cookies)) {
           console.log(`[IvyM] ${platform} login cookie detected`);
           const cookieStr = cookies.map(c => `${c.name}=${c.value}`).join('; ');
-
-          // 酷狗需要等页面加载完成（cookie 先于 DOM 出现）
-          if (platform === 'kugou') {
-            await new Promise(r => setTimeout(r, 3000));
-            if (loginWin.isDestroyed()) return;
-          }
-
           const userInfo = await getUserInfo(platform, cookieStr, loginWin);
           if (userInfo && (userInfo.nickname || userInfo.userId)) {
             finish({ platform, success: true, cookie: cookieStr, user: userInfo });
@@ -452,14 +489,19 @@ ipcMain.handle('login:open', async (event, platform) => {
   });
 });
 
-// 解绑：彻底清除该平台 partition 的所有数据（cookie + storage + cache）
-// 解绑：彻底清除该平台 partition（覆盖酷狗的设备指纹+service worker）
+// 解绑：网易云/QQ 清数据，酷狗直接废弃 session
 ipcMain.handle('login:clear', async (event, platform) => {
-  const partition = PLATFORM_PARTITIONS[platform];
+  // 酷狗：不清理，直接废弃 partition，下次登录创建全新环境
+  if (platform === 'kugou') {
+    resetKugouPartition();
+    return;
+  }
+
+  const partition = getPartition(platform);
   if (!partition) return;
   const ses = session.fromPartition(partition);
 
-  // 1) 清除所有 storage（覆盖酷狗的多层缓存：cookie + localStorage + IndexedDB + service worker + shader cache + app cache）
+  // 1) 清除所有 storage
   await ses.clearStorageData({
     storages: [
       'cookies',
