@@ -116,27 +116,13 @@ export default function Player() {
     }
   };
 
-  // 点击外部关闭弹窗
-  useEffect(() => {
-    if (!showVolume && !showPlaylist && !showLyrics && !showSaveToPlaylist) return;
-    const handler = (e: MouseEvent) => {
-      const target = e.target as Node;
-      const popups = document.querySelectorAll('.player-popup, .player-volume-popup');
-      const btns = document.querySelectorAll('[data-popup-btn]');
-      let shouldClose = true;
-      popups.forEach(p => { if (p.contains(target)) shouldClose = false; });
-      btns.forEach(b => { if (b.contains(target)) shouldClose = false; });
-      if (shouldClose) {
-        setShowVolume(false);
-        setShowPlaylist(false);
-        setShowLyrics(false);
-        setShowComments(false);
-        setShowSaveToPlaylist(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [showVolume, showPlaylist, showLyrics, showSaveToPlaylist]);
+  // 关闭所有弹窗
+  const closeAllPopups = useCallback(() => {
+    setShowVolume(false);
+    setShowPlaylist(false);
+    setShowLyrics(false);
+    setShowSaveToPlaylist(false);
+  }, []);
 
   const togglePlayMode = () => {
     const modes: Array<'sequence' | 'loop' | 'shuffle'> = ['sequence', 'loop', 'shuffle'];
@@ -392,19 +378,10 @@ export default function Player() {
         </div>
       )}
 
-      {/* 音量弹窗 - 在 player-bar 外部渲染 */}
-      {showVolume && volumeRef.current && (() => {
-        const rect = volumeRef.current.getBoundingClientRect();
-        return (
-          <div
-            className="player-volume-popup"
-            style={{
-              position: 'fixed',
-              top: `${rect.top - 140}px`,
-              left: `${rect.left + rect.width / 2}px`,
-              transform: 'translateX(-50%)',
-            }}
-          >
+      {/* 音量弹窗 */}
+      {showVolume && (
+        <div className="player-volume-backdrop" onClick={closeAllPopups}>
+          <div className="player-volume-popup" onClick={e => e.stopPropagation()}>
             <ElasticSlider
               defaultValue={volume}
               startingValue={0}
@@ -413,8 +390,8 @@ export default function Player() {
               onChange={setVolume}
             />
           </div>
-        );
-      })()}
+        </div>
+      )}
     </>
   );
 }
