@@ -59,7 +59,7 @@ export function Sidebar({ currentPage, onNavigate }: SidebarProps) {
 
       <div className="px-4 py-3 border-t border-black/5">
         <p className="text-xs text-text-muted">IvyM Music v0.1</p>
-        <p className="text-xs text-text-muted/60 mt-0.5">网易云 · QQ · 酷狗</p>
+        <p className="text-xs text-text-muted/60 mt-0.5">网易云 · QQ音乐</p>
       </div>
     </aside>
   );

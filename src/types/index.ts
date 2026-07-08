@@ -6,7 +6,7 @@ export interface Song {
   artists: string;
   album: string;
   duration: number;
-  source: 'netease' | 'qq' | 'kugou';
+  source: 'netease' | 'qq';
   url?: string;
   cover?: string;
   lyric?: string;
@@ -15,7 +15,6 @@ export interface Song {
 export interface SearchResult {
   netease: Song[];
   qq: Song[];
-  kugou: Song[];
   keyword: string;
 }
 

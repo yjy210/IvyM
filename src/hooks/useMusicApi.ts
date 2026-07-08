@@ -16,24 +16,22 @@ export function useMusicApi() {
   const searchAll = useCallback(async (keyword: string) => {
     if (!keyword.trim()) return;
 
-    // 三源并行搜索
-    const [netease, qq, kugou] = await Promise.allSettled([
+    // 双源并行搜索（网易云 + QQ）
+    const [netease, qq] = await Promise.allSettled([
       fetchJSON<{ code: number; data: Song[] }>(`${API_BASE}/api/netease/search?keyword=${encodeURIComponent(keyword)}`),
       fetchJSON<{ code: number; data: Song[] }>(`${API_BASE}/api/qq/search?keyword=${encodeURIComponent(keyword)}`),
-      fetchJSON<{ code: number; data: Song[] }>(`${API_BASE}/api/kugou/search?keyword=${encodeURIComponent(keyword)}`),
     ]);
 
     const result: SearchResult = {
       netease: netease.status === 'fulfilled' && netease.value?.code === 200 ? netease.value.data : [],
       qq: qq.status === 'fulfilled' && qq.value?.code === 200 ? qq.value.data : [],
-      kugou: kugou.status === 'fulfilled' && kugou.value?.code === 200 ? kugou.value.data : [],
       keyword,
     };
 
     setSearchResults(result);
 
     // 合并所有结果作为播放列表
-    const all = [...result.netease, ...result.qq, ...result.kugou];
+    const all = [...result.netease, ...result.qq];
     setPlaylist(all);
 
     return result;
@@ -50,12 +48,6 @@ export function useMusicApi() {
       if (song.source === 'qq') {
         const res = await fetchJSON<{ code: number; data: { url: string } | null }>(
           `${API_BASE}/api/qq/url?mid=${song.mid || song.id}`
-        );
-        return res.data?.url || null;
-      }
-      if (song.source === 'kugou') {
-        const res = await fetchJSON<{ code: number; data: { url: string } | null }>(
-          `${API_BASE}/api/kugou/url?hash=${song.hash || song.id}`
         );
         return res.data?.url || null;
       }

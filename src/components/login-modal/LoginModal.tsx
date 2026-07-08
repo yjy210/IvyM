@@ -3,19 +3,18 @@ import './login-modal.css';
 
 interface LoginModalProps {
   visible: boolean;
-  platform: 'netease' | 'qq' | 'kugou';
+  platform: 'netease' | 'qq';
   onClose: () => void;
   onLoginSuccess?: (info: { nickname: string; avatar: string; vip: boolean; vipName: string; userId: string; cookie: string }) => void;
 }
 
-type Platform = 'netease' | 'qq' | 'kugou';
+type Platform = 'netease' | 'qq';
 
 export function LoginModal({ visible, platform, onClose, onLoginSuccess }: LoginModalProps) {
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
-  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     if (visible) {
@@ -38,7 +37,6 @@ export function LoginModal({ visible, platform, onClose, onLoginSuccess }: Login
       if (data.code === 200) {
         setQrCode(data.data.qrimg);
         setStatus('请使用APP扫码登录');
-        // 开始轮询扫码状态（不同平台 key 字段不同：netease=unikey, qq=sigx, kugou=sig）
         const key = data.data.unikey || data.data.sigx || data.data.sig || '';
         startPolling(key);
       } else {
@@ -50,6 +48,8 @@ export function LoginModal({ visible, platform, onClose, onLoginSuccess }: Login
       setLoading(false);
     }
   };
+
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const startPolling = (key: string) => {
     const interval = setInterval(async () => {
@@ -73,7 +73,6 @@ export function LoginModal({ visible, platform, onClose, onLoginSuccess }: Login
         }
       } catch {}
     }, 2000);
-    // 保存 interval 引用以便清理
     pollingRef.current = interval;
   };
 
@@ -86,7 +85,6 @@ export function LoginModal({ visible, platform, onClose, onLoginSuccess }: Login
   const platformNames: Record<Platform, string> = {
     netease: '网易云音乐',
     qq: 'QQ音乐',
-    kugou: '酷狗音乐',
   };
 
   return (
@@ -118,5 +116,4 @@ export function LoginModal({ visible, platform, onClose, onLoginSuccess }: Login
   );
 }
 
-// 为了兼容旧的导入方式
 export default LoginModal;

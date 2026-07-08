@@ -10,7 +10,7 @@ declare global {
       isMaximized: () => Promise<boolean>;
       onMaximize: (callback: () => void) => void;
       onUnmaximize: (callback: () => void) => void;
-      openPlatformLogin: (platform: 'netease' | 'qq' | 'kugou') => Promise<void>;
+      openPlatformLogin: (platform: 'netease' | 'qq') => Promise<void>;
       onLoginResult: (callback: (result: {
         platform: string;
         success: boolean;
@@ -18,7 +18,7 @@ declare global {
         user?: { platform: string; nickname: string; avatar: string; userId: string; vip: boolean; vipName: string };
         cookie?: string;
       }) => void) => void;
-      clearPlatformSession: (platform: 'netease' | 'qq' | 'kugou') => Promise<void>;
+      clearPlatformSession: (platform: 'netease' | 'qq') => Promise<void>;
     };
   }
 }

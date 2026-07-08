@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import './login-dropdown.css';
 
 interface PlatformAccount {
-  platform: 'netease' | 'qq' | 'kugou';
+  platform: 'netease' | 'qq';
   nickname: string;
   avatar: string;
   vip?: boolean;
@@ -19,11 +19,10 @@ interface LoginDropdownProps {
 const PLATFORMS = [
   { id: 'netease' as const, name: '网易云音乐', icon: '/platform-icons/wyy.webp', color: '#ec4141' },
   { id: 'qq' as const, name: 'QQ音乐', icon: '/platform-icons/qq.webp', color: '#31c27c' },
-  { id: 'kugou' as const, name: '酷狗音乐', icon: '/platform-icons/kugou.png', color: '#2fa0f4' },
 ];
 
 export default function LoginDropdown({ onClose }: LoginDropdownProps) {
-  const [activeTab, setActiveTab] = useState<'bound' | 'netease' | 'qq' | 'kugou'>('bound');
+  const [activeTab, setActiveTab] = useState<'bound' | 'netease' | 'qq'>('bound');
   const [accounts, setAccounts] = useState<PlatformAccount[]>([]);
   const [hoveredPlatform, setHoveredPlatform] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -43,15 +42,14 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
   }, []);
 
   // 解绑账号（同时清除该平台 partition 的 cookie）
-  const handleUnbind = useCallback((platform: 'netease' | 'qq' | 'kugou') => {
-    // 通知主进程清除该平台的登录 session
+  const handleUnbind = useCallback((platform: 'netease' | 'qq') => {
     window.electronAPI?.clearPlatformSession(platform);
     const filtered = accounts.filter(a => a.platform !== platform);
     saveAccounts(filtered);
   }, [accounts, saveAccounts]);
 
   // 打开平台官方登录页
-  const handleBind = useCallback((platform: 'netease' | 'qq' | 'kugou') => {
+  const handleBind = useCallback((platform: 'netease' | 'qq') => {
     window.electronAPI?.openPlatformLogin(platform);
   }, []);
 
@@ -68,7 +66,7 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
       return;
     }
     const newAccount: PlatformAccount = {
-      platform: result.user.platform as 'netease' | 'qq' | 'kugou',
+      platform: result.user.platform as 'netease' | 'qq',
       nickname: result.user.nickname,
       avatar: result.user.avatar || '',
       vip: result.user.vip || false,
@@ -201,7 +199,6 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
                     <div className="platform-userid">
                       {activeTab === 'netease' && `网易云音乐 ID: ${account.userId}`}
                       {activeTab === 'qq' && `QQ号: ${account.userId}`}
-                      {activeTab === 'kugou' && `酷狗音乐 ID: ${account.userId}`}
                     </div>
                     <button className="platform-unbind-btn" onClick={() => handleUnbind(activeTab)}>
                       解绑账号
