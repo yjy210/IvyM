@@ -295,6 +295,7 @@ export default function Player() {
             <div className="player-volume-wrapper" ref={volumeRef}>
               <button
                 className="player-btn"
+                data-popup-btn
                 onClick={() => setShowVolume(!showVolume)}
                 title="音量"
               >
@@ -424,25 +425,28 @@ export default function Player() {
       )}
 
       {/* 音量弹窗 - 在 player-bar 外部渲染 */}
-      {showVolume && volumeRef.current && (
-        <div
-          className="player-volume-popup"
-          style={{
-            position: 'fixed',
-            bottom: `${window.innerHeight - volumeRef.current.getBoundingClientRect().top + 8}px`,
-            left: `${volumeRef.current.getBoundingClientRect().left + volumeRef.current.offsetWidth / 2}px`,
-            transform: 'translateX(-50%)',
-          }}
-        >
-          <ElasticSlider
-            defaultValue={volume}
-            startingValue={0}
-            maxValue={100}
-            vertical
-            onChange={setVolume}
-          />
-        </div>
-      )}
+      {showVolume && volumeRef.current && (() => {
+        const rect = volumeRef.current.getBoundingClientRect();
+        return (
+          <div
+            className="player-volume-popup"
+            style={{
+              position: 'fixed',
+              top: `${rect.top - 140}px`,
+              left: `${rect.left + rect.width / 2}px`,
+              transform: 'translateX(-50%)',
+            }}
+          >
+            <ElasticSlider
+              defaultValue={volume}
+              startingValue={0}
+              maxValue={100}
+              vertical
+              onChange={setVolume}
+            />
+          </div>
+        );
+      })()}
     </>
   );
 }
