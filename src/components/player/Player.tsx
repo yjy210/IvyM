@@ -149,9 +149,15 @@ export default function Player() {
         audioRef.current.currentTime = 0;
         audioRef.current.play();
       }
-    } else {
-      playNext();
+      return;
     }
+
+    // 检测是否为试听截断（实际播放时长 < 歌曲总时长 50%）
+    if (duration > 0 && currentTime < duration * 0.5) {
+      setVipWarning({ platform: 'netease', message: '当前试听已结束，开通会员畅听完整版' });
+    }
+
+    playNext();
   };
 
 

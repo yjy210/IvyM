@@ -4,12 +4,13 @@ export interface Song {
   hash?: string;
   name: string;
   artists: string;
-  album: string;
-  duration: number;
+  album?: string;
+  duration?: number;
   source: 'netease' | 'qq';
   url?: string;
   cover?: string;
   lyric?: string;
+  vip?: boolean;
 }
 
 export interface SearchResult {

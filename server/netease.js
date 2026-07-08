@@ -51,7 +51,7 @@ async function neteaseSearch(keyword, limit = 30) {
         album: s.album?.name || '',
         duration: s.duration,
         source: 'netease',
-        fee: s.fee || 0,
+        vip: s.fee === 1 || s.fee === 4, // 1=VIP, 4=付费专辑
         cover,
       };
     })),
