@@ -141,11 +141,22 @@
 .platform-bound { padding: 8px 0; }
 
 .platform-header {
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .platform-avatar { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; }
 .platform-avatar-placeholder { display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #6366f1, #a855f7); color: white; font-size: 16px; font-weight: 700; }
+
+.platform-nickname-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.platform-nickname { font-size: 15px; font-weight: 700; color: #1a1a2e; }
 
 .platform-vip-row {
   display: flex;

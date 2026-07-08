@@ -204,6 +204,14 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
                         <div className="platform-avatar platform-avatar-placeholder">{account.nickname?.[0] || '?'}</div>
                       )}
                     </div>
+                    <div className="platform-nickname-row">
+                      <span className="platform-nickname">{account.nickname || '用户' + account.userId}</span>
+                      {account.vip && (
+                        <span className="bound-vip-inline">
+                          {account.platform === 'netease' ? '黑胶VIP' : '豪华绿钻'}
+                        </span>
+                      )}
+                    </div>
                     <div className="platform-vip-row">
                       <span className="platform-vip-label">
                         {account.platform === 'netease' ? '黑胶会员' : '豪华绿钻'}：
