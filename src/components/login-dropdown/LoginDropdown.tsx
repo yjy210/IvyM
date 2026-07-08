@@ -17,8 +17,8 @@ interface LoginDropdownProps {
 }
 
 const PLATFORMS = [
-  { id: 'netease' as const, name: '网易云音乐', icon: '/platform-icons/wyy.webp', color: '#ec4141' },
-  { id: 'qq' as const, name: 'QQ音乐', icon: '/platform-icons/qq.webp', color: '#31c27c' },
+  { id: 'netease' as const, name: '网易云音乐', icon: '/platform-icons/wyy.svg', color: '#ec4141' },
+  { id: 'qq' as const, name: 'QQ音乐', icon: '/platform-icons/qq.svg', color: '#31c27c' },
 ];
 
 export default function LoginDropdown({ onClose }: LoginDropdownProps) {
