@@ -4,7 +4,7 @@ import { WindowControls } from './components/WindowControls';
 import { LogoAnimation } from './components/splash/LogoAnimation';
 import Grainient from './components/grainient/Grainient';
 import { LoginDropdown } from './components/login-dropdown/LoginDropdown';
-import './login-dropdown/login-dropdown.css';
+import './components/login-dropdown/login-dropdown.css';
 
 export default function App() {
   const [entered, setEntered] = useState(false);
