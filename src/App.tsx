@@ -3,7 +3,7 @@ import { TitleBar } from './components/TitleBar';
 import { WindowControls } from './components/WindowControls';
 import { LogoAnimation } from './components/splash/LogoAnimation';
 import Grainient from './components/grainient/Grainient';
-import { LoginDropdown } from './components/login-dropdown/LoginDropdown';
+import LoginDropdown from './components/login-dropdown/LoginDropdown';
 import './components/login-dropdown/login-dropdown.css';
 
 export default function App() {

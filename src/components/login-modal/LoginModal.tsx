@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import './login-modal.css';
 
 interface LoginModalProps {
@@ -15,6 +15,7 @@ export function LoginModal({ visible, platform, onClose, onLoginSuccess }: Login
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     if (visible) {
@@ -37,8 +38,9 @@ export function LoginModal({ visible, platform, onClose, onLoginSuccess }: Login
       if (data.code === 200) {
         setQrCode(data.data.qrimg);
         setStatus('请使用APP扫码登录');
-        // 开始轮询扫码状态
-        startPolling(data.data.unikey || data.data.sig || '');
+        // 开始轮询扫码状态（不同平台 key 字段不同：netease=unikey, qq=sigx, kugou=sig）
+        const key = data.data.unikey || data.data.sigx || data.data.sig || '';
+        startPolling(key);
       } else {
         setError(data.msg || '获取二维码失败');
       }
@@ -71,7 +73,15 @@ export function LoginModal({ visible, platform, onClose, onLoginSuccess }: Login
         }
       } catch {}
     }, 2000);
+    // 保存 interval 引用以便清理
+    pollingRef.current = interval;
   };
+
+  useEffect(() => {
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    };
+  }, []);
 
   const platformNames: Record<Platform, string> = {
     netease: '网易云音乐',
