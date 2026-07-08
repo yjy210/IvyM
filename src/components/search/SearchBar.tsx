@@ -3,114 +3,92 @@ import { gsap } from 'gsap';
 import { usePlayerStore } from '../../stores/playerStore';
 import './search-bar.css';
 
-interface SearchBarProps {
-  onSelect?: () => void;
-}
-
-export default function SearchBar({ onSelect }: SearchBarProps) {
-  const [isActive, setIsActive] = useState(false);
+export default function SearchBar() {
+  const [isOpen, setIsOpen] = useState(false);
   const [keyword, setKeyword] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const searchRef = useRef<HTMLInputElement>(null);
   const islandRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const toggleRef = useRef<HTMLButtonElement>(null);
-  const tlRef = useRef<gsap.core.Timeline | null>(null);
 
   const searchResults = usePlayerStore(s => s.searchResults);
   const setSearchResults = usePlayerStore(s => s.setSearchResults);
   const setPlaylist = usePlayerStore(s => s.setPlaylist);
   const API_BASE = 'http://localhost:3001';
 
-  // 初始化 GSAP timeline
-  useEffect(() => {
-    if (!islandRef.current || !panelRef.current) return;
-
-    tlRef.current?.revert();
-
-    const expandedWidth = Math.min(window.innerWidth * 0.9, 500);
-
-    tlRef.current = gsap.timeline({ paused: true })
-      .to('.search-island', {
-        width: expandedWidth,
-        duration: 0.7,
-        ease: 'back.out(2)',
-        easeReverse: 'power2.out',
-      }, 0)
-      .to('.search-input', {
-        opacity: 1,
-        duration: 0.3,
-        ease: 'power2.out',
-      }, 0.2)
-      .to('.search-results-panel', {
-        autoAlpha: 1,
-        y: 0,
-        scale: 1,
-        duration: 0.5,
-        transformOrigin: 'top center',
-        ease: 'back.out(1.5)',
-        easeReverse: 'power3.out',
-      }, 0.1);
-  }, []);
-
-  // 展开/收起
-  const toggle = useCallback(() => {
-    if (!tlRef.current) return;
-    if (!isActive) {
-      setIsActive(true);
-      tlRef.current.timeScale(1).play();
-      setTimeout(() => inputRef.current?.focus(), 300);
-    } else {
-      setIsActive(false);
-      tlRef.current.timeScale(1).reverse();
-      setKeyword('');
-      setSearchResults(null);
+  // 展开搜索
+  const openSearch = useCallback(() => {
+    if (isOpen || !islandRef.current) return;
+    setIsOpen(true);
+    const expandedWidth = Math.min(window.innerWidth * 0.9, 400);
+    gsap.to(islandRef.current, { width: expandedWidth, duration: 0.8, ease: 'back.out(2)' });
+    gsap.to(islandRef.current.querySelector('.s-search-icon'), { opacity: 0, scale: 0.5, duration: 0.2 });
+    gsap.set(islandRef.current.querySelector('.s-click-area'), { pointerEvents: 'none' });
+    gsap.set(islandRef.current.querySelector('.s-input-area'), { pointerEvents: 'auto' });
+    gsap.fromTo(
+      islandRef.current.querySelector('.s-input-area'),
+      { opacity: 0, x: 10 },
+      { opacity: 1, x: 0, duration: 0.4, delay: 0.3 }
+    );
+    // 结果面板
+    if (panelRef.current) {
+      gsap.fromTo(panelRef.current, { autoAlpha: 0, y: -8, scale: 0.95 }, { autoAlpha: 1, y: 0, scale: 1, duration: 0.4, delay: 0.3 });
     }
-  }, [isActive, setSearchResults]);
+    setTimeout(() => searchRef.current?.focus(), 400);
+  }, [isOpen]);
+
+  // 收起搜索
+  const closeSearch = useCallback(() => {
+    if (!isOpen || !islandRef.current) return;
+    setIsOpen(false);
+    gsap.to(islandRef.current, { width: 40, duration: 0.5, ease: 'power2.out' });
+    gsap.to(islandRef.current.querySelector('.s-input-area'), { opacity: 0, duration: 0.15 });
+    gsap.set(islandRef.current.querySelector('.s-input-area'), { pointerEvents: 'none' });
+    gsap.set(islandRef.current.querySelector('.s-click-area'), { pointerEvents: 'auto' });
+    gsap.to(islandRef.current.querySelector('.s-search-icon'), { opacity: 1, scale: 1, duration: 0.3, delay: 0.2, ease: 'back.out' });
+    if (panelRef.current) {
+      gsap.to(panelRef.current, { autoAlpha: 0, duration: 0.2 });
+    }
+    setKeyword('');
+    setSearchResults(null);
+  }, [isOpen, setSearchResults]);
 
   // 点击外部收起
   useEffect(() => {
-    if (!isActive) return;
+    if (!isOpen) return;
     const handler = (e: MouseEvent) => {
       const target = e.target as Node;
       if (
         islandRef.current && !islandRef.current.contains(target) &&
         panelRef.current && !panelRef.current.contains(target)
       ) {
-        toggle();
+        closeSearch();
       }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, [isActive, toggle]);
+  }, [isOpen, closeSearch]);
 
   // Escape 收起
   useEffect(() => {
-    if (!isActive) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') toggle();
-    };
+    if (!isOpen) return;
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') closeSearch(); };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [isActive, toggle]);
+  }, [isOpen, closeSearch]);
 
   // 搜索
   const doSearch = useCallback(async (kw: string) => {
-    if (!kw.trim()) {
-      setSearchResults(null);
-      return;
-    }
+    if (!kw.trim()) { setSearchResults(null); return; }
     setLoading(true);
     try {
       const [neteaseRes, qqRes] = await Promise.allSettled([
         fetch(`${API_BASE}/api/netease/search?keyword=${encodeURIComponent(kw)}&limit=5`),
         fetch(`${API_BASE}/api/qq/search?keyword=${encodeURIComponent(kw)}&limit=5`),
       ]);
-
-      const netease = neteaseRes.status === 'fulfilled' && (await neteaseRes.value.ok) ? await neteaseRes.value.json() : null;
-      const qq = qqRes.status === 'fulfilled' && (await qqRes.value.ok) ? await qqRes.value.json() : null;
-
+      const netease = neteaseRes.status === 'fulfilled' && await neteaseRes.value.ok ? await neteaseRes.value.json() : null;
+      const qq = qqRes.status === 'fulfilled' && await qqRes.value.ok ? await qqRes.value.json() : null;
       setSearchResults({
         netease: netease?.code === 200 ? netease.data : [],
         qq: qq?.code === 200 ? qq.data : [],
@@ -123,7 +101,7 @@ export default function SearchBar({ onSelect }: SearchBarProps) {
     }
   }, [API_BASE, setSearchResults]);
 
-  // 防抖搜索
+  // 防抖
   useEffect(() => {
     if (!keyword.trim()) return;
     const timer = setTimeout(() => doSearch(keyword), 400);
@@ -131,15 +109,12 @@ export default function SearchBar({ onSelect }: SearchBarProps) {
   }, [keyword, doSearch]);
 
   // 选择歌曲
-  const selectSong = useCallback((song: any) => {
+  const selectSong = useCallback(() => {
     const results = usePlayerStore.getState().searchResults;
     if (results) {
-      const all = [...results.netease, ...results.qq];
-      setPlaylist(all);
+      setPlaylist([...results.netease, ...results.qq]);
     }
-    onSelect?.();
-    toggle();
-  }, [setPlaylist, onSelect, toggle]);
+  }, [setPlaylist]);
 
   const hasResults = searchResults && (searchResults.netease.length > 0 || searchResults.qq.length > 0);
 
@@ -147,22 +122,33 @@ export default function SearchBar({ onSelect }: SearchBarProps) {
     <>
       {/* 搜索 Island */}
       <div className="search-island" ref={islandRef}>
-        <button className="search-toggle" ref={toggleRef} onClick={toggle} aria-label="搜索">
-          <svg viewBox="0 0 24 24">
+        <svg className="s-search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#BBBAA6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="11" cy="11" r="7" />
+          <line x1="16.5" y1="16.5" x2="21" y2="21" />
+        </svg>
+        <span className="s-click-area" onClick={openSearch} />
+        <div className="s-input-area">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="11" cy="11" r="7" />
             <line x1="16.5" y1="16.5" x2="21" y2="21" />
           </svg>
-        </button>
-        <input
-          ref={inputRef}
-          className="search-input"
-          type="text"
-          placeholder="搜索歌曲、歌手、专辑..."
-          value={keyword}
-          onChange={e => setKeyword(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter') doSearch(keyword); }}
-          style={{ pointerEvents: isActive ? 'auto' : 'none' }}
-        />
+          <input
+            ref={searchRef}
+            className="s-input"
+            type="text"
+            placeholder="搜索歌曲、歌手、专辑..."
+            value={keyword}
+            onChange={e => setKeyword(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') doSearch(keyword); }}
+            onClick={e => e.stopPropagation()}
+          />
+          <button type="button" className="s-close-btn" onClick={closeSearch}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2" strokeLinecap="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       {/* 搜索结果面板 */}
@@ -179,11 +165,7 @@ export default function SearchBar({ onSelect }: SearchBarProps) {
               <>
                 <div className="search-section-title">网易云音乐</div>
                 {searchResults.netease.map((song, i) => (
-                  <div
-                    key={`n-${song.id}-${i}`}
-                    className="search-result-item"
-                    onClick={() => selectSong(song)}
-                  >
+                  <div key={`n-${song.id}-${i}`} className="search-result-item" onClick={selectSong}>
                     <div className="search-result-cover" />
                     <div className="search-result-info">
                       <div className="search-result-name">{song.name}</div>
@@ -198,11 +180,7 @@ export default function SearchBar({ onSelect }: SearchBarProps) {
               <>
                 <div className="search-section-title">QQ音乐</div>
                 {searchResults.qq.map((song, i) => (
-                  <div
-                    key={`q-${song.mid || song.id}-${i}`}
-                    className="search-result-item"
-                    onClick={() => selectSong(song)}
-                  >
+                  <div key={`q-${song.mid || song.id}-${i}`} className="search-result-item" onClick={selectSong}>
                     <div className="search-result-cover" />
                     <div className="search-result-info">
                       <div className="search-result-name">{song.name}</div>
