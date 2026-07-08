@@ -8,7 +8,7 @@
 
 .volume-track {
   width: 4px;
-  height: 100%;
+  height: 140px;
   background: rgba(0, 0, 0, 0.12);
   border-radius: 2px;
   position: relative;
@@ -32,15 +32,14 @@
 .volume-thumb {
   position: absolute;
   left: 50%;
-  transform: translateX(-50%);
   width: 14px;
   height: 14px;
   background: #1a1a2e;
   border-radius: 50%;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-  cursor: grab;
+  transform: translateX(-50%) translateY(50%);
+  cursor: pointer;
 }
 
 .volume-track:active .volume-thumb {
-  cursor: grabbing;
+  cursor: pointer;
 }
