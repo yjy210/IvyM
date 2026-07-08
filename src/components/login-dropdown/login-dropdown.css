@@ -44,7 +44,6 @@
 .login-tab-btn.active { border-color: #6366f1; background: #eef; }
 
 .tab-icon { width: 24px; height: 24px; border-radius: 6px; object-fit: cover; }
-.tab-icon-emoji { font-size: 20px; }
 
 .tab-tooltip {
   position: absolute;
@@ -112,7 +111,7 @@
 
 .platform-unbound { padding: 20px 0; }
 
-.platform-icon-large { font-size: 40px; display: block; margin-bottom: 12px; }
+.platform-icon-large { width: 48px; height: 48px; border-radius: 12px; object-fit: cover; display: block; margin: 0 auto 12px; }
 
 .platform-unbound p { color: #999; font-size: 13px; margin-bottom: 16px; }
 

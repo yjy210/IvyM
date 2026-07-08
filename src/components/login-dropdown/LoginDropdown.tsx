@@ -18,9 +18,9 @@ interface LoginDropdownProps {
 }
 
 const PLATFORMS = [
-  { id: 'netease' as const, name: '网易云音乐', icon: '🎵', color: '#ec4141' },
-  { id: 'qq' as const, name: 'QQ音乐', icon: '🎶', color: '#31c27c' },
-  { id: 'kugou' as const, name: '酷狗音乐', icon: '🎧', color: '#2fa0f4' },
+  { id: 'netease' as const, name: '网易云音乐', icon: '/platform-icons/wyy.webp', color: '#ec4141' },
+  { id: 'qq' as const, name: 'QQ音乐', icon: '/platform-icons/qq.webp', color: '#31c27c' },
+  { id: 'kugou' as const, name: '酷狗音乐', icon: '/platform-icons/kugou.png', color: '#2fa0f4' },
 ];
 
 export default function LoginDropdown({ onClose }: LoginDropdownProps) {
@@ -86,7 +86,7 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
               onMouseEnter={() => setHoveredPlatform(p.id)}
               onMouseLeave={() => setHoveredPlatform(null)}
             >
-              <span className="tab-icon-emoji" style={{ color: p.color }}>{p.icon}</span>
+              <img src={p.icon} alt={p.name} className="tab-icon" />
               {hoveredPlatform === p.id && <span className="tab-tooltip">{p.name}</span>}
             </button>
           ))}
@@ -128,7 +128,7 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
                 if (!account) {
                   return (
                     <div className="platform-unbound">
-                      <span className="platform-icon-large" style={{ color: platform.color }}>{platform.icon}</span>
+                      <img src={platform.icon} alt={platform.name} className="platform-icon-large" />
                       <p>尚未绑定{platform.name}账号</p>
                       <button className="platform-bind-btn" onClick={() => setShowQR(activeTab)}>
                         扫码绑定
