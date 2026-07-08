@@ -16,7 +16,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('window:unmaximized', () => callback());
   },
 
-  // --- 平台账号登录（打开官方登录页，捕获 cookie） ---
+  // --- 平台账号登录（打开官方登录页） ---
   openPlatformLogin: (platform) => ipcRenderer.invoke('login:open', platform),
   onLoginResult: (callback) => {
     ipcRenderer.on('login:result', (event, result) => callback(result));

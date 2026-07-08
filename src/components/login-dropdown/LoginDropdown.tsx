@@ -53,46 +53,40 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
     window.electronAPI?.openPlatformLogin(platform);
   }, []);
 
-  // 监听登录结果（cookie）
+  // 监听主进程登录结果
   useEffect(() => {
-    const handler = (result: { platform: string; cookie: string; cookies: { name: string; value: string }[] }) => {
-      if (!result.cookie) return;
-      // 用 cookie 去获取用户信息
-      fetchUserInfo(result.platform as 'netease' | 'qq' | 'kugou', result.cookie);
-    };
-    window.electronAPI?.onLoginResult(handler);
-  }, []);
+    window.electronAPI?.onLoginResult(handleLoginResult);
+  }, [handleLoginResult]);
 
-  // 根据 cookie 获取用户信息
-  const fetchUserInfo = useCallback(async (platform: 'netease' | 'qq' | 'kugou', cookie: string) => {
-    try {
-      const res = await fetch(`http://localhost:3001/api/${platform}/user`, {
-        headers: { Cookie: cookie },
-      });
-      const data = await res.json();
-      if (data.code === 200) {
-        const info = data.data;
-        const newAccount: PlatformAccount = {
-          platform,
-          nickname: info.nickname || `${platform === 'netease' ? '网易云' : platform === 'qq' ? 'QQ音乐' : '酷狗'}用户`,
-          avatar: info.avatar || '',
-          vip: info.vip || false,
-          vipName: info.vipName || '',
-          userId: info.userId || info.uin || '',
-          cookie,
-          bindTime: Date.now(),
-        };
-        setAccounts(prev => {
-          const filtered = prev.filter(a => a.platform !== platform);
-          const updated = [...filtered, newAccount];
-          localStorage.setItem('ivym_accounts', JSON.stringify(updated));
-          return updated;
-        });
-        setActiveTab('bound');
-      }
-    } catch (err) {
-      console.error('获取用户信息失败:', err);
+  // 主进程返回登录结果后直接绑定
+  const handleLoginResult = useCallback((result: {
+    platform: string;
+    success: boolean;
+    msg?: string;
+    user?: { platform: string; nickname: string; avatar: string; userId: string; vip: boolean; vipName: string };
+    cookie?: string;
+  }) => {
+    if (!result.success || !result.user) {
+      console.warn('登录失败:', result.msg);
+      return;
     }
+    const newAccount: PlatformAccount = {
+      platform: result.user.platform as 'netease' | 'qq' | 'kugou',
+      nickname: result.user.nickname,
+      avatar: result.user.avatar || '',
+      vip: result.user.vip || false,
+      vipName: result.user.vipName || '',
+      userId: result.user.userId || '',
+      cookie: result.cookie || '',
+      bindTime: Date.now(),
+    };
+    setAccounts(prev => {
+      const filtered = prev.filter(a => a.platform !== result.user!.platform);
+      const updated = [...filtered, newAccount];
+      localStorage.setItem('ivym_accounts', JSON.stringify(updated));
+      return updated;
+    });
+    setActiveTab('bound');
   }, []);
 
   // 点击外部关闭

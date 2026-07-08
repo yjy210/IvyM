@@ -1,4 +1,5 @@
 const { app, BrowserWindow, ipcMain, session } = require('electron');
+const http = require('http');
 const path = require('path');
 const { registerIpcHandlers } = require('./ipc');
 const { startApiServer } = require('../server/index');
@@ -59,7 +60,104 @@ async function initServer() {
   }
 }
 
-// 打开平台官方登录窗口，登录成功后捕获 cookie 返回给渲染进程
+// 平台官方登录页对应的 cookie 域名
+const COOKIE_URLS = {
+  netease: ['https://music.163.com', 'https://.music.163.com', 'https://163.com'],
+  qq: ['https://qq.com', 'https://.qq.com', 'https://y.qq.com', 'https://.y.qq.com'],
+  kugou: ['https://www.kugou.com', 'https://.kugou.com', 'https://kugou.com'],
+};
+
+// 平台用户信息 API
+const USER_API = {
+  netease: 'https://music.163.com/api/nuser/account/get',
+  qq: 'https://u.y.qq.com/cgi-bin/musicu.fcg',
+  kugou: 'https://www.kugou.com/UserInfo/User',
+};
+
+// 抓取指定域名下的 cookie
+async function getCookiesForPlatform(platform) {
+  const ses = session.defaultSession;
+  const urls = COOKIE_URLS[platform] || [];
+  let allCookies = [];
+  for (const url of urls) {
+    const cookies = await ses.cookies.get({ url });
+    allCookies = allCookies.concat(cookies);
+  }
+  // 去重
+  const seen = new Set();
+  return allCookies.filter(c => {
+    const key = `${c.name}=${c.value}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+// 带 cookie 请求用户信息
+function fetchUserInfo(platform, cookieStr) {
+  return new Promise((resolve, reject) => {
+    const apiUrl = USER_API[platform];
+    if (!apiUrl) return reject(new Error('Unknown platform'));
+    const urlObj = new URL(apiUrl);
+    const req = http.get(apiUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Referer': platform === 'netease' ? 'https://music.163.com' : platform === 'qq' ? 'https://y.qq.com' : 'https://www.kugou.com',
+        'Cookie': cookieStr,
+      },
+    }, (res) => {
+      let body = '';
+      res.on('data', chunk => body += chunk);
+      res.on('end', () => {
+        try { resolve(JSON.parse(body)); }
+        catch (e) { reject(new Error('Invalid JSON')); }
+      });
+    });
+    req.on('error', reject);
+    req.setTimeout(15000, () => { req.destroy(); reject(new Error('timeout')); });
+  });
+}
+
+// 解析各平台用户信息
+function parseUserInfo(platform, raw) {
+  if (platform === 'netease') {
+    if (!raw.profile) return null;
+    return {
+      platform,
+      nickname: raw.profile.nickname || '',
+      avatar: raw.profile.avatarUrl || '',
+      userId: String(raw.profile.userId || ''),
+      vip: (raw.profile.vipType || 0) > 0,
+      vipName: (raw.profile.vipType || 0) > 0 ? '黑胶VIP' : '',
+    };
+  }
+  if (platform === 'qq') {
+    // QQ返回格式较复杂
+    const user = raw?.data || raw;
+    return {
+      platform,
+      nickname: user.nickname || user.singerName || '',
+      avatar: user.headpic || user.avatarUrl || '',
+      userId: String(user.uin || user.mid || ''),
+      vip: false,
+      vipName: '',
+    };
+  }
+  if (platform === 'kugou') {
+    if (!raw.userdata) return null;
+    return {
+      platform,
+      nickname: raw.userdata.nickname || '',
+      avatar: raw.userdata.head || '',
+      userId: String(raw.userdata.userid || ''),
+      vip: !!raw.userdata.vip,
+      vipName: raw.userdata.vip ? '酷狗VIP' : '',
+    };
+  }
+  return null;
+}
+
+// 打开平台官方登录窗口，使用共用 session 让 cookie 直接写入持久化存储
 ipcMain.handle('login:open', async (event, platform) => {
   const url = PLATFORM_LOGIN_URLS[platform] || 'https://music.163.com/login';
 
@@ -70,26 +168,43 @@ ipcMain.handle('login:open', async (event, platform) => {
     minHeight: 500,
     title: `绑定${platform === 'netease' ? '网易云音乐' : platform === 'qq' ? 'QQ音乐' : '酷狗音乐'}账号`,
     autoHideMenuBar: true,
+    icon: path.join(__dirname, '../build/logo.png'),
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
+      sandbox: false,
+      partition: 'persist:ivym-login',
     },
   });
 
-  // 监听窗口关闭时获取 cookie
+  // 关闭后自动尝试获取用户信息
   loginWin.on('closed', async () => {
     try {
-      const ses = loginWin.webContents.session;
-      const cookies = await ses.cookies.get({ url: platform === 'qq' ? 'https://qq.com' : `https://${platform === 'netease' ? 'music.163' : 'kugou'}.com` });
+      const cookies = await getCookiesForPlatform(platform);
       const cookieStr = cookies.map(c => `${c.name}=${c.value}`).join('; ');
-      // 尝试获取用户信息
-      mainWin?.webContents.send('login:result', {
-        platform,
-        cookie: cookieStr,
-        cookies: cookies.map(c => ({ name: c.name, value: c.value })),
-      });
+
+      if (!cookieStr) {
+        mainWin?.webContents.send('login:result', { platform, success: false, msg: '未检测到登录状态' });
+        return;
+      }
+
+      // 直接用 cookie 去官方 API 抓用户信息
+      const raw = await fetchUserInfo(platform, cookieStr);
+      const userInfo = parseUserInfo(platform, raw);
+
+      if (userInfo && userInfo.nickname) {
+        mainWin?.webContents.send('login:result', {
+          platform,
+          success: true,
+          cookie: cookieStr,
+          user: userInfo,
+        });
+      } else {
+        mainWin?.webContents.send('login:result', { platform, success: false, msg: '登录已失效，请重新登录' });
+      }
     } catch (err) {
-      console.error('[IvyM] Login cookie error:', err.message);
+      console.error('[IvyM] Login error:', err.message);
+      mainWin?.webContents.send('login:result', { platform, success: false, msg: '获取用户信息失败: ' + err.message });
     }
     loginWin.destroy();
   });

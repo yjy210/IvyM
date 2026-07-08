@@ -11,7 +11,13 @@ declare global {
       onMaximize: (callback: () => void) => void;
       onUnmaximize: (callback: () => void) => void;
       openPlatformLogin: (platform: 'netease' | 'qq' | 'kugou') => Promise<void>;
-      onLoginResult: (callback: (result: { platform: string; cookie: string; cookies: { name: string; value: string }[] }) => void) => void;
+      onLoginResult: (callback: (result: {
+        platform: string;
+        success: boolean;
+        msg?: string;
+        user?: { platform: string; nickname: string; avatar: string; userId: string; vip: boolean; vipName: string };
+        cookie?: string;
+      }) => void) => void;
     };
   }
 }
