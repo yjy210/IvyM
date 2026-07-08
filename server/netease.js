@@ -160,11 +160,11 @@ async function neteaseUserInfo() {
   const profile = res.body?.profile;
   if (!profile && !account) return null;
 
-  // VIP 检测：account.vipType === 11 或 profile.vipType === 11/110
-  const accountVip = account?.vipType === 11;
-  const profileVip = profile?.vipType === 11 || profile?.vipType === 110;
-  const isVip = accountVip || profileVip;
-  const vipName = isVip ? '黑胶VIP' : '';
+  // VIP 检测：11=黑胶VIP, 110=黑胶SVIP
+  const av = account?.vipType || 0;
+  const pv = profile?.vipType || 0;
+  const isVip = av === 11 || av === 110 || pv === 11 || pv === 110;
+  const vipName = (av === 110 || pv === 110) ? '黑胶SVIP' : (isVip ? '黑胶VIP' : '');
 
   return {
     nickname: profile?.nickname || account?.nickname || '',
