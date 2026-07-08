@@ -193,7 +193,13 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
                       )}
                       <div>
                         <div className="platform-nickname">{account.nickname || '用户' + account.userId}</div>
-                        {account.vip && <span className="bound-vip">{account.vipName || `${platform.name}会员`}</span>}
+                        {account.vip && (
+                          <img
+                            src={account.platform === 'netease' ? '/vip-icons/hj.png' : '/vip-icons/lz.png'}
+                            className="bound-vip-icon"
+                            alt={account.platform === 'netease' ? '黑胶VIP' : '绿钻'}
+                          />
+                        )}
                       </div>
                     </div>
                     <div className="platform-userid">

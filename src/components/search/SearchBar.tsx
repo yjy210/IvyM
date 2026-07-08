@@ -225,7 +225,7 @@ export default function SearchBar() {
                   {song.sources.map((src, j) => (
                     <span key={j} className={`search-result-source ${src.platform} ${src.fee === 1 ? 'is-vip' : ''}`}>
                       {src.platform === 'netease' ? '网易云' : 'QQ'}
-                      {src.fee === 1 && (src.platform === 'netease' ? ' 黑胶' : ' 绿钻')}
+                      {src.fee === 1 && (src.platform === 'netease' ? ' 黑胶VIP' : ' 绿钻')}
                     </span>
                   ))}
                 </div>
