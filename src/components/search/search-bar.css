@@ -27,12 +27,13 @@
   height: 100%;
 }
 
-/* 打开按钮（仅关闭状态渲染） */
+/* 打开按钮（仅关闭状态渲染，在 GlassSurface 之上） */
 .s-open-btn {
   position: absolute;
   inset: 0;
-  z-index: 10;
+  z-index: 100;
   cursor: pointer;
+  border-radius: 999px;
 }
 
 /* 放大镜图标 */
@@ -74,10 +75,14 @@
   color: rgba(0, 0, 0, 0.35);
 }
 
-/* 关闭按钮 — 明确尺寸 */
+/* 关闭按钮 — 大范围点击 */
 .s-close-btn {
-  width: 32px;
-  height: 32px;
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -85,8 +90,13 @@
   background: transparent;
   cursor: pointer;
   flex-shrink: 0;
-  z-index: 10;
-  position: relative;
+  z-index: 90;
+  border-radius: 50%;
+  transition: background 0.15s;
+}
+
+.s-close-btn:hover {
+  background: rgba(0, 0, 0, 0.06);
 }
 
 .s-close-btn:hover svg {

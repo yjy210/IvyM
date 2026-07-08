@@ -161,9 +161,6 @@ export default function SearchBar() {
   return (
     <>
       <div className="search-island-wrapper" ref={islandRef}>
-        {!isOpen && (
-          <div className="s-open-btn" onClick={openSearch} />
-        )}
         <GlassSurface
           width="100%"
           height={40}
@@ -198,14 +195,17 @@ export default function SearchBar() {
               onChange={e => setKeyword(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') doSearch(keyword); }}
             />
-            <button type="button" className="s-close-btn" onClick={e => { e.stopPropagation(); closeSearch(); }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2" strokeLinecap="round">
+            <div className="s-close-btn" onClick={() => closeSearch()} role="button" tabIndex={0}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2" strokeLinecap="round">
                 <line x1="18" y1="6" x2="6" y2="18" />
                 <line x1="6" y1="6" x2="18" y2="18" />
               </svg>
-            </button>
+            </div>
           </div>
         </GlassSurface>
+        {!isOpen && (
+          <div className="s-open-btn" onClick={() => openSearch()} />
+        )}
       </div>
 
       {showPanel && (
