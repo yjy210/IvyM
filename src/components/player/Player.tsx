@@ -36,6 +36,7 @@ export default function Player() {
   const [songUrl, setSongUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showVolume, setShowVolume] = useState(false);
+  const [vipWarning, setVipWarning] = useState<{ platform: string; message: string } | null>(null);
   const [showPlaylist, setShowPlaylist] = useState(false);
   const [showLyrics, setShowLyrics] = useState(false);
   const [showSaveToPlaylist, setShowSaveToPlaylist] = useState(false);
@@ -61,16 +62,30 @@ export default function Player() {
     setLoading(true);
     try {
       let url: string | null = null;
+      let vipError: { platform: string; message: string } | null = null;
+
       if (song.source === 'netease') {
         const res = await fetch(`${API_BASE}/api/netease/url?id=${song.id}`);
         const data = await res.json();
-        url = data.data?.url || null;
+        if (data.code === 403 && data.reason === 'vip_required') {
+          vipError = { platform: data.platform || 'netease', message: data.message };
+        } else {
+          url = data.data?.url || null;
+        }
       } else if (song.source === 'qq') {
         const res = await fetch(`${API_BASE}/api/qq/url?mid=${song.mid || song.id}`);
         const data = await res.json();
         url = data.data?.url || null;
       }
+
       setSongUrl(url);
+
+      // VIP 歌曲提示
+      if (vipError) {
+        setVipWarning(vipError);
+      } else {
+        setVipWarning(null);
+      }
     } catch {
       setSongUrl(null);
     } finally {
@@ -120,7 +135,12 @@ export default function Player() {
   };
 
   const onLoadedMetadata = () => {
-    if (audioRef.current) setDuration(audioRef.current.duration);
+    // 优先使用搜索结果中的真实duration（毫秒转秒），fallback到audio元数据
+    if (currentSong?.duration) {
+      setDuration(currentSong.duration / 1000);
+    } else if (audioRef.current) {
+      setDuration(audioRef.current.duration);
+    }
   };
 
   const onEnded = () => {
@@ -420,6 +440,19 @@ export default function Player() {
         </div>
       )}
 
+      {/* VIP 歌曲提示弹窗 */}
+      {vipWarning && (
+        <div className="vip-warning-overlay" onClick={() => setVipWarning(null)}>
+          <div className="vip-warning-modal" onClick={e => e.stopPropagation()}>
+            <h3>🎵 当前歌曲无法播放</h3>
+            <p className="vip-warning-song">{currentSong?.name || '未知歌曲'}</p>
+            <p className="vip-warning-msg">{vipWarning.message}</p>
+            <button className="vip-warning-btn" onClick={() => setVipWarning(null)}>
+              确定
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 }

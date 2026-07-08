@@ -38,15 +38,22 @@ async function neteaseSearch(keyword, limit = 30) {
 
   return {
     code: songs.length > 0 ? 200 : 0,
-    data: songs.map(s => ({
-      id: String(s.id),
-      name: s.name,
-      artists: s.artists?.map(a => a.name).join(', ') || '',
-      album: s.album?.name || '',
-      duration: s.duration,
-      source: 'netease',
-      fee: s.fee || 0,
-      cover: s.album?.picUrl || '',
+    data: await Promise.all(songs.map(async s => {
+      // 封面：NeteaseCloudMusicApi 返回 picId 而非 picIdUrl，需拼装 CDN URL
+      let cover = s.album?.picUrl || '';
+      if (!cover && s.album?.picId) {
+        cover = `https://p1.music.126.net/${s.album.picId}/${s.album.picId}.jpg?param=100y100`;
+      }
+      return {
+        id: String(s.id),
+        name: s.name,
+        artists: s.artists?.map(a => a.name).join(', ') || '',
+        album: s.album?.name || '',
+        duration: s.duration,
+        source: 'netease',
+        fee: s.fee || 0,
+        cover,
+      };
     })),
     total: body.result?.songCount || songs.length,
   };
@@ -61,12 +68,17 @@ async function neteaseSongUrl(id) {
     cookie: getCookie(),
   });
 
-  // 兼容旧返回格式
   const body = res.body || {};
   const songData = body.data?.[0];
 
   if (!songData?.url) {
-    return { code: -1, data: null };
+    // 区分 VIP 限制和真正错误
+    return {
+      code: 403,
+      reason: 'vip_required',
+      platform: 'netease',
+      message: '当前歌曲为网易云音乐会员专属，请充值会员或登录网易云账号',
+    };
   }
 
   return {
@@ -131,7 +143,16 @@ async function neteaseQrCheck(unikey) {
 async function neteaseUserInfo() {
   const res = await api.user_account({ cookie: getCookie() });
   const profile = res.body?.profile;
-  return profile ? { nickname: profile.nickname, avatar: profile.avatarUrl, userId: profile.userId } : null;
+  if (!profile) return null;
+
+  const vipType = profile.vipType || 0;
+  return {
+    nickname: profile.nickname || '',
+    avatar: profile.avatarUrl || '',
+    userId: String(profile.userId || ''),
+    vip: vipType === 11, // 11 = 黑胶VIP
+    vipName: vipType === 11 ? '黑胶VIP' : '',
+  };
 }
 
 module.exports = { neteaseSearch, neteaseSongUrl, neteaseLyric, neteaseQrLogin, neteaseQrCheck, neteaseUserInfo };

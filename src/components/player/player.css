@@ -699,3 +699,58 @@
   text-align: center;
   flex: 1;
 }
+
+/* ===== VIP 弹窗 ===== */
+.vip-warning-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.4);
+  -webkit-app-region: no-drag;
+}
+
+.vip-warning-modal {
+  width: 300px;
+  background: white;
+  border-radius: 16px;
+  padding: 28px 24px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  text-align: center;
+}
+
+.vip-warning-modal h3 {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin-bottom: 12px;
+}
+
+.vip-warning-song {
+  font-size: 14px;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.vip-warning-msg {
+  font-size: 13px;
+  color: #666;
+  line-height: 1.6;
+  margin-bottom: 20px;
+}
+
+.vip-warning-btn {
+  padding: 8px 28px;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #6366f1, #a855f7);
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.vip-warning-btn:hover { opacity: 0.9; }
