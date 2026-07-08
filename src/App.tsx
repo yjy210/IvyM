@@ -43,7 +43,7 @@ export default function App() {
         </div>
 
         {/* 右上角控制 - 登录 + 窗口控制 */}
-        <div className="absolute top-4 right-4 z-50 flex items-center gap-3">
+        <div className="absolute top-4 right-4 z-50 flex items-center gap-3" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
           <button
             className="px-4 py-2 rounded-full bg-black/60 backdrop-blur-sm text-white text-xs font-medium hover:bg-black/80 transition-colors"
             onClick={() => setShowLogin(true)}
