@@ -1,8 +1,10 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { usePlayerStore } from '../../stores/playerStore';
 import ElasticSlider from './ElasticSlider';
+import GlassSurface from './GlassSurface';
 import './player.css';
 import './ElasticSlider.css';
+import './GlassSurface.css';
 
 interface Song {
   id: string;
@@ -194,6 +196,18 @@ export default function Player() {
       />
 
       <div className="player-bar">
+        <GlassSurface
+          width="100%"
+          height="100%"
+          borderRadius={20}
+          brightness={75}
+          opacity={0.25}
+          blur={2}
+          displace={12}
+          distortionScale={-120}
+          saturation={1.5}
+          className="player-glass"
+        />
         {/* 进度条 */}
         <div className="player-progress-track" onClick={(e) => {
           if (!duration) return;

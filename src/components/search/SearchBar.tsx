@@ -163,7 +163,21 @@ export default function SearchBar() {
   return (
     <>
       <div className={`search-island-wrapper ${isOpen ? 'open' : ''}`} ref={islandRef}>
-        <GlassSurface width="100%" height={40} borderRadius={999} className="search-island">
+        <GlassSurface
+          width="100%"
+          height={40}
+          borderRadius={999}
+          brightness={80}
+          opacity={0.3}
+          blur={3}
+          displace={8}
+          distortionScale={-80}
+          redOffset={5}
+          greenOffset={10}
+          blueOffset={15}
+          saturation={1.4}
+          className="search-island"
+        >
           {!isOpen && (
             <button className="s-open-btn" onClick={openSearch}>
               <svg className="s-search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#BBBAA6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

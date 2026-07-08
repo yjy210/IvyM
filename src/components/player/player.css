@@ -5,19 +5,27 @@
   left: 50%;
   transform: translateX(-50%);
   width: 90vw;
+  height: 76px;
   border-radius: 0 0 20px 20px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   border-top: none;
-  background: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(20px) saturate(1.8);
-  -webkit-backdrop-filter: blur(20px) saturate(1.8);
-  box-shadow:
-    0 8px 32px 0 rgba(31, 38, 135, 0.2),
-    0 2px 16px 0 rgba(31, 38, 135, 0.1),
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.4),
-    inset 0 -1px 0 0 rgba(255, 255, 255, 0.2);
+  background: transparent;
+  overflow: hidden;
   z-index: 800;
   -webkit-app-region: no-drag;
+}
+
+.player-glass {
+  position: absolute !important;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.player-progress-track,
+.player-main {
+  position: relative;
+  z-index: 1;
 }
 
 /* ── 进度条轨道 ── */

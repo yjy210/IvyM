@@ -25,11 +25,8 @@
 .search-island.glass-surface--svg {
   width: 100% !important;
   height: 100% !important;
-  background: rgba(255, 255, 255, 0.85) !important;
-  backdrop-filter: blur(12px) !important;
-  -webkit-backdrop-filter: blur(12px) !important;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.6) !important;
-  border: 1px solid rgba(0, 0, 0, 0.06) !important;
+  background: transparent !important;
+  border-radius: inherit;
 }
 
 .search-island .glass-surface__content {
