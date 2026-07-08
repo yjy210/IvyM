@@ -169,6 +169,10 @@
   line-height: 1;
 }
 
+.player-btn .iconfont.icon-bold {
+  -webkit-text-stroke: 0.5px #333;
+}
+
 .player-btn.active .iconfont {
   color: #333;
 }

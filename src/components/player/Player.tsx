@@ -246,7 +246,7 @@ export default function Player() {
 
             {/* 歌词 */}
             <button className={`player-btn${showLyrics ? ' active' : ''}`} data-popup-btn onClick={() => setShowLyrics(!showLyrics)} title="歌词">
-              <i className="iconfont icon-geci32" />
+              <i className="iconfont icon-bold icon-geci32" />
             </button>
 
             {/* 播放模式 */}
@@ -296,7 +296,7 @@ export default function Player() {
             </div>
 
             <button className="player-btn" data-popup-btn onClick={() => setShowSaveToPlaylist(!showSaveToPlaylist)} title="收藏到歌单">
-              <i className="iconfont icon-shoucang" />
+              <i className="iconfont icon-bold icon-shoucang" />
             </button>
           </div>
         </div>
