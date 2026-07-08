@@ -59,17 +59,17 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
   // 打开平台登录（网易云用 QR，QQ 暂用旧方式）
   const handleBind = useCallback(async (platform: 'netease' | 'qq') => {
     if (platform === 'netease') {
-      // 获取二维码
+      // 网易云：QR 码登录
       const result = await window.electronAPI?.getQRKey();
       if (result?.code === 200) {
         setQrModal({ visible: true, qrImg: result.data.qrimg, unikey: result.data.unikey, status: '请使用APP扫码' });
-        // 开始轮询
         startQRPolling(result.data.unikey);
       } else {
         setQrModal({ visible: true, qrImg: null, unikey: null, status: result?.msg || '获取二维码失败' });
       }
-    } else {
-      window.electronAPI?.openPlatformLogin(platform);
+    } else if (platform === 'qq') {
+      // QQ音乐：打开网页登录窗口
+      window.electronAPI?.openQQLogin();
     }
   }, []);
 

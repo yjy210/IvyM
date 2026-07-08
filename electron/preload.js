@@ -25,6 +25,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getQRKey: () => ipcRenderer.invoke('login:qr-key'),
   checkQRStatus: (unikey) => ipcRenderer.invoke('login:qr-check', unikey),
   getQRUserInfo: () => ipcRenderer.invoke('login:qr-user'),
+  // --- QQ音乐登录（网页方式）---
+  openQQLogin: () => ipcRenderer.invoke('login:qq-open'),
   // --- 解绑：清除平台的登录 session ---
   clearPlatformSession: (platform) => ipcRenderer.invoke('login:clear', platform),
 });

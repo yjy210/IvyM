@@ -435,11 +435,90 @@ ipcMain.handle('login:qr-user', async () => {
   }
 });
 
+// ==================== QQ音乐：网页登录（BrowserWindow 方式）====================
+
+// 打开 QQ 音乐官网登录窗口
+ipcMain.handle('login:qq-open', async () => {
+  return new Promise((resolve) => {
+    let settled = false;
+
+    const loginWin = new BrowserWindow({
+      width: 900,
+      height: 680,
+      minWidth: 700,
+      minHeight: 500,
+      title: '绑定 QQ 音乐',
+      autoHideMenuBar: true,
+      icon: path.join(__dirname, '../build/logo.png'),
+      webPreferences: {
+        contextIsolation: true,
+        nodeIntegration: false,
+        sandbox: false,
+        partition: 'persist:ivym-qq-login',
+      },
+    });
+
+    const saveQQCookies = async () => {
+      try {
+        const ses = loginWin.webContents.session;
+        const cookies = await ses.cookies.get({ url: 'https://y.qq.com' });
+        const cookieStr = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+
+        // 保存到文件
+        const fs = require('fs');
+        fs.writeFileSync(
+          path.join(__dirname, '../server/.qq-cookie.json'),
+          JSON.stringify({ cookie: cookieStr, time: Date.now() }, null, 2),
+        );
+        console.log(`[IvyM] QQ login cookies saved (${cookies.length} cookies)`);
+        return cookieStr;
+      } catch (e) {
+        console.error('[IvyM] QQ cookie save failed:', e.message);
+        return '';
+      }
+    };
+
+    const finish = async (result) => {
+      if (settled) return;
+      settled = true;
+      const cookie = await saveQQCookies();
+      if (!loginWin.isDestroyed()) loginWin.close();
+      mainWin?.webContents.send('login:result', { ...result, cookie });
+      resolve(result);
+    };
+
+    // 监听页面跳转 - 登录成功后页面会跳转到 y.qq.com 主页
+    loginWin.webContents.on('did-navigate', async (e, url) => {
+      if (url.startsWith('https://y.qq.com/') && !url.includes('login')) {
+        // 可能已登录，尝试抓 cookie
+        const ses = loginWin.webContents.session;
+        const cookies = await ses.cookies.get({ url: 'https://y.qq.com' });
+        const hasQQCookie = cookies.some(c => c.name.includes('uin') || c.name.includes('qqmusic'));
+        if (hasQQCookie) {
+          console.log('[IvyM] QQ login detected via navigation');
+          finish({ platform: 'qq', success: true });
+        }
+      }
+    });
+
+    loginWin.on('closed', async () => {
+      if (settled) return;
+      finish({ platform: 'qq', success: false, msg: '已取消登录' });
+    });
+
+    loginWin.loadURL('https://y.qq.com/');
+  });
+});
+
 // ==================== 解绑 ====================
 ipcMain.handle('login:clear', async (event, platform) => {
-  // 1) 清除网易云 cookie 文件
+  // 1) 清除 cookie 文件
   if (platform === 'netease') {
     try { fs.unlinkSync(path.join(__dirname, '../server/.netease-cookie.json')); } catch {}
+    return { ok: true };
+  }
+  if (platform === 'qq') {
+    try { fs.unlinkSync(path.join(__dirname, '../server/.qq-cookie.json')); } catch {}
     return { ok: true };
   }
 

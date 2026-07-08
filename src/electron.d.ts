@@ -22,6 +22,7 @@ declare global {
       getQRKey: () => Promise<{ code: number; msg?: string; data?: { qrimg: string; unikey: string } }>;
       checkQRStatus: (unikey: string) => Promise<{ code: number; msg?: string; cookie?: string }>;
       getQRUserInfo: () => Promise<{ code: number; data?: { nickname: string; avatar: string; userId: string } }>;
+      openQQLogin: () => Promise<void>;
       clearPlatformSession: (platform: 'netease' | 'qq') => Promise<void>;
     };
   }

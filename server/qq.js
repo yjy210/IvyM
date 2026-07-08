@@ -1,6 +1,19 @@
 const https = require('https');
+const path = require('path');
+const fs = require('fs');
 
 const BASE = 'https://c.y.qq.com';
+
+// QQ 音乐 cookie 文件
+const QQ_COOKIE_FILE = path.join(__dirname, '.qq-cookie.json');
+
+function getQQCookie() {
+  try {
+    return JSON.parse(fs.readFileSync(QQ_COOKIE_FILE, 'utf8')).cookie || '';
+  } catch {
+    return '';
+  }
+}
 
 function qqRequest(path, params = {}) {
   return new Promise((resolve, reject) => {
@@ -16,6 +29,7 @@ function qqRequest(path, params = {}) {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         'Referer': 'https://y.qq.com',
+        'Cookie': getQQCookie(),
       },
     }, (res) => {
       let body = '';
