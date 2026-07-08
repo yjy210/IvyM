@@ -214,9 +214,15 @@
   color: #31c27c;
 }
 
-/* VIP 歌曲：红色背景 + 白色字体 */
-.search-result-source.is-vip {
+/* VIP 歌曲：平台色加深 + 白色字体 */
+.search-result-source.netease.is-vip {
   background: #ec4141;
+  color: #fff;
+  font-weight: 700;
+}
+
+.search-result-source.qq.is-vip {
+  background: #31c27c;
   color: #fff;
   font-weight: 700;
 }
