@@ -273,11 +273,38 @@ async function getUserInfo(platform, cookieStr) {
       const nickname = profileNick || cookieNick || (userId ? 'QQ ' + userId : 'QQ 音乐');
       const avatar = profileAvatar || cookieAvatar || qqAvatarUrl(userId);
 
-      const vipType = Number(
-        cookieObj.vipType || cookieObj.vip_type || data.vipType || data.vip_type ||
-        creator.vipType || creator.vip_type || vipInfo.vipType || 0
-      ) || 0;
-      const isVip = vipType > 0 || data.isVip || creator.isVip || vipInfo.isVip;
+      // DEBUG: 检查 cookie 里是否有 VIP 信息
+      console.log('[IvyM DEBUG] QQ cookie keys with vip:', Object.keys(cookieObj).filter(k => /vip/i.test(k)));
+      console.log('[IvyM DEBUG] QQ cookie vipmusic_pay_type:', cookieObj['vipmusic_pay_type'], 'vip_sub_type:', cookieObj['vip_sub_type']);
+
+      // QQ VIP 检测：先从 cookie 判断
+      let isVip = false;
+      const cookieVipType = Number(cookieObj.vip_type || cookieObj.vipType || cookieObj.vipmusic_pay_type || cookieObj.vip_sub_type || 0);
+      if (cookieVipType > 0) isVip = true;
+
+      // 再尝试 VIP 接口
+      if (!isVip) {
+        try {
+          const vipRes = await httpsRequest(
+            'https://c.y.qq.com/rsc/fcgi-bin/fcg_get_vip_info.fcg',
+            { params: { _: Date.now() }, headers: { 'Cookie': cookieStr, 'Referer': 'https://y.qq.com' } }
+          );
+          const vipRaw = safeJsonParse(vipRes);
+          console.log('[IvyM DEBUG] QQ VIP API response:', JSON.stringify(vipRaw)?.slice(0, 300));
+          const vipData = vipRaw?.data || {};
+          isVip = !!vipData.vip || !!vipData.is_vip || !!vipData.isVip || Number(vipData.vip_level || 0) > 0 || Number(vipData.vipType || 0) > 0;
+        } catch (vipErr) {
+          console.warn('[IvyM] QQ VIP API failed:', vipErr.message);
+        }
+      }
+
+      if (!isVip) {
+        const vipType = Number(
+          cookieObj.vipType || cookieObj.vip_type || data.vipType || data.vip_type ||
+          creator.vipType || creator.vip_type || vipInfo.vipType || 0
+        ) || 0;
+        isVip = vipType > 0 || data.isVip || creator.isVip || vipInfo.isVip;
+      }
 
       return {
         platform,
