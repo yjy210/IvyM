@@ -118,44 +118,20 @@ export default function SearchBar() {
     return () => clearTimeout(timer);
   }, [keyword, doSearch]);
 
-  // 合并相同歌曲
-  const mergedSongs: MergedSong[] = useMemo(() => {
+  // 不合并：每个平台单独显示
+  const flatSongs = useMemo(() => {
     if (!searchResults) return [];
-    const map = new Map<string, MergedSong>();
+    const list: { song: Song; platform: 'netease' | 'qq' }[] = [];
 
-    searchResults.netease.forEach((song: Song) => {
-      const key = `${song.name}-${song.artists}`;
-      if (!map.has(key)) {
-        map.set(key, { id: song.id, name: song.name, artists: song.artists, sources: [], cover: song.cover });
-      }
-      map.get(key)!.sources.push({ platform: 'netease', vip: song.vip || false, cover: song.cover });
-    });
+    searchResults.netease.forEach(song => list.push({ song, platform: 'netease' }));
+    searchResults.qq.forEach(song => list.push({ song, platform: 'qq' }));
 
-    searchResults.qq.forEach((song: Song) => {
-      const key = `${song.name}-${song.artists}`;
-      if (!map.has(key)) {
-        map.set(key, { id: song.mid || song.id, name: song.name, artists: song.artists, sources: [], cover: song.cover });
-      }
-      map.get(key)!.sources.push({ platform: 'qq', vip: song.vip || false, cover: song.cover });
-    });
-
-    return Array.from(map.values());
+    return list;
   }, [searchResults]);
 
-  const selectSong = useCallback((song: MergedSong) => {
-    if (searchResults) {
-      // 找到第一个可用平台的歌并播放
-      for (const src of song.sources) {
-        if (src.platform === 'netease') {
-          const found = searchResults.netease.find((n: Song) => n.name === song.name && n.artists === song.artists);
-          if (found) { play(found); return; }
-        } else {
-          const found = searchResults.qq.find((q: Song) => q.name === song.name && q.artists === song.artists);
-          if (found) { play(found); return; }
-        }
-      }
-    }
-  }, [searchResults, play]);
+  const selectSong = useCallback((entry: { song: Song; platform: 'netease' | 'qq' }) => {
+    play(entry.song);
+  }, [play]);
 
   const showPanel = keyword.trim().length > 0;
   const getSrcLabel = (platform: 'netease' | 'qq') => platform === 'netease' ? '网易云' : 'QQ';
@@ -216,27 +192,27 @@ export default function SearchBar() {
         <div className="search-results-panel" ref={panelRef} style={{ visibility: 'visible', opacity: 1 }}>
           {loading && <div className="search-empty">搜索中...</div>}
           {!loading && mergedSongs.length === 0 && <div className="search-empty">未找到相关结果</div>}
-          {!loading && mergedSongs.length > 0 && (
-            mergedSongs.map((song, i) => (
-              <div key={`s-${i}`} className="search-result-item" onClick={() => selectSong(song)}>
-                {song.cover ? (
-                  <img src={song.cover} alt="" className="search-result-cover" />
-                ) : (
-                  <img src="/logo.png" alt="IvyM" className="search-result-cover" />
-                )}
-                <div className="search-result-info">
-                  <div className="search-result-name">{song.name}</div>
-                  <div className="search-result-artist">{song.artists}</div>
+          {!loading && flatSongs.length > 0 && (
+            flatSongs.map((entry, i) => {
+              const { song, platform } = entry;
+              const isVip = song.vip;
+              return (
+                <div key={`s-${i}`} className="search-result-item" onClick={() => selectSong(entry)}>
+                  {song.cover ? (
+                    <img src={song.cover} alt="" className="search-result-cover" />
+                  ) : (
+                    <img src="/logo.png" alt="IvyM" className="search-result-cover" />
+                  )}
+                  <div className="search-result-info">
+                    <div className="search-result-name">{song.name}</div>
+                    <div className="search-result-artist">{song.artists}</div>
+                  </div>
+                  <span className={`search-result-source ${platform} ${isVip ? 'is-vip' : ''}`}>
+                    {getSrcLabel(platform)}{isVip ? 'VIP' : ''}
+                  </span>
                 </div>
-                <div className="search-result-sources">
-                  {song.sources.map((src, j) => (
-                    <span key={j} className={`search-result-source ${src.platform} ${src.vip ? 'is-vip' : ''}`}>
-                      {getSrcLabel(src.platform)}{src.vip ? 'VIP' : ''}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       )}

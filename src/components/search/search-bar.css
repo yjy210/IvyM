@@ -214,9 +214,10 @@
   color: #31c27c;
 }
 
+/* VIP 歌曲：红色背景 + 白色字体 */
 .search-result-source.is-vip {
-  background: linear-gradient(135deg, #ffd700, #ff8c00);
-  color: #fffef1;
+  background: #ec4141;
+  color: #fff;
   font-weight: 700;
 }
 
