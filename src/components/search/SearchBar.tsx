@@ -230,8 +230,8 @@ export default function SearchBar() {
                 </div>
                 <div className="search-result-sources">
                   {song.sources.map((src, j) => (
-                    <span key={j} className={`search-result-source ${src.platform} ${src.fee === 1 ? 'is-vip' : ''}`}>
-                      {getSrcLabel(src.platform)}{src.fee === 1 ? 'VIP' : ''}
+                    <span key={j} className={`search-result-source ${src.platform} ${src.vip ? 'is-vip' : ''}`}>
+                      {getSrcLabel(src.platform)}{src.vip ? 'VIP' : ''}
                     </span>
                   ))}
                 </div>

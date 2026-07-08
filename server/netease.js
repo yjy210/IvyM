@@ -134,11 +134,20 @@ async function neteaseQrLogin() {
 async function neteaseQrCheck(unikey) {
   const res = await api.login_qr_check({ key: unikey });
   const code = res.body?.code;
-  const cookie = res.body?.cookie || '';
+  let cookie = res.body?.cookie || '';
+
+  // DEBUG
+  console.log(`[IvyM] QR check: code=${code}, cookieLength=${cookie.length}`);
+
+  // code 803 成功时，cookie 在 res.cookie 数组中
+  if (code === 803 && !cookie && Array.isArray(res.cookie) && res.cookie.length > 0) {
+    cookie = res.cookie.join(';');
+  }
 
   // 登录成功（code 803）→ 自动保存 cookie
   if (code === 803 && cookie) {
     saveCookie(cookie);
+    console.log('[IvyM] Cookie saved!');
   }
 
   return {

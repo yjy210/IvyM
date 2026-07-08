@@ -214,15 +214,9 @@
   color: #31c27c;
 }
 
-.search-result-source.netease.is-vip {
-  background: rgba(222, 56, 56, 0.22);
-  color: #b00;
-  font-weight: 700;
-}
-
-.search-result-source.qq.is-vip {
-  background: rgba(49, 194, 124, 0.22);
-  color: #1a7c45;
+.search-result-source.is-vip {
+  background: linear-gradient(135deg, #ffd700, #ff8c00);
+  color: #fffef1;
   font-weight: 700;
 }
 
