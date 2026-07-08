@@ -336,7 +336,7 @@
   justify-content: center;
 }
 
-/* 音量弹窗：百分比在上面，滑块盒在下面 */
+/* 音量弹窗：百分比在上面，滑块在按钮正上方 */
 .volume-popup-wrapper {
   position: fixed;
   z-index: 9999;
@@ -344,41 +344,42 @@
   flex-direction: column;
   align-items: center;
   gap: 6px;
+  transform: translateX(-50%);
   animation: popup-in 0.15s ease-out;
 }
 
 .volume-value {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   color: #1a1a2e;
   font-variant-numeric: tabular-nums;
-  min-width: 36px;
+  min-width: 32px;
   text-align: center;
   background: rgba(255, 255, 255, 0.85);
-  padding: 3px 10px;
-  border-radius: 8px;
+  padding: 2px 8px;
+  border-radius: 6px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 .volume-panel {
-  width: 44px;
-  height: 170px;
+  width: 36px;
+  height: 150px;
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(0, 0, 0, 0.08);
-  border-radius: 12px;
+  border-radius: 10px;
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 12px 0;
+  padding: 10px 0;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
   -webkit-app-region: no-drag;
 }
 
 @keyframes popup-in {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
+  from { opacity: 0; transform: translateX(-50%) scale(0.95); }
+  to { opacity: 1; transform: translateX(-50%) scale(1); }
 }
 
 .volume-panel input[type="range"] {

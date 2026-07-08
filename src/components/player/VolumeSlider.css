@@ -28,18 +28,3 @@
   background: #1a1a2e;
   border-radius: 2px;
 }
-
-.volume-thumb {
-  position: absolute;
-  left: 50%;
-  width: 14px;
-  height: 14px;
-  background: #1a1a2e;
-  border-radius: 50%;
-  transform: translateX(-50%) translateY(50%);
-  cursor: pointer;
-}
-
-.volume-track:active .volume-thumb {
-  cursor: pointer;
-}

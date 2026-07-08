@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from 'react';
-import { motion, useSpring, useTransform, animate } from 'motion/react';
+import { motion, useSpring, useTransform } from 'motion/react';
 import './VolumeSlider.css';
 
 interface Props {
@@ -11,10 +11,9 @@ export default function VolumeSlider({ value, onChange }: Props) {
   const trackRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
 
-  // 弹簧动画值
+  // 弹簧动画
   const spring = useSpring(value, { stiffness: 300, damping: 30 });
   const fillHeight = useTransform(spring, [0, 100], ['0%', '100%']);
-  const thumbBottom = useTransform(spring, [0, 100], ['0%', '100%']);
 
   useEffect(() => {
     spring.set(value);
@@ -44,6 +43,9 @@ export default function VolumeSlider({ value, onChange }: Props) {
     document.addEventListener('mouseup', onMouseUp);
   };
 
+  // 弹性缩放效果
+  const scaleY = useTransform(spring, [0, 100], [1, 1.05]);
+
   return (
     <div className="volume-slider">
       <div
@@ -53,13 +55,10 @@ export default function VolumeSlider({ value, onChange }: Props) {
       >
         <motion.div
           className="volume-fill"
-          style={{ height: fillHeight }}
-        />
-        <motion.div
-          className="volume-thumb"
-          style={{ bottom: thumbBottom }}
-          animate={{ scale: dragging ? 1.3 : 1 }}
-          transition={{ type: 'spring', stiffness: 500, damping: 25 }}
+          style={{
+            height: fillHeight,
+            scaleY: dragging ? scaleY : 1,
+          }}
         />
       </div>
     </div>
