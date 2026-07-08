@@ -136,18 +136,15 @@ async function neteaseQrCheck(unikey) {
   const code = res.body?.code;
   let cookie = res.body?.cookie || '';
 
-  // DEBUG
-  console.log(`[IvyM] QR check: code=${code}, cookieLength=${cookie.length}`);
-
-  // code 803 成功时，cookie 在 res.cookie 数组中
-  if (code === 803 && !cookie && Array.isArray(res.cookie) && res.cookie.length > 0) {
+  // code 803 成功时，完整 cookie 在 res.cookie 数组中
+  if (code === 803 && Array.isArray(res.cookie) && res.cookie.length > 0) {
     cookie = res.cookie.join(';');
   }
 
   // 登录成功（code 803）→ 自动保存 cookie
   if (code === 803 && cookie) {
     saveCookie(cookie);
-    console.log('[IvyM] Cookie saved!');
+    console.log('[IvyM] Netease login success, cookie saved');
   }
 
   return {
@@ -159,16 +156,22 @@ async function neteaseQrCheck(unikey) {
 
 async function neteaseUserInfo() {
   const res = await api.user_account({ cookie: getCookie() });
+  const account = res.body?.account;
   const profile = res.body?.profile;
-  if (!profile) return null;
+  if (!profile && !account) return null;
 
-  const vipType = profile.vipType || 0;
+  // VIP 检测：account.vipType === 11 或 profile.vipType === 11/110
+  const accountVip = account?.vipType === 11;
+  const profileVip = profile?.vipType === 11 || profile?.vipType === 110;
+  const isVip = accountVip || profileVip;
+  const vipName = isVip ? '黑胶VIP' : '';
+
   return {
-    nickname: profile.nickname || '',
-    avatar: profile.avatarUrl || '',
-    userId: String(profile.userId || ''),
-    vip: vipType === 11, // 11 = 黑胶VIP
-    vipName: vipType === 11 ? '黑胶VIP' : '',
+    nickname: profile?.nickname || account?.nickname || '',
+    avatar: profile?.avatarUrl || '',
+    userId: String(profile?.userId || account?.id || ''),
+    vip: isVip,
+    vipName,
   };
 }
 
