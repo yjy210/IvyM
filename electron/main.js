@@ -91,11 +91,10 @@ async function initServer() {
   }
 }
 
-// 平台用户信息 API
+// 平台用户信息 API（酷狗不用 API，用 DOM 抓取）
 const USER_API = {
   netease: 'https://music.163.com/api/nuser/account/get',
   qq: 'https://c.y.qq.com/rsc/fcgi-bin/fcg_get_profile_homepage.fcg',
-  kugou: 'https://gateway.kugou.com/userinfo/v1/user_info',
 };
 
 // QQ 头像合成 URL（当平台没有返回头像时）
@@ -230,8 +229,8 @@ function qqAvatarFromCookie(cookieObj) {
   return '';
 }
 
-// 获取用户信息（API 方案，不需要 loginWin）
-async function getUserInfo(platform, cookieStr) {
+// 获取用户信息（酷狗用 DOM 抓取需要 loginWin）
+async function getUserInfo(platform, cookieStr, loginWin) {
   const cookies = await getPlatformCookies(platform);
   const userId = getUserIdFromCookies(platform, cookies);
 
@@ -323,31 +322,39 @@ async function getUserInfo(platform, cookieStr) {
     };
   }
 
-  // ===== 酷狗（API 方案，和网易云/QQ 统一） =====
+  // ===== 酷狗（DOM 抓取，比 API 更稳定） =====
   if (platform === 'kugou') {
-    try {
-      const text = await httpsRequest(USER_API.kugou, {
-        headers: {
-          Cookie: cookieStr,
-          Referer: 'https://www.kugou.com',
-        },
-      });
-      const raw = safeJsonParse(text);
-      console.log('[IvyM] KuGou user API response:', JSON.stringify(raw).slice(0, 300));
+    const cookieObj = {};
+    cookies.forEach(c => { cookieObj[c.name] = c.value; });
 
-      const data = raw?.data || raw?.userdata || {};
-      return {
-        platform,
-        nickname: data.nickname || data.username || '',
-        avatar: data.avatar || data.headurl || data.head || '',
-        userId: String(data.userid || userId || ''),
-        vip: !!data.vip,
-        vipName: data.vip ? '酷狗VIP' : '',
-      };
+    let user = { nickname: '', avatar: '' };
+    try {
+      if (loginWin && !loginWin.isDestroyed()) {
+        user = await loginWin.webContents.executeJavaScript(`
+          (() => {
+            const avatar = document.querySelector(
+              '.user-avatar img, img[class*="avatar"], img[class*="head"], .userHead img, .userInfo img, img[src*="head"]'
+            )?.src || '';
+            const nickname = document.querySelector(
+              '.user-name, .nickname, .username, [class*="userName"], [class*="user_name"], [class*="nickname"]'
+            )?.innerText?.trim() || '';
+            return { nickname, avatar };
+          })()
+        `, true);
+        console.log('[IvyM] KuGou DOM result:', JSON.stringify(user));
+      }
     } catch (e) {
-      console.warn('[IvyM] KuGou API failed:', e.message);
+      console.warn('[IvyM] KuGou DOM error:', e.message);
     }
-    return { platform, nickname: '', avatar: '', userId, vip: false, vipName: '' };
+
+    return {
+      platform,
+      nickname: user?.nickname || cookieObj['nickname'] || '酷狗用户',
+      avatar: user?.avatar || cookieObj['head'] || '',
+      userId,
+      vip: false,
+      vipName: '',
+    };
   }
 
   return null;
@@ -409,7 +416,7 @@ ipcMain.handle('login:open', async (event, platform) => {
         if (hasLoginCookies(platform, cookies)) {
           console.log(`[IvyM] ${platform} login cookie detected, fetching user from page...`);
           const cookieStr = cookies.map(c => `${c.name}=${c.value}`).join('; ');
-          const userInfo = await getUserInfo(platform, cookieStr);
+          const userInfo = await getUserInfo(platform, cookieStr, loginWin);
           if (userInfo && (userInfo.nickname || userInfo.userId)) {
             finish({ platform, success: true, cookie: cookieStr, user: userInfo });
           }
@@ -423,7 +430,7 @@ ipcMain.handle('login:open', async (event, platform) => {
       const cookies = await getPlatformCookies(platform);
       if (hasLoginCookies(platform, cookies)) {
         const cookieStr = cookies.map(c => `${c.name}=${c.value}`).join('; ');
-        const userInfo = await getUserInfo(platform, cookieStr);
+        const userInfo = await getUserInfo(platform, cookieStr, loginWin);
         if (userInfo?.nickname || userInfo?.userId) {
           finish({ platform, success: true, cookie: cookieStr, user: userInfo });
           return;
@@ -437,33 +444,41 @@ ipcMain.handle('login:open', async (event, platform) => {
 });
 
 // 解绑：彻底清除该平台 partition 的所有数据（cookie + storage + cache）
+// 解绑：彻底清除该平台 partition（覆盖酷狗的设备指纹+service worker）
 ipcMain.handle('login:clear', async (event, platform) => {
   const partition = PLATFORM_PARTITIONS[platform];
   if (!partition) return;
   const ses = session.fromPartition(partition);
 
-  // 1) 清除所有 cookie（不限 URL）
-  const allCookies = await ses.cookies.get({});
-  for (const c of allCookies) {
-    // cookie.remove 需要 URL，用 cookie 自己的 domain 拼
-    const protocol = c.secure ? 'https://' : 'http://';
-    const domain = c.domain?.startsWith('.') ? c.domain.slice(1) : c.domain || '';
-    const path = c.path || '/';
-    const cookieUrl = `${protocol}${domain}${path}`;
-    try { await ses.cookies.remove(cookieUrl, c.name); } catch {}
-  }
-
-  // 2) 清除所有 storage
+  // 1) 清除所有 storage（覆盖酷狗的多层缓存：cookie + localStorage + IndexedDB + service worker + shader cache + app cache）
   await ses.clearStorageData({
-    storages: ['cookies', 'localstorage', 'indexdb', 'cachestorage', 'serviceworkers', 'websql', 'fileSystems'],
+    storages: [
+      'cookies',
+      'localstorage',
+      'indexdb',
+      'cachestorage',
+      'serviceworkers',
+      'shadercache',
+      'appcache',
+      'websql',
+      'fileSystems',
+    ],
   });
 
-  // 3) 清除整个 partition 的所有数据（兜底）
+  // 2) 兜底：确保 cookie 真的清掉了
+  const remaining = await ses.cookies.get({});
+  for (const c of remaining) {
+    const protocol = c.secure ? 'https://' : 'http://';
+    const domain = c.domain?.startsWith('.') ? c.domain.slice(1) : c.domain || '';
+    try { await ses.cookies.remove(`${protocol}${domain}${c.path || '/'}`, c.name); } catch {}
+  }
+
+  // 3) 清除网络缓存和认证
   await ses.clearCache();
-  await ses.clearHostCache();
+  await ses.clearHostResolverCache();
   await ses.clearAuthCache();
 
-  console.log(`[IvyM] ${platform} session fully cleared (${allCookies.length} cookies)`);
+  console.log(`[IvyM] ${platform} session fully cleared (${remaining.length} cookies)`);
 });
 
 app.whenReady().then(async () => {
