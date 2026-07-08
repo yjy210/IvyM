@@ -1,35 +1,46 @@
-.slider-container {
+/* 外层：竖直容器，占满音量面板 */
+.slider-vertical {
+  width: 100%;
+  height: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  width: 40px;
+}
+
+/* 百分比显示（顶部） */
+.volume-value {
+  font-size: 12px;
+  font-weight: 600;
+  color: #1a1a2e;
+  margin-bottom: 8px;
+  font-variant-numeric: tabular-nums;
+  min-width: 32px;
+  text-align: center;
+}
+
+/* 旋转 -90° 使水平滑块变为竖直 */
+.slider-container {
+  width: 100px;
+  height: 40px;
+  transform: rotate(-90deg);
+  transform-origin: center center;
   position: relative;
-  padding-top: 20px;
 }
 
 .value-indicator {
-  position: absolute;
-  top: 0;
-  transform: translateX(-50%);
-  font-size: 11px;
-  font-weight: 600;
-  color: #1a1a2e;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  pointer-events: none;
-  transition: left 0.1s;
+  display: none;
 }
 
 .slider-wrapper {
   display: flex;
   width: 100%;
+  height: 100%;
   touch-action: none;
   user-select: none;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .slider-root {
@@ -41,7 +52,7 @@
   touch-action: none;
   user-select: none;
   align-items: center;
-  padding: 8px 0;
+  padding: 6px 0;
 }
 
 .slider-root:active {
