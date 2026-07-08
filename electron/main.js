@@ -257,12 +257,18 @@ async function getUserInfo(platform, cookieStr) {
       });
       const raw = safeJsonParse(text);
 
+      // DEBUG
+      console.log('[IvyM DEBUG] QQ userId from cookie:', userId);
+      console.log('[IvyM DEBUG] QQ API raw (first 800):', JSON.stringify(raw)?.slice(0, 800));
+
       const data = raw?.data || raw?.profile || raw?.creator || raw?.result || {};
       const creator = data.creator || data.user || data.profile || data || {};
       const vipInfo = data.vipInfo || data.vipinfo || data.vip || {};
 
       const profileNick = creator.nick || creator.nickname || creator.name || creator.hostname || creator.title || '';
       const profileAvatar = creator.headpic || creator.avatar || creator.avatarUrl || creator.logo || '';
+
+      console.log('[IvyM DEBUG] QQ profileNick:', profileNick, 'cookieNick:', cookieNick);
 
       const nickname = profileNick || cookieNick || (userId ? 'QQ ' + userId : 'QQ 音乐');
       const avatar = profileAvatar || cookieAvatar || qqAvatarUrl(userId);

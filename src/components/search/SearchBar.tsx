@@ -10,7 +10,7 @@ export default function SearchBar() {
   const [loading, setLoading] = useState(false);
 
   const searchRef = useRef<HTMLInputElement>(null);
-  const islandRef = useRef<HTMLDivElement>(null);
+  const islandRef = useRef<HTMLDivElement>(null);  // 绑到 wrapper div
   const panelRef = useRef<HTMLDivElement>(null);
 
   const searchResults = usePlayerStore(s => s.searchResults);
@@ -109,9 +109,8 @@ export default function SearchBar() {
   return (
     <>
       {/* 搜索 Island - 顶部居中 */}
-      <div className="search-island-wrapper">
+      <div className="search-island-wrapper" ref={islandRef}>
         <GlassSurface
-          ref={islandRef}
           width={40}
           height={40}
           borderRadius={999}
