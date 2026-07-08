@@ -94,9 +94,8 @@ async function initServer() {
 // 平台用户信息 API
 const USER_API = {
   netease: 'https://music.163.com/api/nuser/account/get',
-  // QQ 用 profile homepage（Mineradio 方案，不是 musicu.fcg）
   qq: 'https://c.y.qq.com/rsc/fcgi-bin/fcg_get_profile_homepage.fcg',
-  kugou: 'https://www.kugou.com/UserInfo/User',
+  kugou: 'https://gateway.kugou.com/userinfo/v1/user_info',
 };
 
 // QQ 头像合成 URL（当平台没有返回头像时）
@@ -231,8 +230,8 @@ function qqAvatarFromCookie(cookieObj) {
   return '';
 }
 
-// 获取用户信息（Mineradio 方案）
-async function getUserInfo(loginWin, platform, cookieStr) {
+// 获取用户信息（API 方案，不需要 loginWin）
+async function getUserInfo(platform, cookieStr) {
   const cookies = await getPlatformCookies(platform);
   const userId = getUserIdFromCookies(platform, cookies);
 
@@ -324,36 +323,31 @@ async function getUserInfo(loginWin, platform, cookieStr) {
     };
   }
 
-  // ===== 酷狗（Mineradio 没做，用 DOM 抓取） =====
+  // ===== 酷狗（API 方案，和网易云/QQ 统一） =====
   if (platform === 'kugou') {
-    // 从 cookie 提取基本信息
-    const cookieObj = {};
-    cookies.forEach(c => { cookieObj[c.name] = c.value; });
-
-    // 尝试从页面 DOM 抓取
-    let domNick = '';
-    let domAvatar = '';
     try {
-      if (!loginWin.isDestroyed()) {
-        const result = await loginWin.webContents.executeJavaScript(`
-          (() => {
-            const img = document.querySelector('img[src*="head"], img[src*="avatar"], img[class*="head"], img[class*="avatar"], .userHead img, .userInfo img');
-            const nameEl = document.querySelector('[class*="userName"], [class*="nickname"], [class*="user_name"]');
-            return {
-              nickname: nameEl?.textContent?.trim() || document.title.replace(/[_-].*$/, '').trim() || '',
-              avatar: img?.src || '',
-            };
-          })()
-        `, true);
-        domNick = result?.nickname || '';
-        domAvatar = result?.avatar || '';
-      }
-    } catch {}
+      const text = await httpsRequest(USER_API.kugou, {
+        headers: {
+          Cookie: cookieStr,
+          Referer: 'https://www.kugou.com',
+        },
+      });
+      const raw = safeJsonParse(text);
+      console.log('[IvyM] KuGou user API response:', JSON.stringify(raw).slice(0, 300));
 
-    const nickname = domNick || cookieObj['nickname'] || cookieObj['nick'] || (userId ? '用户' + userId : '');
-    const avatar = domAvatar || cookieObj['head'] || cookieObj['avatar'] || '';
-
-    return { platform, nickname, avatar, userId, vip: false, vipName: '' };
+      const data = raw?.data || raw?.userdata || {};
+      return {
+        platform,
+        nickname: data.nickname || data.username || '',
+        avatar: data.avatar || data.headurl || data.head || '',
+        userId: String(data.userid || userId || ''),
+        vip: !!data.vip,
+        vipName: data.vip ? '酷狗VIP' : '',
+      };
+    } catch (e) {
+      console.warn('[IvyM] KuGou API failed:', e.message);
+    }
+    return { platform, nickname: '', avatar: '', userId, vip: false, vipName: '' };
   }
 
   return null;
@@ -415,7 +409,7 @@ ipcMain.handle('login:open', async (event, platform) => {
         if (hasLoginCookies(platform, cookies)) {
           console.log(`[IvyM] ${platform} login cookie detected, fetching user from page...`);
           const cookieStr = cookies.map(c => `${c.name}=${c.value}`).join('; ');
-          const userInfo = await getUserInfo(loginWin, platform, cookieStr);
+          const userInfo = await getUserInfo(platform, cookieStr);
           if (userInfo && (userInfo.nickname || userInfo.userId)) {
             finish({ platform, success: true, cookie: cookieStr, user: userInfo });
           }
@@ -429,7 +423,7 @@ ipcMain.handle('login:open', async (event, platform) => {
       const cookies = await getPlatformCookies(platform);
       if (hasLoginCookies(platform, cookies)) {
         const cookieStr = cookies.map(c => `${c.name}=${c.value}`).join('; ');
-        const userInfo = await getUserInfo(loginWin, platform, cookieStr);
+        const userInfo = await getUserInfo(platform, cookieStr);
         if (userInfo?.nickname || userInfo?.userId) {
           finish({ platform, success: true, cookie: cookieStr, user: userInfo });
           return;
