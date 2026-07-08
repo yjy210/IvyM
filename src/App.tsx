@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { PlayerBar } from './components/PlayerBar';
 import { WindowControls } from './components/WindowControls';
 import { LogoAnimation } from './components/splash/LogoAnimation';
 import Grainient from './components/grainient/Grainient';
@@ -42,8 +41,6 @@ export default function App() {
         <div className="flex-1 overflow-y-auto z-10">
           {/* router placeholder */}
         </div>
-
-        <PlayerBar />
       </div>
     </>
   );
