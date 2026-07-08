@@ -53,11 +53,6 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
     window.electronAPI?.openPlatformLogin(platform);
   }, []);
 
-  // 监听主进程登录结果
-  useEffect(() => {
-    window.electronAPI?.onLoginResult(handleLoginResult);
-  }, [handleLoginResult]);
-
   // 主进程返回登录结果后直接绑定
   const handleLoginResult = useCallback((result: {
     platform: string;
@@ -88,6 +83,11 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
     });
     setActiveTab('bound');
   }, []);
+
+  // 监听主进程登录结果
+  useEffect(() => {
+    window.electronAPI?.onLoginResult(handleLoginResult);
+  }, [handleLoginResult]);
 
   // 点击外部关闭
   useEffect(() => {
