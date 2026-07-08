@@ -10,7 +10,7 @@
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-top: none;
   background: transparent;
-  overflow: hidden;
+  overflow: visible;
   z-index: 800;
   -webkit-app-region: no-drag;
 }
@@ -23,6 +23,8 @@
   height: 100% !important;
   z-index: 0;
   pointer-events: none;
+  overflow: hidden;
+  border-radius: 0 0 20px 20px;
 }
 
 .player-glass .glass-surface__content {
@@ -297,15 +299,7 @@
   gap: 6px;
 }
 
-/* ── 音量弹窗 ── */
-.player-volume-wrapper {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* ── 音量面板（按钮附近弹出） ── */
+/* ── 音量 ── */
 .player-volume-wrapper {
   position: relative;
   display: flex;
@@ -314,10 +308,8 @@
 }
 
 .volume-panel {
-  position: absolute;
-  bottom: calc(100% + 8px);
-  left: 50%;
-  transform: translateX(-50%);
+  position: fixed;
+  z-index: 9999;
   width: 44px;
   height: 140px;
   background: rgba(255, 255, 255, 0.95);
@@ -330,8 +322,13 @@
   align-items: center;
   padding: 12px 0;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
-  z-index: 9999;
   -webkit-app-region: no-drag;
+  animation: popup-in 0.15s ease-out;
+}
+
+@keyframes popup-in {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
 }
 
 .volume-panel input[type="range"] {

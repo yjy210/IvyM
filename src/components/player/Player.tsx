@@ -36,6 +36,8 @@ export default function Player() {
   const [showPlaylist, setShowPlaylist] = useState(false);
   const [showLyrics, setShowLyrics] = useState(false);
   const [showSaveToPlaylist, setShowSaveToPlaylist] = useState(false);
+  const [volumePos, setVolumePos] = useState({ top: 0, left: 0 });
+  const volumeBtnRef = useRef<HTMLButtonElement>(null);
 
   // 喜欢的歌曲
   const [likes, setLikes] = useState<string[]>(() => {
@@ -95,6 +97,20 @@ export default function Player() {
       audioRef.current.volume = volume / 100;
     }
   }, [volume]);
+
+  // 点击外部关闭音量面板
+  useEffect(() => {
+    if (!showVolume) return;
+    const handler = (e: MouseEvent) => {
+      const panel = document.querySelector('.volume-panel');
+      const btn = volumeBtnRef.current;
+      if (panel && !panel.contains(e.target as Node) && btn && !btn.contains(e.target as Node)) {
+        setShowVolume(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showVolume]);
 
   const onTimeUpdate = () => {
     if (audioRef.current) setCurrentTime(audioRef.current.currentTime);
@@ -275,8 +291,18 @@ export default function Player() {
               </button>
               <div className="player-volume-wrapper">
                 <button
+                  ref={volumeBtnRef}
                   className="player-btn"
-                  onClick={() => setShowVolume(!showVolume)}
+                  onClick={() => {
+                    if (!showVolume && volumeBtnRef.current) {
+                      const rect = volumeBtnRef.current.getBoundingClientRect();
+                      setVolumePos({
+                        top: rect.top - 150,
+                        left: rect.left + rect.width / 2 - 22,
+                      });
+                    }
+                    setShowVolume(!showVolume);
+                  }}
                   title="音量"
                 >
                   {volume >= 50 ? (
@@ -286,7 +312,7 @@ export default function Player() {
                   )}
                 </button>
                 {showVolume && (
-                  <div className="volume-panel">
+                  <div className="volume-panel" style={{ top: volumePos.top, left: volumePos.left }}>
                     <input
                       type="range"
                       min="0"
