@@ -1,24 +1,18 @@
-/* ── 搜索 Island 容器（顶部居中） ── */
+/* ── 搜索 Island 容器 ── */
 .search-island-wrapper {
   position: fixed;
   top: 1.25rem;
   left: 50%;
   transform: translateX(-50%);
   z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   width: 40px;
   height: 40px;
-  overflow: hidden;
-  border-radius: 999px;
+  -webkit-app-region: no-drag;
 }
 
-/* GlassSurface 填充 */
 .search-island.glass-surface {
   width: 100% !important;
   height: 100% !important;
-  cursor: pointer;
 }
 
 .search-island .glass-surface__content {
@@ -27,37 +21,39 @@
   height: 100%;
 }
 
-/* 打开按钮（仅关闭状态渲染，在 GlassSurface 之上） */
+/* ── 打开按钮（整个 40x40 区域） ── */
 .s-open-btn {
   position: absolute;
   inset: 0;
-  z-index: 100;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: transparent;
   cursor: pointer;
-  border-radius: 999px;
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-app-region: no-drag;
 }
 
-/* 放大镜图标 */
 .s-search-icon {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  pointer-events: none;
-  flex-shrink: 0;
-  z-index: 1;
+  position: static;
+  transform: none;
 }
 
-/* 输入区域 */
+/* ── 输入区域 ── */
 .s-input-area {
   position: absolute;
   inset: 0;
   display: flex;
   align-items: center;
-  gap: 10px;
   padding: 0 14px;
-  pointer-events: none;
-  opacity: 0;
-  z-index: 20;
+  gap: 10px;
+  z-index: 1000;
+  opacity: 1;
+  pointer-events: auto;
+  -webkit-app-region: no-drag;
 }
 
 .s-input {
@@ -75,12 +71,8 @@
   color: rgba(0, 0, 0, 0.35);
 }
 
-/* 关闭按钮 — 大范围点击 */
+/* ── 关闭按钮 ── */
 .s-close-btn {
-  position: absolute;
-  right: 4px;
-  top: 50%;
-  transform: translateY(-50%);
   width: 36px;
   height: 36px;
   display: flex;
@@ -89,10 +81,9 @@
   border: none;
   background: transparent;
   cursor: pointer;
-  flex-shrink: 0;
-  z-index: 90;
   border-radius: 50%;
-  transition: background 0.15s;
+  flex-shrink: 0;
+  -webkit-app-region: no-drag;
 }
 
 .s-close-btn:hover {
@@ -121,6 +112,7 @@
   padding: 0.4rem;
   overflow-y: auto;
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.12);
+  -webkit-app-region: no-drag;
 }
 
 /* 结果项 */
@@ -189,8 +181,7 @@
   text-overflow: ellipsis;
 }
 
-/* 来源 + VIP badges */
-.search-result-badges,
+/* 来源 badges */
 .search-result-sources {
   display: flex;
   gap: 4px;
@@ -202,6 +193,7 @@
   font-weight: 600;
   padding: 2px 6px;
   border-radius: 3px;
+  white-space: nowrap;
 }
 
 .search-result-source.netease {
@@ -212,10 +204,6 @@
 .search-result-source.qq {
   background: rgba(49, 194, 124, 0.08);
   color: #31c27c;
-}
-
-.search-result-source.is-vip {
-  font-weight: 700;
 }
 
 .search-result-source.netease.is-vip {
