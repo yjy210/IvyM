@@ -95,26 +95,43 @@ async function neteaseLyric(id) {
   };
 }
 
-// ======================== 以下函数保持原样（Phase 2 再改） ========================
+// ======================== Phase 2: QR 登录 ========================
 
 async function neteaseQrLogin() {
-  const keyRes = await api.login_qr_key({ timer: Date.now() });
-  if (!keyRes.body?.unikey) return { code: -1, msg: '获取 key 失败' };
-  const qrRes = await api.login_qr_create({ key: keyRes.body.unikey, qrimg: 1, timer: Date.now() });
-  if (!qrRes.body?.qrimg) return { code: -1, msg: '获取二维码失败' };
-  return { code: 200, data: { qrimg: qrRes.body.qrimg, unikey: keyRes.body.unikey } };
+  // 1. 获取 unikey
+  const keyRes = await api.login_qr_key({});
+  const unikey = keyRes.body?.data?.unikey;
+  if (!unikey) return { code: -1, msg: '获取 key 失败' };
+
+  // 2. 生成二维码（base64）
+  const qrRes = await api.login_qr_create({ key: unikey, qrimg: true });
+  const qrimg = qrRes.body?.data?.qrimg;
+  if (!qrimg) return { code: -1, msg: '获取二维码失败' };
+
+  return { code: 200, data: { qrimg, unikey } };
 }
 
 async function neteaseQrCheck(unikey) {
-  const res = await api.login_qr_check({ key: unikey, timer: Date.now() });
-  return { code: res.body?.code, msg: res.body?.message || '', cookie: res.body?.cookie || '' };
+  const res = await api.login_qr_check({ key: unikey });
+  const code = res.body?.code;
+  const cookie = res.body?.cookie || '';
+
+  // 登录成功（code 803）→ 自动保存 cookie
+  if (code === 803 && cookie) {
+    saveCookie(cookie);
+  }
+
+  return {
+    code,
+    msg: res.body?.message || '',
+    cookie,
+  };
 }
 
-async function neteaseUserInfo(cookie) {
-  const res = await api.user_account({ cookie });
+async function neteaseUserInfo() {
+  const res = await api.user_account({ cookie: getCookie() });
   const profile = res.body?.profile;
-  if (!profile) return {};
-  return { body: { profile: profile.profile || profile } };
+  return profile ? { nickname: profile.nickname, avatar: profile.avatarUrl, userId: profile.userId } : null;
 }
 
 module.exports = { neteaseSearch, neteaseSongUrl, neteaseLyric, neteaseQrLogin, neteaseQrCheck, neteaseUserInfo };

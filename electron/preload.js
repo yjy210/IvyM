@@ -21,6 +21,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onLoginResult: (callback) => {
     ipcRenderer.on('login:result', (event, result) => callback(result));
   },
+  // --- Phase 2: 网易云 QR 登录 ---
+  getQRKey: () => ipcRenderer.invoke('login:qr-key'),
+  checkQRStatus: (unikey) => ipcRenderer.invoke('login:qr-check', unikey),
+  getQRUserInfo: () => ipcRenderer.invoke('login:qr-user'),
   // --- 解绑：清除平台的登录 session ---
   clearPlatformSession: (platform) => ipcRenderer.invoke('login:clear', platform),
 });

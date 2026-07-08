@@ -1,5 +1,6 @@
 const { app, BrowserWindow, ipcMain, session } = require('electron');
 const https = require('https');
+const fs = require('fs');
 const path = require('path');
 const { registerIpcHandlers } = require('./ipc');
 const { startApiServer } = require('../server/index');
@@ -399,18 +400,59 @@ ipcMain.handle('login:open', async (event, platform) => {
   });
 });
 
+// ==================== Phase 2: 网易云 QR 登录 ====================
+
+// 获取二维码
+ipcMain.handle('login:qr-key', async () => {
+  try {
+    const { neteaseQrLogin } = require('../server/netease');
+    const result = await neteaseQrLogin();
+    return result;
+  } catch (e) {
+    return { code: -1, msg: e.message };
+  }
+});
+
+// 轮询扫码状态
+ipcMain.handle('login:qr-check', async (event, unikey) => {
+  try {
+    const { neteaseQrCheck } = require('../server/netease');
+    const result = await neteaseQrCheck(unikey);
+    return result;
+  } catch (e) {
+    return { code: -1, msg: e.message };
+  }
+});
+
+// 获取用户信息
+ipcMain.handle('login:qr-user', async () => {
+  try {
+    const { neteaseUserInfo } = require('../server/netease');
+    const result = await neteaseUserInfo();
+    return { code: 200, data: result };
+  } catch (e) {
+    return { code: -1, msg: e.message };
+  }
+});
+
 // ==================== 解绑 ====================
 ipcMain.handle('login:clear', async (event, platform) => {
+  // 1) 清除网易云 cookie 文件
+  if (platform === 'netease') {
+    try { fs.unlinkSync(path.join(__dirname, '../server/.netease-cookie.json')); } catch {}
+    return { ok: true };
+  }
+
+  // 2) 其他分区走旧逻辑
   const partition = PLATFORM_PARTITIONS[platform];
   if (!partition) return;
   const ses = session.fromPartition(partition);
 
-  // 1) 清除所有 storage
   await ses.clearStorageData({
     storages: ['cookies', 'localstorage', 'indexdb', 'cachestorage', 'serviceworkers', 'websql', 'fileSystems'],
   });
 
-  // 2) 兜底：确保 cookie 清掉
+  // 兜底：确保 cookie 清掉
   const remaining = await ses.cookies.get({});
   for (const c of remaining) {
     const protocol = c.secure ? 'https://' : 'http://';

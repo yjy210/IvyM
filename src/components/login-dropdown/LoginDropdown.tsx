@@ -48,9 +48,71 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
     saveAccounts(filtered);
   }, [accounts, saveAccounts]);
 
-  // 打开平台官方登录页
-  const handleBind = useCallback((platform: 'netease' | 'qq') => {
-    window.electronAPI?.openPlatformLogin(platform);
+  // Phase 2: QR 登录状态
+  const [qrModal, setQrModal] = useState<{ visible: boolean; qrImg: string | null; unikey: string | null; status: string }>({
+    visible: false,
+    qrImg: null,
+    unikey: null,
+    status: '',
+  });
+
+  // 打开平台登录（网易云用 QR，QQ 暂用旧方式）
+  const handleBind = useCallback(async (platform: 'netease' | 'qq') => {
+    if (platform === 'netease') {
+      // 获取二维码
+      const result = await window.electronAPI?.getQRKey();
+      if (result?.code === 200) {
+        setQrModal({ visible: true, qrImg: result.data.qrimg, unikey: result.data.unikey, status: '请使用APP扫码' });
+        // 开始轮询
+        startQRPolling(result.data.unikey);
+      } else {
+        setQrModal({ visible: true, qrImg: null, unikey: null, status: result?.msg || '获取二维码失败' });
+      }
+    } else {
+      window.electronAPI?.openPlatformLogin(platform);
+    }
+  }, []);
+
+  // QR 轮询
+  const startQRPolling = useCallback((unikey: string) => {
+    const timer = setInterval(async () => {
+      try {
+        const res = await window.electronAPI?.checkQRStatus(unikey);
+        if (res?.code === 803) {
+          // 成功
+          clearInterval(timer);
+          setQrModal(prev => ({ ...prev, status: '登录成功！' }));
+          // 获取用户信息
+          const userRes = await window.electronAPI?.getQRUserInfo();
+          if (userRes?.code === 200 && userRes.data) {
+            const info = userRes.data;
+            const newAccount: PlatformAccount = {
+              platform: 'netease',
+              nickname: info.nickname || '网易云用户',
+              avatar: info.avatar || '',
+              vip: false,
+              vipName: '',
+              userId: String(info.userId || ''),
+              cookie: '',
+              bindTime: Date.now(),
+            };
+            setAccounts(prev => {
+              const filtered = prev.filter(a => a.platform !== 'netease');
+              const updated = [...filtered, newAccount];
+              localStorage.setItem('ivym_accounts', JSON.stringify(updated));
+              return updated;
+            });
+            setActiveTab('bound');
+          }
+          setTimeout(() => setQrModal({ visible: false, qrImg: null, unikey: null, status: '' }), 1000);
+        } else if (res?.code === 802) {
+          setQrModal(prev => ({ ...prev, status: '已扫码，请在手机上确认' }));
+        } else if (res?.code === 800) {
+          setQrModal(prev => ({ ...prev, status: '二维码已过期' }));
+          clearInterval(timer);
+        }
+      } catch { /* ignore */ }
+    }, 2000);
   }, []);
 
   // 主进程返回登录结果后直接绑定
@@ -228,6 +290,28 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
           )}
         </div>
       </div>
+
+      {/* ===== QR 登录弹窗 ===== */}
+      {qrModal.visible && (
+        <div className="qr-overlay" onClick={() => setQrModal({ visible: false, qrImg: null, unikey: null, status: '' })}>
+          <div className="qr-modal" onClick={e => e.stopPropagation()}>
+            <div className="qr-header">
+              <h3>网易云音乐登录</h3>
+              <button className="qr-close" onClick={() => setQrModal({ visible: false, qrImg: null, unikey: null, status: '' })}>✕</button>
+            </div>
+            <div className="qr-body">
+              {qrModal.qrImg ? (
+                <>
+                  <img src={qrModal.qrImg} alt="QR Code" className="qr-img" />
+                  <p className="qr-status">{qrModal.status}</p>
+                </>
+              ) : (
+                <p className="qr-error">{qrModal.status || '加载中...'}</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

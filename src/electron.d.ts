@@ -18,6 +18,10 @@ declare global {
         user?: { platform: string; nickname: string; avatar: string; userId: string; vip: boolean; vipName: string };
         cookie?: string;
       }) => void) => void;
+      // Phase 2: 网易云 QR 登录
+      getQRKey: () => Promise<{ code: number; msg?: string; data?: { qrimg: string; unikey: string } }>;
+      checkQRStatus: (unikey: string) => Promise<{ code: number; msg?: string; cookie?: string }>;
+      getQRUserInfo: () => Promise<{ code: number; data?: { nickname: string; avatar: string; userId: string } }>;
       clearPlatformSession: (platform: 'netease' | 'qq') => Promise<void>;
     };
   }
