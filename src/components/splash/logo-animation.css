@@ -24,8 +24,7 @@
 .splash-trail-layer {
   position: absolute;
   inset: 0;
-  z-index: 5;
-  pointer-events: none;
+  z-index: 2;
 }
 
 .splash-content {
