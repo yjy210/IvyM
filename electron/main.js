@@ -21,9 +21,19 @@ const PLATFORM_PARTITIONS = {
 // 各平台登录有效的关键 cookie 名（用于判断登录是否成功）
 const LOGIN_KEY_COOKIES = {
   netease: ['MUSIC_U', '__csrf', 'os'],
+  // QQ 需要同时有 uin + music key (qm_keyst/qqmusic_key/music_key/skey)
   qq: ['uin', 'music_u', 'qm_keyst', 'qqmusic_key'],
   kugou: ['kg_mid', 'KuGoo', 'KG_FID', 'userid'],
 };
+
+// QQ 音乐关键 cookie：需要 uin AND music key 同时存在
+function qqHasValidLogin(cookies) {
+  const names = cookies.map(c => c.name);
+  const hasUin = names.includes('uin') || names.includes('wxuin') || names.includes('p_uin');
+  const hasMusicKey = names.includes('qm_keyst') || names.includes('qqmusic_key') ||
+    names.includes('music_key') || names.includes('p_skey') || names.includes('skey');
+  return hasUin && hasMusicKey;
+}
 
 // 各平台 cookie 域名
 const COOKIE_URLS = {
@@ -108,37 +118,80 @@ async function getPlatformCookies(platform) {
 
 // 判断是否已有关键 cookie（登录成功）
 function hasLoginCookies(platform, cookies) {
+  if (platform === 'qq') return qqHasValidLogin(cookies);
   const keys = LOGIN_KEY_COOKIES[platform] || [];
   const names = cookies.map(c => c.name);
   return keys.some(k => names.includes(k));
 }
 
-// 带 cookie 请求用户信息（使用 https）
-function fetchUserInfo(platform, cookieStr) {
+// 通用 https 请求（支持 GET/POST）
+function httpsRequest(url, { method = 'GET', headers = {}, body } = {}) {
   return new Promise((resolve, reject) => {
-    const apiUrl = USER_API[platform];
-    if (!apiUrl) return reject(new Error('Unknown platform'));
-    const req = https.get(apiUrl, {
+    const urlObj = new URL(url);
+    const options = {
+      hostname: urlObj.hostname,
+      port: 443,
+      path: urlObj.pathname + urlObj.search,
+      method,
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Referer': platform === 'netease' ? 'https://music.163.com' : platform === 'qq' ? 'https://y.qq.com' : 'https://www.kugou.com',
-        'Cookie': cookieStr,
+        ...headers,
       },
-    }, (res) => {
-      let body = '';
-      res.on('data', chunk => body += chunk);
+    };
+    if (body) {
+      options.headers['Content-Type'] = 'application/json';
+      options.headers['Content-Length'] = Buffer.byteLength(body);
+    }
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
       res.on('end', () => {
-        try { resolve(JSON.parse(body)); }
-        catch (e) { reject(new Error('Invalid JSON')); }
+        try { resolve(JSON.parse(data)); }
+        catch (e) { resolve(data); }
       });
     });
     req.on('error', reject);
     req.setTimeout(15000, () => { req.destroy(); reject(new Error('timeout')); });
+    if (body) req.write(body);
+    req.end();
   });
+}
+
+// 带 cookie 请求用户信息
+async function fetchUserInfo(platform, cookieStr) {
+  if (platform === 'netease') {
+    return httpsRequest(USER_API.netease, {
+      headers: { 'Referer': 'https://music.163.com', 'Cookie': cookieStr },
+    });
+  }
+  if (platform === 'qq') {
+    // QQ 需要 POST JSON 到 musicu.fcg 获取用户信息（和 Mineradio 一致）
+    const uinMatch = cookieStr.match(/(?:uin|wxuin|p_uin)=([^;]+)/);
+    const uin = uinMatch ? uinMatch[1].replace(/^o0*/, '') : '';
+    const body = JSON.stringify({
+      comm: { cv: 4747474, ct: 24, format: 'json', inCharset: 'utf-8', outCharset: 'utf-8', notice: 0, platform: 'yqq', needNewCode: 1, uin: parseInt(uin) || 0 },
+      req_1: { module: 'music.UserInfoServer', method: 'GetLoginUserInfo', param: {} },
+    });
+    return httpsRequest(USER_API.qq, {
+      method: 'POST',
+      headers: { 'Referer': 'https://y.qq.com', 'Cookie': cookieStr },
+      body,
+    });
+  }
+  if (platform === 'kugou') {
+    const cookies = await getPlatformCookies(platform);
+    const info = { cookie: cookieStr };
+    cookies.forEach(c => { info[c.name] = c.value; });
+    return info;
+  }
+  return null;
 }
 
 // 解析各平台用户信息
 function parseUserInfo(platform, raw) {
+  if (!raw) return null;
+
+  // 网易云
   if (platform === 'netease') {
     if (!raw.profile) return null;
     return {
@@ -150,28 +203,42 @@ function parseUserInfo(platform, raw) {
       vipName: (raw.profile.vipType || 0) > 0 ? '黑胶VIP' : '',
     };
   }
+
+  // QQ音乐（Mineradio 方案：从 musicu.fcg 返回的 req_1.data 解析）
   if (platform === 'qq') {
-    const user = raw?.data || raw;
+    const qqData = raw.req_1?.data || raw.data || raw;
+    const creator = qqData.creator || qqData;
+    const uin = qqData.uin || raw.req_1?.data?.uin || '';
+    // 从 cookie 中提取昵称备选
+    const nickname = creator?.nick || creator?.nickname || creator?.name || creator?.hostname || creator?.title || '';
+    const avatar = creator?.headpic || creator?.avatar || creator?.avatarUrl || creator?.logo ||
+      (uin ? `https://q1.qlogo.cn/g?b=qq&nk=${uin}` : '');
     return {
       platform,
-      nickname: user.nickname || user.singerName || '',
-      avatar: user.headpic || user.avatarUrl || '',
-      userId: String(user.uin || user.mid || ''),
+      nickname,
+      avatar,
+      userId: String(uin),
+      vip: (qqData.vipType || qqData.vip_type || 0) > 0,
+      vipName: (qqData.vipType || qqData.vip_type || 0) > 0 ? '绿钻会员' : '',
+    };
+  }
+
+  // 酷狗（直接从 cookie 里解析用户信息，不需要额外 API）
+  if (platform === 'kugou') {
+    // raw 这里传的是 cookies 聚合的 info 对象
+    const userid = raw.userid || raw.KG_FID || raw.kg_mid || '';
+    const nickname = raw.nickname || raw.Nickname || raw.KuGoo || '';
+    const avatar = raw.head || raw.avatar || raw.Head || '';
+    return {
+      platform,
+      nickname,
+      avatar,
+      userId: String(userid),
       vip: false,
       vipName: '',
     };
   }
-  if (platform === 'kugou') {
-    if (!raw.userdata) return null;
-    return {
-      platform,
-      nickname: raw.userdata.nickname || '',
-      avatar: raw.userdata.head || '',
-      userId: String(raw.userdata.userid || ''),
-      vip: !!raw.userdata.vip,
-      vipName: raw.userdata.vip ? '酷狗VIP' : '',
-    };
-  }
+
   return null;
 }
 
@@ -233,9 +300,18 @@ ipcMain.handle('login:open', async (event, platform) => {
         if (hasLoginCookies(platform, cookies)) {
           console.log(`[IvyM] ${platform} login cookie detected, fetching user...`);
           const cookieStr = cookies.map(c => `${c.name}=${c.value}`).join('; ');
-          const raw = await fetchUserInfo(platform, cookieStr);
-          const userInfo = parseUserInfo(platform, raw);
-          if (userInfo && userInfo.nickname) {
+          let userInfo = null;
+          try {
+            const raw = await fetchUserInfo(platform, cookieStr);
+            userInfo = parseUserInfo(platform, raw);
+          } catch (apiErr) {
+            console.warn(`[IvyM] ${platform} API failed: ${apiErr.message}, using cookie fallback`);
+          }
+          // API 失败但有 cookie → 从 cookie 提取基本信息
+          if (!userInfo || !userInfo.nickname) {
+            userInfo = parseUserInfo(platform, Object.fromEntries(cookies.map(c => [c.name, c.value])));
+          }
+          if (userInfo && (userInfo.nickname || userInfo.userId)) {
             finish({ platform, success: true, cookie: cookieStr, user: userInfo });
           }
         }
