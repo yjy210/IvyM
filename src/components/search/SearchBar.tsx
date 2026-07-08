@@ -12,14 +12,16 @@ interface Song {
   album?: string;
   duration?: number;
   source?: string;
-  fee?: number; // 1=VIP, 0=免费
+  fee?: number;
+  cover?: string;
 }
 
 interface MergedSong {
   id: string;
   name: string;
   artists: string;
-  sources: { platform: 'netease' | 'qq'; fee?: number }[];
+  sources: { platform: 'netease' | 'qq'; fee: number; cover?: string }[];
+  cover?: string;
 }
 
 export default function SearchBar() {
@@ -111,7 +113,6 @@ export default function SearchBar() {
     return () => clearTimeout(timer);
   }, [keyword, doSearch]);
 
-  // 合并相同歌曲（按 歌名+艺人 匹配）
   const mergedSongs: MergedSong[] = useMemo(() => {
     if (!searchResults) return [];
     const map = new Map<string, MergedSong>();
@@ -119,24 +120,25 @@ export default function SearchBar() {
     searchResults.netease.forEach((song: Song) => {
       const key = `${song.name}-${song.artists}`;
       if (!map.has(key)) {
-        map.set(key, { id: song.id, name: song.name, artists: song.artists, sources: [] });
+        map.set(key, { id: song.id, name: song.name, artists: song.artists, sources: [], cover: song.cover });
       }
-      map.get(key)!.sources.push({ platform: 'netease', fee: song.fee });
+      const entry = map.get(key)!;
+      entry.sources.push({ platform: 'netease', fee: song.fee || 0, cover: song.cover });
     });
 
     searchResults.qq.forEach((song: Song) => {
       const key = `${song.name}-${song.artists}`;
       if (!map.has(key)) {
-        map.set(key, { id: song.mid || song.id, name: song.name, artists: song.artists, sources: [] });
+        map.set(key, { id: song.mid || song.id, name: song.name, artists: song.artists, sources: [], cover: song.cover });
       }
-      map.get(key)!.sources.push({ platform: 'qq', fee: song.fee });
+      const entry = map.get(key)!;
+      entry.sources.push({ platform: 'qq', fee: song.fee || 0, cover: song.cover });
     });
 
     return Array.from(map.values());
   }, [searchResults]);
 
   const selectSong = useCallback((song: MergedSong) => {
-    // 找到对应原始歌曲并加入播放列表
     if (searchResults) {
       const all: Song[] = [];
       song.sources.forEach(s => {
@@ -154,9 +156,10 @@ export default function SearchBar() {
 
   const showPanel = keyword.trim().length > 0;
 
+  const getSrcLabel = (platform: 'netease' | 'qq') => platform === 'netease' ? '网易云' : 'QQ';
+
   return (
     <>
-      {/* 搜索 Island - 顶部居中 */}
       <div className="search-island-wrapper" ref={islandRef}>
         <GlassSurface
           width="100%"
@@ -204,7 +207,6 @@ export default function SearchBar() {
         </GlassSurface>
       </div>
 
-      {/* 搜索结果面板 */}
       {showPanel && (
         <div className="search-results-panel" ref={panelRef} style={{ visibility: 'visible', opacity: 1 }}>
           {loading && <div className="search-empty">搜索中...</div>}
@@ -216,16 +218,19 @@ export default function SearchBar() {
           {!loading && mergedSongs.length > 0 && (
             mergedSongs.map((song, i) => (
               <div key={`s-${i}`} className="search-result-item" onClick={() => selectSong(song)}>
-                <div className="search-result-cover" />
+                {song.cover ? (
+                  <img src={song.cover} alt="" className="search-result-cover" />
+                ) : (
+                  <div className="search-result-cover" />
+                )}
                 <div className="search-result-info">
                   <div className="search-result-name">{song.name}</div>
                   <div className="search-result-artist">{song.artists}</div>
                 </div>
-                <div className="search-result-badges">
+                <div className="search-result-sources">
                   {song.sources.map((src, j) => (
                     <span key={j} className={`search-result-source ${src.platform} ${src.fee === 1 ? 'is-vip' : ''}`}>
-                      {src.platform === 'netease' ? '网易云' : 'QQ'}
-                      {src.fee === 1 && (src.platform === 'netease' ? ' 黑胶VIP' : ' 绿钻')}
+                      {getSrcLabel(src.platform)}{src.fee === 1 ? 'VIP' : ''}
                     </span>
                   ))}
                 </div>

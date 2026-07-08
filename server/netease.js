@@ -40,6 +40,7 @@ async function neteaseSearch(keyword, limit = 30) {
     duration: s.duration,
     source: 'netease',
     fee: s.fee || 0, // 1=VIP, 0=免费
+    cover: s.album?.picId ? `https://p1.music.126.net/${s.album.picId}/${s.album.picId}.jpg?param=100y100` : '',
   }));
   return { code: 200, data: songs, total: res.result.songCount || songs.length };
 }

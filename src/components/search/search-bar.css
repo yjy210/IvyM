@@ -143,11 +143,12 @@
 
 /* 封面 */
 .search-result-cover {
-  width: 36px;
-  height: 36px;
-  border-radius: 5px;
-  background: rgba(0, 0, 0, 0.04);
+  width: 44px;
+  height: 44px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.06);
   flex-shrink: 0;
+  object-fit: cover;
 }
 
 /* 文字 */
@@ -175,7 +176,8 @@
 }
 
 /* 来源 + VIP badges */
-.search-result-badges {
+.search-result-badges,
+.search-result-sources {
   display: flex;
   gap: 4px;
   flex-shrink: 0;
@@ -203,13 +205,15 @@
 }
 
 .search-result-source.netease.is-vip {
-  background: rgba(222, 56, 56, 0.18);
-  color: #c00;
+  background: rgba(222, 56, 56, 0.22);
+  color: #b00;
+  font-weight: 700;
 }
 
 .search-result-source.qq.is-vip {
-  background: rgba(49, 194, 124, 0.18);
-  color: #1a8c50;
+  background: rgba(49, 194, 124, 0.22);
+  color: #1a7c45;
+  font-weight: 700;
 }
 
 /* 空结果/加载 */

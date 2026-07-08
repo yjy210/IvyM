@@ -47,6 +47,7 @@ async function qqSearch(keyword, limit = 30) {
     duration: s.interval ? s.interval * 1000 : 0,
     source: 'qq',
     fee: s.pay?.payplay === 1 ? 1 : 0, // 1=VIP, 0=免费
+    cover: s.albummid ? `https://y.qq.com/music/photo_new/T002R100x100M000${s.albummid}.jpg` : '',
   }));
   return { code: 200, data: songs, total: res.data.song.totalnum || songs.length };
 }
