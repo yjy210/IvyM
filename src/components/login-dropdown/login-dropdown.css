@@ -112,6 +112,11 @@
 .platform-unbound { padding: 20px 0; }
 
 .platform-icon-large { width: 48px; height: 48px; border-radius: 12px; object-fit: cover; display: block; margin: 0 auto 12px; }
+.clickable-icon { cursor: pointer; transition: all 0.2s; }
+.clickable-icon:hover { transform: scale(1.1); box-shadow: 0 4px 20px rgba(99, 102, 241, 0.3); }
+.clickable-icon:active { transform: scale(0.95); }
+
+.platform-hint { font-size: 12px; color: #999; }
 
 .platform-unbound p { color: #999; font-size: 13px; margin-bottom: 16px; }
 

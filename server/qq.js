@@ -101,4 +101,25 @@ async function qqQrCheck(sigx) {
   return { code: res.errcode, msg: res.msg || '', cookie: res.cookie || '', uin: res.uin || 0 };
 }
 
-module.exports = { qqSearch, qqSongUrl, qqQrLogin, qqQrCheck };
+async function qqUserInfo(cookie) {
+  return new Promise((resolve, reject) => {
+    const req = http.get('https://c.y.qq.com/rpc/fcgi-bin/cgi_get_portrait.fcg', {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Referer': 'https://y.qq.com',
+        'Cookie': cookie,
+      },
+    }, (res) => {
+      let body = '';
+      res.on('data', chunk => body += chunk);
+      res.on('end', () => {
+        try { resolve(JSON.parse(body)); }
+        catch (e) { resolve({}); }
+      });
+    });
+    req.on('error', reject);
+    req.setTimeout(10000, () => { req.destroy(); reject(new Error('timeout')); });
+  });
+}
+
+module.exports = { qqSearch, qqSongUrl, qqQrLogin, qqQrCheck, qqUserInfo };

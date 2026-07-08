@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import LoginModal from '../login-modal/LoginModal';
 import './login-dropdown.css';
 
 interface PlatformAccount {
@@ -26,7 +25,6 @@ const PLATFORMS = [
 export default function LoginDropdown({ onClose }: LoginDropdownProps) {
   const [activeTab, setActiveTab] = useState<'bound' | 'netease' | 'qq' | 'kugou'>('bound');
   const [accounts, setAccounts] = useState<PlatformAccount[]>([]);
-  const [showQR, setShowQR] = useState<'netease' | 'qq' | 'kugou' | null>(null);
   const [hoveredPlatform, setHoveredPlatform] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -49,6 +47,53 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
     const filtered = accounts.filter(a => a.platform !== platform);
     saveAccounts(filtered);
   }, [accounts, saveAccounts]);
+
+  // 打开平台官方登录页
+  const handleBind = useCallback((platform: 'netease' | 'qq' | 'kugou') => {
+    window.electronAPI?.openPlatformLogin(platform);
+  }, []);
+
+  // 监听登录结果（cookie）
+  useEffect(() => {
+    const handler = (result: { platform: string; cookie: string; cookies: { name: string; value: string }[] }) => {
+      if (!result.cookie) return;
+      // 用 cookie 去获取用户信息
+      fetchUserInfo(result.platform as 'netease' | 'qq' | 'kugou', result.cookie);
+    };
+    window.electronAPI?.onLoginResult(handler);
+  }, []);
+
+  // 根据 cookie 获取用户信息
+  const fetchUserInfo = useCallback(async (platform: 'netease' | 'qq' | 'kugou', cookie: string) => {
+    try {
+      const res = await fetch(`http://localhost:3001/api/${platform}/user`, {
+        headers: { Cookie: cookie },
+      });
+      const data = await res.json();
+      if (data.code === 200) {
+        const info = data.data;
+        const newAccount: PlatformAccount = {
+          platform,
+          nickname: info.nickname || `${platform === 'netease' ? '网易云' : platform === 'qq' ? 'QQ音乐' : '酷狗'}用户`,
+          avatar: info.avatar || '',
+          vip: info.vip || false,
+          vipName: info.vipName || '',
+          userId: info.userId || info.uin || '',
+          cookie,
+          bindTime: Date.now(),
+        };
+        setAccounts(prev => {
+          const filtered = prev.filter(a => a.platform !== platform);
+          const updated = [...filtered, newAccount];
+          localStorage.setItem('ivym_accounts', JSON.stringify(updated));
+          return updated;
+        });
+        setActiveTab('bound');
+      }
+    } catch (err) {
+      console.error('获取用户信息失败:', err);
+    }
+  }, []);
 
   // 点击外部关闭
   useEffect(() => {
@@ -128,11 +173,15 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
                 if (!account) {
                   return (
                     <div className="platform-unbound">
-                      <img src={platform.icon} alt={platform.name} className="platform-icon-large" />
+                      <img
+                        src={platform.icon}
+                        alt={platform.name}
+                        className="platform-icon-large clickable-icon"
+                        onClick={() => handleBind(activeTab)}
+                        title="点击登录"
+                      />
                       <p>尚未绑定{platform.name}账号</p>
-                      <button className="platform-bind-btn" onClick={() => setShowQR(activeTab)}>
-                        扫码绑定
-                      </button>
+                      <span className="platform-hint">点击图标登录</span>
                     </div>
                   );
                 }
@@ -161,29 +210,6 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
         </div>
       </div>
 
-      {showQR && (
-        <LoginModal
-          visible={true}
-          platform={showQR}
-          onClose={() => setShowQR(null)}
-          onLoginSuccess={(info) => {
-            const newAccount: PlatformAccount = {
-              platform: showQR!,
-              nickname: info.nickname || `${PLATFORMS.find(p => p.id === showQR)!.name}用户`,
-              avatar: info.avatar || '',
-              vip: info.vip || false,
-              vipName: info.vipName || '',
-              userId: info.userId || '',
-              cookie: info.cookie || '',
-              bindTime: Date.now(),
-            };
-            const filtered = accounts.filter(a => a.platform !== showQR);
-            saveAccounts([...filtered, newAccount]);
-            setShowQR(null);
-            setActiveTab('bound');
-          }}
-        />
-      )}
     </>
   );
 }

@@ -1,7 +1,7 @@
 const http = require('http');
-const { neteaseSearch, neteaseSongUrl, neteaseLyric, neteaseQrLogin, neteaseQrCheck } = require('./netease');
-const { qqSearch, qqSongUrl, qqQrLogin, qqQrCheck } = require('./qq');
-const { kugouSearch, kugouSongUrl, kugouQrLogin, kugouQrCheck } = require('./kugou');
+const { neteaseSearch, neteaseSongUrl, neteaseLyric, neteaseQrLogin, neteaseQrCheck, neteaseUserInfo } = require('./netease');
+const { qqSearch, qqSongUrl, qqQrLogin, qqQrCheck, qqUserInfo } = require('./qq');
+const { kugouSearch, kugouSongUrl, kugouQrLogin, kugouQrCheck, kugouUserInfo } = require('./kugou');
 
 const PORT = 3001;
 
@@ -70,6 +70,66 @@ const server = http.createServer(async (req, res) => {
       const data = await kugouSongUrl(hash);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(data));
+      return;
+    }
+
+    // ===== 用户信息 =====
+    if (url.pathname === '/api/netease/user') {
+      const cookie = req.headers.cookie || '';
+      const res = await neteaseUserInfo(cookie);
+      if (res.profile) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          code: 200,
+          data: {
+            nickname: res.profile.nickname || '',
+            avatar: res.profile.avatarUrl || '',
+            userId: res.profile.userId || '',
+            vip: res.profile.vipType > 0,
+            vipName: res.profile.vipType > 0 ? '黑胶VIP' : '',
+          },
+        }));
+      } else {
+        res.writeHead(401, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ code: 401, msg: '登录已失效' }));
+      }
+      return;
+    }
+    if (url.pathname === '/api/qq/user') {
+      const cookie = req.headers.cookie || '';
+      const res = await qqUserInfo(cookie);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        code: 200,
+        data: {
+          nickname: res.nickname || res.singerName || '',
+          avatar: res.headpic || '',
+          userId: res.uin || res.mid || '',
+          vip: false,
+          vipName: '',
+        },
+      }));
+      return;
+    }
+    if (url.pathname === '/api/kugou/user') {
+      const cookie = req.headers.cookie || '';
+      const res = await kugouUserInfo(cookie);
+      if (res.userdata) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          code: 200,
+          data: {
+            nickname: res.userdata.nickname || '',
+            avatar: res.userdata.head || '',
+            userId: res.userdata.userid || '',
+            vip: !!res.userdata.vip,
+            vipName: res.userdata.vip ? '酷狗VIP' : '',
+          },
+        }));
+      } else {
+        res.writeHead(401, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ code: 401, msg: '登录已失效' }));
+      }
       return;
     }
 

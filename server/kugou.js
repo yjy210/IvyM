@@ -86,4 +86,25 @@ async function kugouQrCheck(sig) {
   return { code: res.status, msg: res.errmsg || '', cookie: res.data?.cookie || '' };
 }
 
-module.exports = { kugouSearch, kugouSongUrl, kugouQrLogin, kugouQrCheck };
+async function kugouUserInfo(cookie) {
+  return new Promise((resolve, reject) => {
+    const req = http.get('https://www.kugou.com/UserInfo/User', {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Referer': 'https://www.kugou.com',
+        'Cookie': cookie,
+      },
+    }, (res) => {
+      let body = '';
+      res.on('data', chunk => body += chunk);
+      res.on('end', () => {
+        try { resolve(JSON.parse(body)); }
+        catch (e) { resolve({}); }
+      });
+    });
+    req.on('error', reject);
+    req.setTimeout(10000, () => { req.destroy(); reject(new Error('timeout')); });
+  });
+}
+
+module.exports = { kugouSearch, kugouSongUrl, kugouQrLogin, kugouQrCheck, kugouUserInfo };

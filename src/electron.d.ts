@@ -3,7 +3,6 @@ export {};
 declare global {
   interface Window {
     electronAPI?: {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       minimize: () => void;
       maximize: () => void;
       unmaximize: () => void;
@@ -11,6 +10,8 @@ declare global {
       isMaximized: () => Promise<boolean>;
       onMaximize: (callback: () => void) => void;
       onUnmaximize: (callback: () => void) => void;
+      openPlatformLogin: (platform: 'netease' | 'qq' | 'kugou') => Promise<void>;
+      onLoginResult: (callback: (result: { platform: string; cookie: string; cookies: { name: string; value: string }[] }) => void) => void;
     };
   }
 }

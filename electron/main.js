@@ -1,7 +1,14 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, session } = require('electron');
 const path = require('path');
 const { registerIpcHandlers } = require('./ipc');
 const { startApiServer } = require('../server/index');
+
+// 平台官方登录页 URL
+const PLATFORM_LOGIN_URLS = {
+  netease: 'https://music.163.com/login',
+  qq: 'https://y.qq.com',
+  kugou: 'https://www.kugou.com',
+};
 
 let mainWin = null;
 
@@ -51,6 +58,44 @@ async function initServer() {
     console.error('[IvyM] API server failed:', err.message);
   }
 }
+
+// 打开平台官方登录窗口，登录成功后捕获 cookie 返回给渲染进程
+ipcMain.handle('login:open', async (event, platform) => {
+  const url = PLATFORM_LOGIN_URLS[platform] || 'https://music.163.com/login';
+
+  const loginWin = new BrowserWindow({
+    width: 900,
+    height: 680,
+    minWidth: 700,
+    minHeight: 500,
+    title: `绑定${platform === 'netease' ? '网易云音乐' : platform === 'qq' ? 'QQ音乐' : '酷狗音乐'}账号`,
+    autoHideMenuBar: true,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+    },
+  });
+
+  // 监听窗口关闭时获取 cookie
+  loginWin.on('closed', async () => {
+    try {
+      const ses = loginWin.webContents.session;
+      const cookies = await ses.cookies.get({ url: platform === 'qq' ? 'https://qq.com' : `https://${platform === 'netease' ? 'music.163' : 'kugou'}.com` });
+      const cookieStr = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+      // 尝试获取用户信息
+      mainWin?.webContents.send('login:result', {
+        platform,
+        cookie: cookieStr,
+        cookies: cookies.map(c => ({ name: c.name, value: c.value })),
+      });
+    } catch (err) {
+      console.error('[IvyM] Login cookie error:', err.message);
+    }
+    loginWin.destroy();
+  });
+
+  loginWin.loadURL(url);
+});
 
 app.whenReady().then(async () => {
   await initServer();
