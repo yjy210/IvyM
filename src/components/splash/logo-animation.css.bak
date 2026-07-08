@@ -110,7 +110,7 @@
 
 .splash-enter-arrow {
   font-size: 20px;
-  color: rgba(0,0,0,0.35);
+  color: rgba(99,102,241,0.4);
 }
 
 @keyframes hint-pulse {
