@@ -170,6 +170,7 @@
   align-items: center;
   gap: clamp(3px, 0.5vw, 8px);
   justify-self: start;
+  height: 100%;
 }
 
 /* 右工具组 */
@@ -178,6 +179,7 @@
   align-items: center;
   gap: clamp(3px, 0.5vw, 8px);
   justify-self: end;
+  height: 100%;
 }
 
 /* 播放控制组：水平居中（跟随 layout） */
