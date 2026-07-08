@@ -1,5 +1,5 @@
 const { app, BrowserWindow, ipcMain, session } = require('electron');
-const http = require('http');
+const https = require('https');
 const path = require('path');
 const { registerIpcHandlers } = require('./ipc');
 const { startApiServer } = require('../server/index');
@@ -93,13 +93,12 @@ async function getCookiesForPlatform(platform) {
   });
 }
 
-// 带 cookie 请求用户信息
+// 带 cookie 请求用户信息（使用 https）
 function fetchUserInfo(platform, cookieStr) {
   return new Promise((resolve, reject) => {
     const apiUrl = USER_API[platform];
     if (!apiUrl) return reject(new Error('Unknown platform'));
-    const urlObj = new URL(apiUrl);
-    const req = http.get(apiUrl, {
+    const req = https.get(apiUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Referer': platform === 'netease' ? 'https://music.163.com' : platform === 'qq' ? 'https://y.qq.com' : 'https://www.kugou.com',
@@ -157,7 +156,7 @@ function parseUserInfo(platform, raw) {
   return null;
 }
 
-// 打开平台官方登录窗口，使用共用 session 让 cookie 直接写入持久化存储
+// 打开平台官方登录窗口（使用 defaultSession，cookie 直接写入主 session）
 ipcMain.handle('login:open', async (event, platform) => {
   const url = PLATFORM_LOGIN_URLS[platform] || 'https://music.163.com/login';
 
@@ -173,23 +172,28 @@ ipcMain.handle('login:open', async (event, platform) => {
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: false,
-      partition: 'persist:ivym-login',
+      // 不指定 partition → 使用 defaultSession，登录后的 cookie 与主窗口共用
     },
   });
 
   // 关闭后自动尝试获取用户信息
   loginWin.on('closed', async () => {
     try {
+      // 等待一小段时间让 cookie 写入完成
+      await new Promise(r => setTimeout(r, 500));
       const cookies = await getCookiesForPlatform(platform);
       const cookieStr = cookies.map(c => `${c.name}=${c.value}`).join('; ');
 
+      console.log(`[IvyM] ${platform} cookies found:`, cookies.length, 'cookieStr length:', cookieStr.length);
+
       if (!cookieStr) {
-        mainWin?.webContents.send('login:result', { platform, success: false, msg: '未检测到登录状态' });
+        mainWin?.webContents.send('login:result', { platform, success: false, msg: '未检测到登录状态，请确认已登录后关闭窗口' });
         return;
       }
 
       // 直接用 cookie 去官方 API 抓用户信息
       const raw = await fetchUserInfo(platform, cookieStr);
+      console.log(`[IvyM] ${platform} user info raw:`, JSON.stringify(raw).slice(0, 200));
       const userInfo = parseUserInfo(platform, raw);
 
       if (userInfo && userInfo.nickname) {
