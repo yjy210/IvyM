@@ -296,7 +296,7 @@ export default function Player() {
             </div>
 
             <button className="player-btn player-btn-save" data-popup-btn onClick={() => setShowSaveToPlaylist(!showSaveToPlaylist)} title="收藏到歌单">
-              <i className="iconfont icon-bold icon-shoucang" />
+              <img src="/icons/jiahaojilu.svg" alt="收藏" className="player-save-icon" />
             </button>
           </div>
         </div>

@@ -177,6 +177,12 @@
   font-size: 24px !important;
 }
 
+.player-save-icon {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+}
+
 .player-btn-save {
   border-radius: 8px !important;
 }
