@@ -2,7 +2,7 @@ import { animate, motion, useMotionValue, useMotionValueEvent, useTransform } fr
 import { useEffect, useRef, useState } from 'react';
 import './ElasticSlider.css';
 
-const MAX_OVERFLOW = 50;
+const MAX_OVERFLOW = 20; // 弱弹性
 
 interface ElasticSliderProps {
   defaultValue?: number;
@@ -58,29 +58,29 @@ export default function ElasticSlider({
     }
   });
 
+  // 点击或拖动都设置值
+  const setFromEvent = (e: React.PointerEvent) => {
+    if (!sliderRef.current) return;
+    const { left, width } = sliderRef.current.getBoundingClientRect();
+    let newValue = startingValue + ((e.clientX - left) / width) * (maxValue - startingValue);
+    if (isStepped) newValue = Math.round(newValue / stepSize) * stepSize;
+    newValue = Math.min(Math.max(newValue, startingValue), maxValue);
+    setValue(newValue);
+    clientX.jump(e.clientX);
+    onChange?.(Math.round(newValue));
+  };
+
   const handlePointerMove = (e: React.PointerEvent) => {
-    if (e.buttons > 0 && sliderRef.current) {
-      const { left, width } = sliderRef.current.getBoundingClientRect();
-      let newValue = startingValue + ((e.clientX - left) / width) * (maxValue - startingValue);
-
-      if (isStepped) {
-        newValue = Math.round(newValue / stepSize) * stepSize;
-      }
-
-      newValue = Math.min(Math.max(newValue, startingValue), maxValue);
-      setValue(newValue);
-      clientX.jump(e.clientX);
-      onChange?.(Math.round(newValue));
-    }
+    if (e.buttons > 0) setFromEvent(e);
   };
 
   const handlePointerDown = (e: React.PointerEvent) => {
-    handlePointerMove(e);
+    setFromEvent(e);
     e.currentTarget.setPointerCapture(e.pointerId);
   };
 
   const handlePointerUp = () => {
-    animate(overflow, 0, { type: 'spring', bounce: 0.5 });
+    animate(overflow, 0, { type: 'spring', bounce: 0.3 });
   };
 
   const getRangePercentage = () => {

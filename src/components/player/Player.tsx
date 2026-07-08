@@ -315,9 +315,9 @@ export default function Player() {
                   )}
                 </button>
                 {showVolume && createPortal(
-                  <div className="volume-panel" style={{ top: volumePos.top, left: volumePos.left }}>
-                    <div className="slider-vertical">
-                      <span className="volume-value">{volume}%</span>
+                  <div className="volume-popup-wrapper" style={{ top: volumePos.top, left: volumePos.left }}>
+                    <span className="volume-value">{volume}%</span>
+                    <div className="volume-panel">
                       <ElasticSlider
                         defaultValue={volume}
                         startingValue={0}

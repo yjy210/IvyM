@@ -336,11 +336,32 @@
   justify-content: center;
 }
 
-.volume-panel {
+/* 音量弹窗：百分比在上面，滑块盒在下面 */
+.volume-popup-wrapper {
   position: fixed;
   z-index: 9999;
-  width: 60px;
-  height: 180px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  animation: popup-in 0.15s ease-out;
+}
+
+.volume-value {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1a1a2e;
+  font-variant-numeric: tabular-nums;
+  min-width: 36px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.volume-panel {
+  width: 50px;
+  height: 160px;
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -349,10 +370,9 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  padding: 12px;
+  padding: 10px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
   -webkit-app-region: no-drag;
-  animation: popup-in 0.15s ease-out;
 }
 
 @keyframes popup-in {
