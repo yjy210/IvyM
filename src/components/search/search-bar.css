@@ -8,27 +8,31 @@
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-/* GlassSurface 覆盖为搜索框样式 */
-.search-island.glass-surface {
-  cursor: pointer;
+  width: 40px;
+  height: 40px;
   overflow: hidden;
-  transition: box-shadow 0.2s ease;
+  border-radius: 999px;
 }
 
-.search-island.glass-surface:hover {
-  box-shadow:
-    0 0 2px 1px color-mix(in oklch, white, transparent 65%) inset,
-    0 4px 16px rgba(0, 0, 0, 0.1);
+/* GlassSurface 填充 */
+.search-island.glass-surface {
+  width: 100% !important;
+  height: 100% !important;
+  cursor: pointer;
 }
 
 .search-island .glass-surface__content {
   padding: 0;
+  width: 100%;
+  height: 100%;
 }
 
 /* 放大镜图标 */
 .s-search-icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   pointer-events: none;
   flex-shrink: 0;
 }
@@ -92,11 +96,10 @@
   left: 50%;
   transform: translateX(-50%);
   z-index: 900;
-  visibility: hidden;
   width: 90vw;
   max-width: 400px;
   max-height: 50vh;
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(20px) saturate(1.8);
   -webkit-backdrop-filter: blur(20px) saturate(1.8);
   border: 1px solid rgba(0, 0, 0, 0.06);
@@ -104,20 +107,6 @@
   padding: 0.4rem;
   overflow-y: auto;
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.12);
-}
-
-/* 分类标题 */
-.search-section-title {
-  font-size: 10px;
-  font-weight: 600;
-  color: rgba(0, 0, 0, 0.35);
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  padding: 0.5rem 0.7rem 0.25rem;
-}
-
-.search-section-title:first-child {
-  padding-top: 0.25rem;
 }
 
 /* 结果项 */
@@ -185,13 +174,18 @@
   text-overflow: ellipsis;
 }
 
-/* 来源标签 */
+/* 来源 + VIP badges */
+.search-result-badges {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
 .search-result-source {
   font-size: 9px;
   font-weight: 600;
   padding: 2px 6px;
   border-radius: 3px;
-  flex-shrink: 0;
 }
 
 .search-result-source.netease {
@@ -202,6 +196,20 @@
 .search-result-source.qq {
   background: rgba(49, 194, 124, 0.08);
   color: #31c27c;
+}
+
+.search-result-source.is-vip {
+  font-weight: 700;
+}
+
+.search-result-source.netease.is-vip {
+  background: rgba(222, 56, 56, 0.18);
+  color: #c00;
+}
+
+.search-result-source.qq.is-vip {
+  background: rgba(49, 194, 124, 0.18);
+  color: #1a8c50;
 }
 
 /* 空结果/加载 */

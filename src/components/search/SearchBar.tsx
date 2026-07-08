@@ -1,8 +1,26 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { gsap } from 'gsap';
 import { usePlayerStore } from '../../stores/playerStore';
 import GlassSurface from './GlassSurface';
 import './search-bar.css';
+
+interface Song {
+  id: string;
+  mid?: string;
+  name: string;
+  artists: string;
+  album?: string;
+  duration?: number;
+  source?: string;
+  fee?: number; // 1=VIP, 0=免费
+}
+
+interface MergedSong {
+  id: string;
+  name: string;
+  artists: string;
+  sources: { platform: 'netease' | 'qq'; fee?: number }[];
+}
 
 export default function SearchBar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -10,7 +28,7 @@ export default function SearchBar() {
   const [loading, setLoading] = useState(false);
 
   const searchRef = useRef<HTMLInputElement>(null);
-  const islandRef = useRef<HTMLDivElement>(null);  // 绑到 wrapper div
+  const islandRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
   const searchResults = usePlayerStore(s => s.searchResults);
@@ -31,9 +49,6 @@ export default function SearchBar() {
       { opacity: 0, x: 10 },
       { opacity: 1, x: 0, duration: 0.4, delay: 0.3 }
     );
-    if (panelRef.current) {
-      gsap.fromTo(panelRef.current, { autoAlpha: 0, y: -8, scale: 0.95 }, { autoAlpha: 1, y: 0, scale: 1, duration: 0.4, delay: 0.3 });
-    }
     setTimeout(() => searchRef.current?.focus(), 400);
   }, [isOpen]);
 
@@ -45,9 +60,6 @@ export default function SearchBar() {
     gsap.set(islandRef.current.querySelector('.s-input-area'), { pointerEvents: 'none' });
     gsap.set(islandRef.current.querySelector('.s-click-area'), { pointerEvents: 'auto' });
     gsap.to(islandRef.current.querySelector('.s-search-icon'), { opacity: 1, scale: 1, duration: 0.3, delay: 0.2, ease: 'back.out' });
-    if (panelRef.current) {
-      gsap.to(panelRef.current, { autoAlpha: 0, duration: 0.2 });
-    }
     setKeyword('');
     setSearchResults(null);
   }, [isOpen, setSearchResults]);
@@ -76,8 +88,8 @@ export default function SearchBar() {
     setLoading(true);
     try {
       const [neteaseRes, qqRes] = await Promise.allSettled([
-        fetch(`${API_BASE}/api/netease/search?keyword=${encodeURIComponent(kw)}&limit=5`),
-        fetch(`${API_BASE}/api/qq/search?keyword=${encodeURIComponent(kw)}&limit=5`),
+        fetch(`${API_BASE}/api/netease/search?keyword=${encodeURIComponent(kw)}&limit=10`),
+        fetch(`${API_BASE}/api/qq/search?keyword=${encodeURIComponent(kw)}&limit=10`),
       ]);
       const netease = neteaseRes.status === 'fulfilled' && await neteaseRes.value.ok ? await neteaseRes.value.json() : null;
       const qq = qqRes.status === 'fulfilled' && await qqRes.value.ok ? await qqRes.value.json() : null;
@@ -99,19 +111,55 @@ export default function SearchBar() {
     return () => clearTimeout(timer);
   }, [keyword, doSearch]);
 
-  const selectSong = useCallback(() => {
-    const results = usePlayerStore.getState().searchResults;
-    if (results) setPlaylist([...results.netease, ...results.qq]);
-  }, [setPlaylist]);
+  // 合并相同歌曲（按 歌名+艺人 匹配）
+  const mergedSongs: MergedSong[] = useMemo(() => {
+    if (!searchResults) return [];
+    const map = new Map<string, MergedSong>();
 
-  const hasResults = searchResults && (searchResults.netease.length > 0 || searchResults.qq.length > 0);
+    searchResults.netease.forEach((song: Song) => {
+      const key = `${song.name}-${song.artists}`;
+      if (!map.has(key)) {
+        map.set(key, { id: song.id, name: song.name, artists: song.artists, sources: [] });
+      }
+      map.get(key)!.sources.push({ platform: 'netease', fee: song.fee });
+    });
+
+    searchResults.qq.forEach((song: Song) => {
+      const key = `${song.name}-${song.artists}`;
+      if (!map.has(key)) {
+        map.set(key, { id: song.mid || song.id, name: song.name, artists: song.artists, sources: [] });
+      }
+      map.get(key)!.sources.push({ platform: 'qq', fee: song.fee });
+    });
+
+    return Array.from(map.values());
+  }, [searchResults]);
+
+  const selectSong = useCallback((song: MergedSong) => {
+    // 找到对应原始歌曲并加入播放列表
+    if (searchResults) {
+      const all: Song[] = [];
+      song.sources.forEach(s => {
+        if (s.platform === 'netease') {
+          const found = searchResults.netease.find((n: Song) => n.name === song.name && n.artists === song.artists);
+          if (found) all.push(found);
+        } else {
+          const found = searchResults.qq.find((q: Song) => q.name === song.name && q.artists === song.artists);
+          if (found) all.push(found);
+        }
+      });
+      setPlaylist(all);
+    }
+  }, [searchResults, setPlaylist]);
+
+  const showPanel = keyword.trim().length > 0;
 
   return (
     <>
       {/* 搜索 Island - 顶部居中 */}
       <div className="search-island-wrapper" ref={islandRef}>
         <GlassSurface
-          width={40}
+          width="100%"
           height={40}
           borderRadius={999}
           backgroundOpacity={0.08}
@@ -157,44 +205,35 @@ export default function SearchBar() {
       </div>
 
       {/* 搜索结果面板 */}
-      <div className="search-results-panel" ref={panelRef}>
-        {loading && <div className="search-empty">搜索中...</div>}
-        {!loading && keyword.trim() && !hasResults && <div className="search-empty">未找到相关结果</div>}
-        {!loading && hasResults && searchResults && (
-          <>
-            {searchResults.netease.length > 0 && (
-              <>
-                <div className="search-section-title">网易云音乐</div>
-                {searchResults.netease.map((song, i) => (
-                  <div key={`n-${song.id}-${i}`} className="search-result-item" onClick={selectSong}>
-                    <div className="search-result-cover" />
-                    <div className="search-result-info">
-                      <div className="search-result-name">{song.name}</div>
-                      <div className="search-result-artist">{song.artists}</div>
-                    </div>
-                    <span className="search-result-source netease">网易云</span>
-                  </div>
-                ))}
-              </>
-            )}
-            {searchResults.qq.length > 0 && (
-              <>
-                <div className="search-section-title">QQ音乐</div>
-                {searchResults.qq.map((song, i) => (
-                  <div key={`q-${song.mid || song.id}-${i}`} className="search-result-item" onClick={selectSong}>
-                    <div className="search-result-cover" />
-                    <div className="search-result-info">
-                      <div className="search-result-name">{song.name}</div>
-                      <div className="search-result-artist">{song.artists}</div>
-                    </div>
-                    <span className="search-result-source qq">QQ</span>
-                  </div>
-                ))}
-              </>
-            )}
-          </>
-        )}
-      </div>
+      {showPanel && (
+        <div className="search-results-panel" ref={panelRef} style={{ visibility: 'visible', opacity: 1 }}>
+          {loading && <div className="search-empty">搜索中...</div>}
+
+          {!loading && mergedSongs.length === 0 && (
+            <div className="search-empty">未找到相关结果</div>
+          )}
+
+          {!loading && mergedSongs.length > 0 && (
+            mergedSongs.map((song, i) => (
+              <div key={`s-${i}`} className="search-result-item" onClick={() => selectSong(song)}>
+                <div className="search-result-cover" />
+                <div className="search-result-info">
+                  <div className="search-result-name">{song.name}</div>
+                  <div className="search-result-artist">{song.artists}</div>
+                </div>
+                <div className="search-result-badges">
+                  {song.sources.map((src, j) => (
+                    <span key={j} className={`search-result-source ${src.platform} ${src.fee === 1 ? 'is-vip' : ''}`}>
+                      {src.platform === 'netease' ? '网易云' : 'QQ'}
+                      {src.fee === 1 && (src.platform === 'netease' ? ' 黑胶' : ' 绿钻')}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
     </>
   );
 }
