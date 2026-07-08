@@ -174,13 +174,21 @@
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 12px;
-  padding: 12px 16px;
+  padding: 16px 12px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
   -webkit-app-region: no-drag;
 }
 
 .volume-slider {
-  width: 120px;
+  height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.volume-slider .slider-container {
+  transform: rotate(-90deg);
+  width: 100px;
 }
 
 /* ── 无歌曲占位 ── */
