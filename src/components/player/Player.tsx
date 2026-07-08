@@ -260,7 +260,7 @@ export default function Player() {
             </div>
 
             {/* 中间：播放控制（绝对居中） */}
-            <div className="player-center-tools">
+            <div className="player-play-group">
               <button className={`player-btn${playMode !== 'sequence' ? ' active' : ''}`} onClick={togglePlayMode} title={playMode === 'sequence' ? '顺序播放' : playMode === 'loop' ? '单曲循环' : '随机播放'}>
                 {playMode === 'sequence' && <i className="iconfont icon-a-shunxupoppy_icon_positive_order" />}
                 {playMode === 'loop' && <i className="iconfont icon-a-25px" />}
@@ -279,13 +279,13 @@ export default function Player() {
               <button className="player-btn" onClick={playNext} title="下一首">
                 <svg viewBox="0 0 24 24"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg>
               </button>
-            </div>
-
-            {/* 右侧：播放列表 + 收藏 + 音量 */}
-            <div className="player-right-tools">
               <button className="player-btn playlist-btn" data-popup-btn onClick={() => setShowPlaylist(!showPlaylist)} title="播放列表">
                 <svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
               </button>
+            </div>
+
+            {/* 右侧：收藏 + 音量 */}
+            <div className="player-right-tools">
               <button className="player-btn player-btn-save" data-popup-btn onClick={() => setShowSaveToPlaylist(!showSaveToPlaylist)} title="收藏到歌单">
                 <img src="/icons/jiahaojilu.svg" alt="收藏" className="player-save-icon" />
               </button>
@@ -313,13 +313,7 @@ export default function Player() {
                 </button>
                 {showVolume && (
                   <div className="volume-panel" style={{ top: volumePos.top, left: volumePos.left }}>
-                    <input
-                      type="range"
-                      min="0"
-                      max="100"
-                      value={volume}
-                      onChange={e => setVolume(+e.target.value)}
-                    />
+                    <VolumeSlider value={volume} onChange={setVolume} />
                   </div>
                 )}
               </div>

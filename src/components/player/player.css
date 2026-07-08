@@ -49,10 +49,12 @@
 /* ── 进度条轨道 ── */
 .player-progress-track {
   height: 4px;
-  background: rgba(0, 0, 0, 0.1);
+  background: rgba(0, 0, 0, 0.15);
   cursor: pointer;
   position: relative;
   transition: height 0.15s;
+  z-index: 2;
+  flex-shrink: 0;
 }
 
 .player-progress-track:hover {
@@ -63,6 +65,7 @@
   height: 100%;
   background: #1a1a2e;
   position: relative;
+  border-radius: 2px;
   transition: width 0.1s linear;
 }
 
@@ -156,6 +159,7 @@
   flex: 1;
   position: relative;
   min-width: 0;
+  height: 100%;
 }
 
 .player-left-tools,
@@ -165,16 +169,19 @@
   gap: clamp(3px, 0.5vw, 8px);
   flex-shrink: 1;
   min-width: 0;
+  z-index: 2;
 }
 
-.player-center-tools {
+/* 播放控制组：绝对居中 */
+.player-play-group {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
   display: flex;
   align-items: center;
   gap: clamp(3px, 0.5vw, 8px);
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  flex-shrink: 0;
+  z-index: 3;
 }
 
 .player-song-info {
@@ -191,10 +198,13 @@
 }
 
 @media (max-width: 700px) {
-  .player-right-tools > *:not(.playlist-btn) {
+  .player-right-tools {
     display: none;
   }
-  .player-center-tools > *:not(.player-btn-play) {
+  .player-left-tools {
+    display: none;
+  }
+  .player-play-group > *:not(.player-btn-play):not(.playlist-btn) {
     display: none;
   }
 }
