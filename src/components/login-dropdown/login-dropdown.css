@@ -107,7 +107,7 @@
   color: white;
 }
 
-.bound-platform { font-size: 11px; margin-top: 2px; display: flex; align-items: center; gap: 4px; }
+.bound-platform { font-size: 11px; margin-top: 2px; display: flex; align-items: center; gap: 6px; color: #1a1a1a; }
 .bound-platform-icon { width: 14px; height: 14px; border-radius: 3px; object-fit: cover; }
 
 /* ── 平台详情 ── */

@@ -162,9 +162,9 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
                             </span>
                           )}
                         </div>
-                        <div className="bound-platform" style={{ color: platform.color }}>
+                        <div className="bound-platform">
                           {platform.icon && <img src={platform.icon} alt="" className="bound-platform-icon" />}
-                          {platform.name} · ID: {acc.userId}
+                          ID: {acc.userId}
                         </div>
                       </div>
                     </div>
