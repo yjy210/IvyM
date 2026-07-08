@@ -99,9 +99,8 @@ async function qqQrCheck(sigx) {
     pt_login_type: 3,
   });
   // DEBUG: 查看 QR 登录返回的完整数据
-  console.log('[IvyM DEBUG] qqQrCheck full response keys:', Object.keys(res));
-  console.log('[IvyM DEBUG] qqQrCheck errcode:', res.errcode, 'msg:', res.msg);
-  console.log('[IvyM DEBUG] qqQrCheck vip_role:', res.vip_role, 'vip_type:', res.vip_type);
+  console.log('[IvyM DEBUG] qqQrCheck full response:', JSON.stringify(res));
+  console.log('[IvyM DEBUG] qqQrCheck headers:', JSON.stringify(res.headers || {}));
   return { code: res.errcode, msg: res.msg || '', cookie: res.cookie || '', uin: res.uin || 0 };
 }
 
