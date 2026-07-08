@@ -2,15 +2,24 @@ const path = require('path');
 const fs = require('fs');
 const api = require('NeteaseCloudMusicApi');
 
-// ===== Cookie 持久化（Phase 2 登录后自动填充，Phase 1 暂为空）=====
+// ===== Cookie 持久化 =====
 const COOKIE_FILE = path.join(__dirname, '.netease-cookie.json');
 
 function getCookie() {
   try {
-    return JSON.parse(fs.readFileSync(COOKIE_FILE, 'utf8'));
+    const data = JSON.parse(fs.readFileSync(COOKIE_FILE, 'utf8'));
+    return data.cookie || '';
   } catch {
     return '';
   }
+}
+
+function saveCookie(cookie) {
+  fs.writeFileSync(
+    COOKIE_FILE,
+    JSON.stringify({ cookie, time: Date.now() }, null, 2),
+  );
+  console.log('[IvyM] Netease cookie saved');
 }
 
 // ======================== 搜索 ========================
