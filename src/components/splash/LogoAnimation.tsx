@@ -3,7 +3,19 @@ import { gsap } from 'gsap';
 import FadeContent from '../fade-content/FadeContent';
 import Grainient from '../grainient/Grainient';
 import SplashText from './SplashText';
+import ImageTrail from '../image-trail/ImageTrail';
 import './logo-animation.css';
+
+const TRAIL_IMAGES = [
+  'https://picsum.photos/id/287/300/300',
+  'https://picsum.photos/id/1001/300/300',
+  'https://picsum.photos/id/1025/300/300',
+  'https://picsum.photos/id/1026/300/300',
+  'https://picsum.photos/id/1027/300/300',
+  'https://picsum.photos/id/1028/300/300',
+  'https://picsum.photos/id/1029/300/300',
+  'https://picsum.photos/id/1030/300/300',
+];
 
 interface LogoAnimationProps { onEnter: () => void; }
 
@@ -46,6 +58,13 @@ export function LogoAnimation({ onEnter }: LogoAnimationProps) {
           warpAmplitude={50.0} rotationAmount={500.0} noiseScale={2.0} grainAmount={0.1}
           grainScale={2.0} contrast={1.5} gamma={1.0} saturation={1.0} zoom={0.9} />
       </div>
+
+      {/* 图片拖尾效果 — 鼠标移动时触发 */}
+      {hasText && (
+        <div className="splash-trail-layer">
+          <ImageTrail items={TRAIL_IMAGES} variant={1} />
+        </div>
+      )}
 
       <div className="splash-content">
         <div className="splash-group">
