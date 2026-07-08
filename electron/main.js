@@ -221,7 +221,20 @@ async function getUserInfo(platform, cookieStr) {
       const text = await httpsRequest(USER_API.netease, {
         headers: { 'Referer': 'https://music.163.com', 'Cookie': cookieStr },
       });
+
+      // === 调试日志（分析完删除）===
+      console.log('[IvyM DEBUG] Netease API raw text (first 500):', text?.slice(0, 500));
+      // === 调试日志结束 ===
+
       const raw = safeJsonParse(text);
+
+      // === 调试日志（分析完删除）===
+      console.log('[IvyM DEBUG] safeJsonParse result:', JSON.stringify(raw)?.slice(0, 500));
+      console.log('[IvyM DEBUG] raw.profile exists?', !!raw?.profile);
+      console.log('[IvyM DEBUG] raw.account exists?', !!raw?.account);
+      console.log('[IvyM DEBUG] raw.code:', raw?.code);
+      // === 调试日志结束 ===
+
       if (raw?.profile) {
         return {
           platform,
@@ -339,7 +352,22 @@ ipcMain.handle('login:open', async (event, platform) => {
         const cookies = await getPlatformCookies(platform);
         if (hasLoginCookies(platform, cookies)) {
           const cookieStr = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+
+          // === 调试日志（分析完删除）===
+          console.log('\n[IvyM DEBUG] === Login detected ===');
+          console.log('[IvyM DEBUG] platform:', platform);
+          console.log('[IvyM DEBUG] cookies:', JSON.stringify(cookies.map(c => ({ name: c.name, domain: c.domain, hasValue: !!c.value }))));
+          console.log('[IvyM DEBUG] cookieStr includes MUSIC_U:', cookieStr.includes('MUSIC_U'));
+          console.log('[IvyM DEBUG] cookieStr includes __csrf:', cookieStr.includes('__csrf'));
+          // === 调试日志结束 ===
+
           const userInfo = await getUserInfo(platform, cookieStr);
+
+          // === 调试日志（分析完删除）===
+          console.log('[IvyM DEBUG] userInfo:', JSON.stringify(userInfo));
+          console.log('[IvyM DEBUG] finish condition:', !!userInfo, 'nickname?', !!userInfo?.nickname, 'userId?', !!userInfo?.userId);
+          // === 调试日志结束 ===
+
           if (userInfo && (userInfo.nickname || userInfo.userId)) {
             finish({ platform, success: true, cookie: cookieStr, user: userInfo });
           }
