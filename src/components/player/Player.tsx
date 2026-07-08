@@ -39,6 +39,7 @@ export default function Player() {
   const [loading, setLoading] = useState(false);
   const [showVolume, setShowVolume] = useState(false);
   const [vipWarning, setVipWarning] = useState<{ platform: string; message: string } | null>(null);
+  const [userVip, setUserVip] = useState(false);
   const [showPlaylist, setShowPlaylist] = useState(false);
   const [showLyrics, setShowLyrics] = useState(false);
   const [showSaveToPlaylist, setShowSaveToPlaylist] = useState(false);
@@ -117,6 +118,21 @@ export default function Player() {
       audioRef.current.volume = volume / 100;
     }
   }, [volume]);
+
+  // 检查用户登录/VIP 状态
+  useEffect(() => {
+    fetch(`${API_BASE}/api/netease/login/status`)
+      .then(r => r.json())
+      .then(data => setUserVip(data.vip || false))
+      .catch(() => setUserVip(false));
+  }, []);
+
+  // VIP 歌曲开始时提示
+  useEffect(() => {
+    if (currentSong?.vip && !userVip) {
+      setVipWarning({ platform: 'netease', message: '开通会员畅听完整版' });
+    }
+  }, [currentSong, userVip]);
 
   // 点击外部关闭音量面板
   useEffect(() => {

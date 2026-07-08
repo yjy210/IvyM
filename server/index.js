@@ -55,6 +55,20 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    // ===== 登录状态（前端用来判断是否显示VIP提示）=====
+    if (url.pathname === '/api/netease/login/status') {
+      const { neteaseUserInfo } = require('./netease');
+      const info = await neteaseUserInfo();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        code: 200,
+        loggedIn: !!info,
+        vip: info?.vip || false,
+        nickname: info?.nickname || '',
+      }));
+      return;
+    }
+
     // ===== 用户信息 =====
     if (url.pathname === '/api/netease/user') {
       const cookie = req.headers.cookie || '';
