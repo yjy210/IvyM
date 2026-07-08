@@ -190,14 +190,18 @@ export default function Player() {
           width="100%"
           height="100%"
           borderRadius={20}
-          brightness={75}
-          opacity={0.25}
-          blur={2}
-          displace={12}
-          distortionScale={-120}
-          saturation={1.5}
+          brightness={85}
+          opacity={0.35}
+          blur={4}
+          displace={4}
+          distortionScale={-40}
+          saturation={1.4}
           className="player-glass"
-        />
+        >
+          <div className="player-glass-inner" />
+        </GlassSurface>
+
+        <div className="player-content">
         {/* 进度条 */}
         <div className="player-progress-track" onClick={(e) => {
           if (!duration) return;
@@ -296,6 +300,7 @@ export default function Player() {
             </div>
           </div>
         </div>
+        </div>{/* end player-content */}
       </div>
 
       {/* ── 弹出面板 ── */}

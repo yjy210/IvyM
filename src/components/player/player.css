@@ -18,14 +18,29 @@
 .player-glass {
   position: absolute !important;
   inset: 0;
+  width: 100% !important;
+  height: 100% !important;
   z-index: 0;
   pointer-events: none;
 }
 
-.player-progress-track,
-.player-main {
+.player-glass .glass-surface__content {
+  padding: 0;
+  pointer-events: none;
+}
+
+.player-glass-inner {
+  width: 100%;
+  height: 100%;
+}
+
+.player-content {
   position: relative;
   z-index: 1;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 /* ── 进度条轨道 ── */
