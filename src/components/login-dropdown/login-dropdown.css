@@ -87,27 +87,30 @@
 .bound-avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; }
 .bound-avatar-placeholder { display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #6366f1, #a855f7); color: white; font-size: 14px; font-weight: 700; }
 
-.bound-info { flex: 1; min-w: 0; }
+.bound-info { flex: 1; min-width: 0; }
 
 .bound-name-row {
   display: flex;
   align-items: center;
   gap: 6px;
+  flex-wrap: wrap;
 }
 
 .bound-nickname { font-size: 13px; font-weight: 600; color: #1a1a2e; }
 
-.bound-vip {
-  font-size: 10px;
-  padding: 1px 6px;
+.bound-vip-inline {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
   border-radius: 3px;
   background: linear-gradient(135deg, #ffd700, #ff8c00);
   color: white;
-  font-weight: 600;
 }
 
-.bound-platform { font-size: 11px; margin-top: 2px; }
+.bound-platform { font-size: 11px; margin-top: 2px; display: flex; align-items: center; gap: 4px; }
+.bound-platform-icon { width: 14px; height: 14px; border-radius: 3px; object-fit: cover; }
 
+/* ── 平台详情 ── */
 .platform-detail { text-align: center; }
 
 .platform-unbound { padding: 20px 0; }
@@ -138,18 +141,35 @@
 .platform-bound { padding: 8px 0; }
 
 .platform-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
   margin-bottom: 12px;
 }
 
 .platform-avatar { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; }
 .platform-avatar-placeholder { display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #6366f1, #a855f7); color: white; font-size: 16px; font-weight: 700; }
 
-.platform-nickname { font-size: 15px; font-weight: 700; color: #1a1a2e; }
+.platform-vip-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
 
-.platform-userid { font-size: 12px; color: #666; margin-bottom: 16px; }
+.platform-vip-label {
+  color: #666;
+}
+
+.platform-vip-value {
+  font-weight: 600;
+  color: #1a1a2e;
+}
+
+.platform-userid {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 16px;
+}
 
 .platform-unbind-btn {
   padding: 6px 16px;

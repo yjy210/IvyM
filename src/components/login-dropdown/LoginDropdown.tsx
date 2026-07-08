@@ -100,7 +100,12 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
     return () => document.removeEventListener('mousedown', handler);
   }, [onClose]);
 
-  const boundPlatforms = accounts.map(a => a.platform);
+  // 获取会员显示文本
+  const getVipLabel = (platform: 'netease' | 'qq', vip?: boolean, vipName?: string) => {
+    if (!vip) return '无';
+    if (vipName) return vipName;
+    return platform === 'netease' ? '黑胶VIP' : '豪华绿钻';
+  };
 
   return (
     <>
@@ -133,6 +138,7 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
 
         {/* 内容区 */}
         <div className="login-dropdown-body">
+          {/* ===== 已绑定 ===== */}
           {activeTab === 'bound' && (
             <div className="bound-list">
               {accounts.length === 0 ? (
@@ -150,10 +156,15 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
                       <div className="bound-info">
                         <div className="bound-name-row">
                           <span className="bound-nickname">{acc.nickname || '用户' + acc.userId}</span>
-                          {acc.vip && <span className="bound-vip">{acc.vipName || `${platform.name}会员`}</span>}
+                          {acc.vip && (
+                            <span className="bound-vip-inline">
+                              {acc.platform === 'netease' ? '黑胶VIP' : '豪华绿钻'}
+                            </span>
+                          )}
                         </div>
                         <div className="bound-platform" style={{ color: platform.color }}>
-                          {platform.icon} {platform.name} · ID: {acc.userId}
+                          {platform.icon && <img src={platform.icon} alt="" className="bound-platform-icon" />}
+                          {platform.name} · ID: {acc.userId}
                         </div>
                       </div>
                     </div>
@@ -163,6 +174,7 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
             </div>
           )}
 
+          {/* ===== 平台详情 ===== */}
           {activeTab !== 'bound' && (
             <div className="platform-detail">
               {(() => {
@@ -191,21 +203,16 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
                       ) : (
                         <div className="platform-avatar platform-avatar-placeholder">{account.nickname?.[0] || '?'}</div>
                       )}
-                      <div>
-                        <div className="platform-nickname">{account.nickname || '用户' + account.userId}</div>
-                        {account.vip && (
-                          <img
-                            src={account.platform === 'netease' ? '/vip-icons/hj.png' : '/vip-icons/lz.png'}
-                            className="bound-vip-icon"
-                            alt={account.platform === 'netease' ? '黑胶VIP' : '绿钻'}
-                          />
-                        )}
-                      </div>
                     </div>
-                    <div className="platform-userid">
-                      {activeTab === 'netease' && `网易云音乐 ID: ${account.userId}`}
-                      {activeTab === 'qq' && `QQ号: ${account.userId}`}
+                    <div className="platform-vip-row">
+                      <span className="platform-vip-label">
+                        {account.platform === 'netease' ? '黑胶会员' : '豪华绿钻'}：
+                      </span>
+                      <span className="platform-vip-value">
+                        {getVipLabel(account.platform, account.vip, account.vipName)}
+                      </span>
                     </div>
+                    <div className="platform-userid">ID：{account.userId}</div>
                     <button className="platform-unbind-btn" onClick={() => handleUnbind(activeTab)}>
                       解绑账号
                     </button>
@@ -216,7 +223,6 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
           )}
         </div>
       </div>
-
     </>
   );
 }
