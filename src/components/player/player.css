@@ -163,6 +163,20 @@
   stroke-linejoin: round;
 }
 
+.player-btn .iconfont {
+  font-size: 20px;
+  color: #333;
+  line-height: 1;
+}
+
+.player-btn.active .iconfont {
+  color: #6366f1;
+}
+
+.player-btn.liked .iconfont {
+  color: #ef4444;
+}
+
 .player-btn.active svg {
   stroke: #6366f1;
 }

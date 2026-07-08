@@ -1,10 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { usePlayerStore } from '../../stores/playerStore';
 import ElasticSlider from './ElasticSlider';
-import Folder from './Folder';
 import './player.css';
 import './ElasticSlider.css';
-import './Folder.css';
+import '/iconfont/iconfont.css';
 
 interface Song {
   id: string;
@@ -241,26 +240,29 @@ export default function Player() {
 
           {/* 控制按钮 */}
           <div className="player-controls">
+            {/* 喜欢 */}
             <button className={`player-btn${isLiked ? ' liked' : ''}`} onClick={toggleLike} title="喜欢">
-              <svg viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+              <i className="iconfont icon-xihuan" />
             </button>
 
+            {/* 歌词 */}
+            <button className={`player-btn${showLyrics ? ' active' : ''}`} data-popup-btn onClick={() => setShowLyrics(!showLyrics)} title="歌词">
+              <i className="iconfont icon-geci32" />
+            </button>
+
+            {/* 播放模式 */}
             <button className={`player-btn${playMode !== 'sequence' ? ' active' : ''}`} onClick={togglePlayMode} title={playMode === 'sequence' ? '顺序播放' : playMode === 'loop' ? '单曲循环' : '随机播放'}>
-              {playMode === 'sequence' && (
-                <svg viewBox="0 0 24 24"><line x1="2" y1="6" x2="22" y2="6"/><line x1="2" y1="18" x2="22" y2="18"/><line x1="14" y1="9" x2="22" y2="9"/><line x1="14" y1="15" x2="22" y2="15"/></svg>
-              )}
-              {playMode === 'loop' && (
-                <svg viewBox="0 0 24 24"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/><text x="10" y="15" fontSize="8" fill="currentColor" stroke="none">1</text></svg>
-              )}
-              {playMode === 'shuffle' && (
-                <svg viewBox="0 0 24 24"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg>
-              )}
+              {playMode === 'sequence' && <i className="iconfont icon-a-shunxupoppy_icon_positive_order" />}
+              {playMode === 'loop' && <i className="iconfont icon-a-25px" />}
+              {playMode === 'shuffle' && <i className="iconfont icon-suiji" />}
             </button>
 
+            {/* 上一首 */}
             <button className="player-btn" onClick={playPrev} title="上一首">
               <svg viewBox="0 0 24 24"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5"/></svg>
             </button>
 
+            {/* 播放/暂停 */}
             <button className="player-btn player-btn-play" onClick={() => isPlaying ? pause() : (currentSong ? play(currentSong) : null)} title={isPlaying ? '暂停' : '播放'}>
               {isPlaying ? (
                 <svg viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
@@ -269,16 +271,14 @@ export default function Player() {
               )}
             </button>
 
+            {/* 下一首 */}
             <button className="player-btn" onClick={playNext} title="下一首">
               <svg viewBox="0 0 24 24"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg>
             </button>
 
+            {/* 播放列表 */}
             <button className="player-btn" data-popup-btn onClick={() => setShowPlaylist(!showPlaylist)} title="播放列表">
               <svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
-            </button>
-
-            <button className="player-btn" data-popup-btn onClick={() => setShowLyrics(!showLyrics)} title="歌词">
-              <svg viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
             </button>
 
             <div className="player-volume-wrapper" ref={volumeRef}>
@@ -296,9 +296,9 @@ export default function Player() {
               </button>
             </div>
 
-            <div className="player-save-btn">
-              <Folder size={0.35} items={[]} />
-            </div>
+            <button className="player-btn" data-popup-btn onClick={() => setShowSaveToPlaylist(!showSaveToPlaylist)} title="收藏到歌单">
+              <i className="iconfont icon-shoucang" />
+            </button>
           </div>
         </div>
       </div>
