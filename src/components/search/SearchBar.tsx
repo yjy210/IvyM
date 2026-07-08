@@ -20,7 +20,7 @@ interface MergedSong {
   id: string;
   name: string;
   artists: string;
-  sources: { platform: 'netease' | 'qq'; fee: number; cover?: string }[];
+  sources: { platform: 'netease' | 'qq'; vip: boolean; cover?: string }[];
   cover?: string;
 }
 
@@ -128,7 +128,7 @@ export default function SearchBar() {
       if (!map.has(key)) {
         map.set(key, { id: song.id, name: song.name, artists: song.artists, sources: [], cover: song.cover });
       }
-      map.get(key)!.sources.push({ platform: 'netease', fee: song.fee || 0, cover: song.cover });
+      map.get(key)!.sources.push({ platform: 'netease', vip: song.vip || false, cover: song.cover });
     });
 
     searchResults.qq.forEach((song: Song) => {
@@ -136,7 +136,7 @@ export default function SearchBar() {
       if (!map.has(key)) {
         map.set(key, { id: song.mid || song.id, name: song.name, artists: song.artists, sources: [], cover: song.cover });
       }
-      map.get(key)!.sources.push({ platform: 'qq', fee: song.fee || 0, cover: song.cover });
+      map.get(key)!.sources.push({ platform: 'qq', vip: song.vip || false, cover: song.cover });
     });
 
     return Array.from(map.values());
