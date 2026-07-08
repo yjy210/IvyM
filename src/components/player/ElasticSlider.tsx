@@ -14,12 +14,10 @@ interface ElasticSliderProps {
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
   onChange?: (value: number) => void;
-  showValue?: boolean;
-  vertical?: boolean;
 }
 
 export default function ElasticSlider({
-  defaultValue = 0,
+  defaultValue = 50,
   startingValue = 0,
   maxValue = 100,
   className = '',
@@ -28,8 +26,6 @@ export default function ElasticSlider({
   leftIcon = null,
   rightIcon = null,
   onChange,
-  showValue = false,
-  vertical = false,
 }: ElasticSliderProps) {
   const [value, setValue] = useState(defaultValue);
   const sliderRef = useRef<HTMLDivElement>(null);
@@ -44,32 +40,18 @@ export default function ElasticSlider({
 
   useMotionValueEvent(clientX, 'change', (latest) => {
     if (sliderRef.current) {
-      const { left, right, top, bottom } = sliderRef.current.getBoundingClientRect();
+      const { left, right } = sliderRef.current.getBoundingClientRect();
       let newestValue;
 
-      if (vertical) {
-        // latest 在竖直模式下实际存储的是 clientY
-        if (latest < top) {
-          setRegion('left');
-          newestValue = top - latest;
-        } else if (latest > bottom) {
-          setRegion('right');
-          newestValue = latest - bottom;
-        } else {
-          setRegion('middle');
-          newestValue = 0;
-        }
+      if (latest < left) {
+        setRegion('left');
+        newestValue = left - latest;
+      } else if (latest > right) {
+        setRegion('right');
+        newestValue = latest - right;
       } else {
-        if (latest < left) {
-          setRegion('left');
-          newestValue = left - latest;
-        } else if (latest > right) {
-          setRegion('right');
-          newestValue = latest - right;
-        } else {
-          setRegion('middle');
-          newestValue = 0;
-        }
+        setRegion('middle');
+        newestValue = 0;
       }
 
       overflow.jump(decay(newestValue, MAX_OVERFLOW));
@@ -78,15 +60,8 @@ export default function ElasticSlider({
 
   const handlePointerMove = (e: React.PointerEvent) => {
     if (e.buttons > 0 && sliderRef.current) {
-      let newValue;
-      if (vertical) {
-        const { top, height } = sliderRef.current.getBoundingClientRect();
-        newValue = startingValue + ((e.clientY - top) / height) * (maxValue - startingValue);
-        newValue = maxValue - newValue;
-      } else {
-        const { left, width } = sliderRef.current.getBoundingClientRect();
-        newValue = startingValue + ((e.clientX - left) / width) * (maxValue - startingValue);
-      }
+      const { left, width } = sliderRef.current.getBoundingClientRect();
+      let newValue = startingValue + ((e.clientX - left) / width) * (maxValue - startingValue);
 
       if (isStepped) {
         newValue = Math.round(newValue / stepSize) * stepSize;
@@ -94,9 +69,8 @@ export default function ElasticSlider({
 
       newValue = Math.min(Math.max(newValue, startingValue), maxValue);
       setValue(newValue);
-      // 竖直模式用 clientY，水平模式用 clientX
-      vertical ? clientX.jump(e.clientY) : clientX.jump(e.clientX);
-      onChange?.(newValue);
+      clientX.jump(e.clientX);
+      onChange?.(Math.round(newValue));
     }
   };
 
@@ -116,7 +90,11 @@ export default function ElasticSlider({
   };
 
   return (
-    <div className={`slider-container ${className} ${vertical ? 'vertical' : ''}`}>
+    <div className={`slider-container ${className}`}>
+      <div className="value-indicator" style={{ left: `${getRangePercentage()}%` }}>
+        {Math.round(value)}%
+      </div>
+
       <motion.div
         onHoverStart={() => animate(scale, 1.2)}
         onHoverEnd={() => animate(scale, 1)}
@@ -162,18 +140,13 @@ export default function ElasticSlider({
               scaleY: useTransform(overflow, [0, MAX_OVERFLOW], [1, 0.8]),
               transformOrigin: useTransform(() => {
                 if (sliderRef.current) {
-                  if (vertical) {
-                    const { top, height } = sliderRef.current.getBoundingClientRect();
-                    return clientX.get() < top + height / 2 ? 'bottom' : 'top';
-                  } else {
-                    const { left, width } = sliderRef.current.getBoundingClientRect();
-                    return clientX.get() < left + width / 2 ? 'right' : 'left';
-                  }
+                  const { left, width } = sliderRef.current.getBoundingClientRect();
+                  return clientX.get() < left + width / 2 ? 'right' : 'left';
                 }
               }),
-              height: useTransform(scale, [1, 1.2], [4, 8]),
-              marginTop: useTransform(scale, [1, 1.2], [0, -2]),
-              marginBottom: useTransform(scale, [1, 1.2], [0, -2]),
+              height: useTransform(scale, [1, 1.2], [6, 12]),
+              marginTop: useTransform(scale, [1, 1.2], [0, -3]),
+              marginBottom: useTransform(scale, [1, 1.2], [0, -3]),
             }}
             className="slider-track-wrapper"
           >
@@ -197,7 +170,6 @@ export default function ElasticSlider({
           </motion.div>
         )}
       </motion.div>
-      {showValue && <p className="value-indicator">{Math.round(value)}</p>}
     </div>
   );
 }

@@ -2,10 +2,10 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { usePlayerStore } from '../../stores/playerStore';
 import GlassSurface from './GlassSurface';
-import VolumeSlider from './VolumeSlider';
+import ElasticSlider from './ElasticSlider';
 import './player.css';
 import './GlassSurface.css';
-import './VolumeSlider.css';
+import './ElasticSlider.css';
 
 interface Song {
   id: string;
@@ -316,7 +316,12 @@ export default function Player() {
                 </button>
                 {showVolume && createPortal(
                   <div className="volume-panel" style={{ top: volumePos.top, left: volumePos.left }}>
-                    <VolumeSlider value={volume} onChange={setVolume} />
+                    <ElasticSlider
+                      defaultValue={volume}
+                      startingValue={0}
+                      maxValue={100}
+                      onChange={setVolume}
+                    />
                   </div>,
                   document.body
                 )}
