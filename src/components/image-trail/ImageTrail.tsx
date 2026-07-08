@@ -37,7 +37,7 @@ class ImageItem {
   getRect() { if (this.DOM.el) this.rect = this.DOM.el.getBoundingClientRect(); }
 }
 
-class ImageTrailVariant1 {
+class ImageTrailVariant5 {
   container: HTMLElement;
   DOM: { el: HTMLElement };
   images: ImageItem[];
@@ -50,6 +50,7 @@ class ImageTrailVariant1 {
   mousePos: { x: number; y: number };
   lastMousePos: { x: number; y: number };
   cacheMousePos: { x: number; y: number };
+  lastAngle: number;
 
   constructor(container: HTMLElement) {
     this.container = container;
@@ -60,10 +61,11 @@ class ImageTrailVariant1 {
     this.zIndexVal = 1;
     this.activeImagesCount = 0;
     this.isIdle = true;
-    this.threshold = 10;  // 降低阈值
+    this.threshold = 80;
     this.mousePos = { x: 0, y: 0 };
     this.lastMousePos = { x: 0, y: 0 };
     this.cacheMousePos = { x: 0, y: 0 };
+    this.lastAngle = 0;
 
     const handlePointerMove = (ev: Event) => {
       const rect = container.getBoundingClientRect();
@@ -86,40 +88,62 @@ class ImageTrailVariant1 {
 
   render() {
     const distance = getMouseDistance(this.mousePos, this.lastMousePos);
+    if (distance > this.threshold) {
+      this.showNextImage();
+      this.lastMousePos = { ...this.mousePos };
+    }
     this.cacheMousePos.x = lerp(this.cacheMousePos.x, this.mousePos.x, 0.1);
     this.cacheMousePos.y = lerp(this.cacheMousePos.y, this.mousePos.y, 0.1);
-    if (distance > this.threshold) { this.showNextImage(); this.lastMousePos = { ...this.mousePos }; }
     if (this.isIdle && this.zIndexVal !== 1) this.zIndexVal = 1;
     requestAnimationFrame(() => this.render());
   }
 
   showNextImage() {
-    console.log('show');  // 调试用
+    const dx = this.mousePos.x - this.cacheMousePos.x;
+    const dy = this.mousePos.y - this.cacheMousePos.y;
+    let angle = Math.atan2(dy, dx) * (180 / Math.PI);
+    if (angle < 0) angle += 360;
+    if (angle > 90 && angle <= 270) angle += 180;
+    const isMovingClockwise = angle >= this.lastAngle;
+    this.lastAngle = angle;
+    let startAngle = isMovingClockwise ? angle - 10 : angle + 10;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    let ndx = dx, ndy = dy;
+    if (dist !== 0) { ndx /= dist; ndy /= dist; }
+    ndx *= dist / 150;
+    ndy *= dist / 150;
+
     ++this.zIndexVal;
     this.imgPosition = this.imgPosition < this.imagesTotal - 1 ? this.imgPosition + 1 : 0;
     const img = this.images[this.imgPosition];
     gsap.killTweensOf(img.DOM.el!);
+
     gsap.timeline({ onStart: () => this.onImageActivated(), onComplete: () => this.onImageDeactivated() })
-      .fromTo(img.DOM.el!, { opacity: 1, scale: 1, zIndex: this.zIndexVal, x: this.cacheMousePos.x - img.rect!.width / 2, y: this.cacheMousePos.y - img.rect!.height / 2 },
-        { duration: 0.4, ease: 'power1', x: this.mousePos.x - img.rect!.width / 2, y: this.mousePos.y - img.rect!.height / 2 }, 0)
-      .to(img.DOM.el!, { duration: 0.4, ease: 'power3', opacity: 0, scale: 0.2 }, 0.4);
+      .fromTo(img.DOM.el!,
+        { opacity: 1, filter: 'brightness(80%)', scale: 0.1, zIndex: this.zIndexVal,
+          x: this.cacheMousePos.x - img.rect!.width / 2, y: this.cacheMousePos.y - img.rect!.height / 2,
+          rotation: startAngle },
+        { duration: 1, ease: 'power2', scale: 1, filter: 'brightness(100%)',
+          x: this.mousePos.x - img.rect!.width / 2 + ndx * 70,
+          y: this.mousePos.y - img.rect!.height / 2 + ndy * 70,
+          rotation: this.lastAngle }, 0)
+      .to(img.DOM.el!, { duration: 0.4, ease: 'expo', opacity: 0 }, 0.5)
+      .to(img.DOM.el!, { duration: 1.5, ease: 'power4', x: `+=${ndx * 120}`, y: `+=${ndy * 120}` }, 0.05);
   }
 
   onImageActivated() { this.activeImagesCount++; this.isIdle = false; }
   onImageDeactivated() { this.activeImagesCount--; if (this.activeImagesCount === 0) this.isIdle = true; }
 }
 
-const variantMap: Record<number, typeof ImageTrailVariant1> = { 1: ImageTrailVariant1 };
+const variantMap: Record<number, typeof ImageTrailVariant5> = { 5: ImageTrailVariant5 };
 
 interface ImageTrailProps { items?: string[]; variant?: number; }
 
-export default function ImageTrail({ items = [], variant = 1 }: ImageTrailProps) {
+export default function ImageTrail({ items = [], variant = 5 }: ImageTrailProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!containerRef.current) return;
-
-    // 等图片都加载完成再初始化 GSAP
     Promise.all(
       Array.from(containerRef.current.querySelectorAll('.content__img-inner')).map(el => {
         const bg = getComputedStyle(el).backgroundImage;
@@ -132,7 +156,7 @@ export default function ImageTrail({ items = [], variant = 1 }: ImageTrailProps)
         });
       })
     ).then(() => {
-      const Cls = variantMap[variant] || variantMap[1];
+      const Cls = variantMap[variant] || variantMap[5];
       new Cls(containerRef.current!);
     });
   }, [variant, items]);
