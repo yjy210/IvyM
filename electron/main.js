@@ -1,14 +1,24 @@
 const { app, BrowserWindow, ipcMain, session } = require('electron');
 const https = require('https');
 const path = require('path');
+const qrcode = require('qrcode');
 const { registerIpcHandlers } = require('./ipc');
 const { startApiServer } = require('../server/index');
 
-// 平台官方登录页 URL
+// 酷狗官方 API 常量
+const KUGOU_APPID = 1005;
+const KUGOU_SRCAPPID = 2919;
+
+// 平台登录方式：netease/qq 用浏览器打开官网，kugou 用官方 QR API
 const PLATFORM_LOGIN_URLS = {
   netease: 'https://music.163.com/#/login',
   qq: 'https://y.qq.com/n/ryqq/profile',
-  kugou: 'https://www.kugou.com/login',
+};
+
+const LOGIN_METHOD = {
+  netease: 'browser',
+  qq: 'browser',
+  kugou: 'qrcode', // 酷狗用官方二维码 API
 };
 
 // 网易云/QQ 用固定 partition
@@ -153,9 +163,15 @@ function hasLoginCookies(platform, cookies) {
 }
 
 // 通用 https 请求（支持 GET/POST），返回 raw text（兼容 JSONP）
-function httpsRequest(url, { method = 'GET', headers = {}, body } = {}) {
+function httpsRequest(url, { method = 'GET', headers = {}, body, params } = {}) {
   return new Promise((resolve, reject) => {
     const urlObj = new URL(url);
+    // 追加 query params
+    if (params) {
+      Object.entries(params).forEach(([k, v]) => {
+        if (v != null) urlObj.searchParams.set(k, String(v));
+      });
+    }
     const options = {
       hostname: urlObj.hostname,
       port: 443,
@@ -174,7 +190,7 @@ function httpsRequest(url, { method = 'GET', headers = {}, body } = {}) {
     const req = https.request(options, (res) => {
       let data = '';
       res.on('data', chunk => data += chunk);
-      res.on('end', () => resolve(data));
+      res.on('end', () => resolve(safeJsonParse(data) || data));
     });
     req.on('error', reject);
     req.setTimeout(15000, () => { req.destroy(); reject(new Error('timeout')); });
@@ -378,116 +394,204 @@ async function getUserInfo(platform, cookieStr, loginWin) {
 }
 
 // 打开平台官方登录窗口（独立 partition + 轮询 cookie + 自动关窗 + DOM 抓取用户信息）
+// ==================== 登录入口：按平台分流 ====================
 ipcMain.handle('login:open', async (event, platform) => {
-  const url = PLATFORM_LOGIN_URLS[platform] || 'https://music.163.com/#/login';
-  const partition = getPartition(platform);
+  const method = LOGIN_METHOD[platform] || 'browser';
 
-  // 先检查 partition 中是否已有有效 cookie（之前登录过，还没过期）
-  // 注意：酷狗跳过此检查，因为即使有 userid 也可能是旧 session 残留，必须走登录流程
-  const existing = await getPlatformCookies(platform);
-  if (platform !== 'kugou' && hasLoginCookies(platform, existing)) {
-    console.log(`[IvyM] ${platform} already logged in (cookie exists), auto-binding...`);
-    const cookieStr = existing.map(c => `${c.name}=${c.value}`).join('; ');
-    const userId = getUserIdFromCookies(platform, existing);
-    mainWin?.webContents.send('login:result', {
-      platform,
-      success: true,
-      cookie: cookieStr,
-      user: { platform, nickname: '', avatar: '', userId, vip: false, vipName: '' },
-    });
-    return { platform, success: true };
+  if (method === 'qrcode') {
+    // 酷狗走官方 QR API
+    return openKuGouQRLogin(platform);
   }
 
+  // 网易云/QQ 走浏览器
+  return openBrowserLogin(platform);
+});
+
+// ==================== 网易云/QQ：浏览器登录 ====================
+function openBrowserLogin(platform) {
+  const url = PLATFORM_LOGIN_URLS[platform];
+  const partition = getPartition(platform);
+
+  return new Promise((resolve) => {
+    // 先检查是否已登录
+    getPlatformCookies(platform).then((existing) => {
+      if (hasLoginCookies(platform, existing)) {
+        console.log(`[IvyM] ${platform} already logged in, auto-binding...`);
+        const cookieStr = existing.map(c => `${c.name}=${c.value}`).join('; ');
+        const userId = getUserIdFromCookies(platform, existing);
+        mainWin?.webContents.send('login:result', {
+          platform,
+          success: true,
+          cookie: cookieStr,
+          user: { platform, nickname: '', avatar: '', userId, vip: false, vipName: '' },
+        });
+        return resolve({ platform, success: true });
+      }
+
+      let settled = false;
+
+      const loginWin = new BrowserWindow({
+        width: 900,
+        height: 680,
+        minWidth: 700,
+        minHeight: 500,
+        title: `绑定${platform === 'netease' ? '网易云音乐' : 'QQ音乐'}账号`,
+        autoHideMenuBar: true,
+        icon: path.join(__dirname, '../build/logo.png'),
+        webPreferences: {
+          nodeIntegration: false,
+          contextIsolation: true,
+          sandbox: false,
+          partition,
+        },
+      });
+
+      const finish = async (result) => {
+        if (settled) return;
+        settled = true;
+        clearInterval(pollTimer);
+        if (!loginWin.isDestroyed()) loginWin.close();
+        mainWin?.webContents.send('login:result', result);
+        resolve(result);
+      };
+
+      const pollTimer = setInterval(async () => {
+        try {
+          const cookies = await getPlatformCookies(platform);
+          if (hasLoginCookies(platform, cookies)) {
+            const cookieStr = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+            const userInfo = await getUserInfo(platform, cookieStr, loginWin);
+            if (userInfo && (userInfo.nickname || userInfo.userId)) {
+              finish({ platform, success: true, cookie: cookieStr, user: userInfo });
+            }
+          }
+        } catch { /* ignore */ }
+      }, 1000);
+
+      loginWin.on('closed', async () => {
+        if (settled) return;
+        finish({ platform, success: false, msg: '已取消登录' });
+      });
+
+      loginWin.loadURL(url);
+    });
+  });
+}
+
+// ==================== 酷狗：官方 QR 登录 ====================
+async function openKuGouQRLogin(platform) {
+  // 1) 获取 QR key
+  const keyRes = await httpsRequest(
+    'https://login-user.kugou.com/v2/qrcode',
+    {
+      method: 'GET',
+      params: { appid: KUGOU_APPID, type: 1, plat: 4, srcappid: KUGOU_SRCAPPID },
+    }
+  ).catch(() => null);
+
+  const key = keyRes?.body?.data?.key || keyRes?.data?.key;
+  if (!key) {
+    mainWin?.webContents.send('login:result', { platform, success: false, msg: '获取二维码失败' });
+    return { platform, success: false };
+  }
+
+  // 2) 生成本地 QR 图片
+  const loginUrl = `https://h5.kugou.com/apps/loginQRCode/html/index.html?qrcode=${key}`;
+  const qrBase64 = await qrcode.toDataURL(loginUrl, { width: 300, margin: 2 });
+
+  // 3) 创建 QR 展示窗口
   return new Promise((resolve) => {
     let settled = false;
 
-    const loginWin = new BrowserWindow({
-      width: 900,
-      height: 680,
-      minWidth: 700,
-      minHeight: 500,
-      title: `绑定${platform === 'netease' ? '网易云音乐' : platform === 'qq' ? 'QQ音乐' : '酷狗音乐'}账号`,
+    const qrWin = new BrowserWindow({
+      width: 400,
+      height: 500,
+      title: '绑定酷狗音乐',
       autoHideMenuBar: true,
+      resizable: false,
       icon: path.join(__dirname, '../build/logo.png'),
-      webPreferences: {
-        nodeIntegration: false,
-        contextIsolation: true,
-        sandbox: false,
-        partition,
-      },
+      webPreferences: { contextIsolation: true, nodeIntegration: false },
     });
 
-    // 完成 + 发消息 + 关窗
+    // 加载 QR 页面
+    qrWin.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #1a1a2e;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            padding: 24px;
+          }
+          h3 { font-size: 18px; margin-bottom: 8px; }
+          p { font-size: 13px; color: #999; margin-bottom: 24px; text-align: center; }
+          img { border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); }
+          #status { margin-top: 20px; font-size: 13px; color: #6366f1; min-height: 20px; }
+        </style>
+      </head>
+      <body>
+        <h3>🎧 扫描二维码登录酷狗音乐</h3>
+        <p>请使用酷狗音乐 APP 扫码</p>
+        <img src="${qrBase64}" alt="QR Code" width="260" height="260" />
+        <p id="status">等待扫码...</p>
+      </body>
+      </html>
+    `)}`);
+
     const finish = async (result) => {
       if (settled) return;
       settled = true;
       clearInterval(pollTimer);
-      if (!loginWin.isDestroyed()) loginWin.close(); // close 比 destroy 温和，不断开 websocket
+      if (!qrWin.isDestroyed()) qrWin.close();
       mainWin?.webContents.send('login:result', result);
       resolve(result);
     };
 
-    // 轮询检测登录状态
+    // 4) 轮询扫码状态
     const pollTimer = setInterval(async () => {
       try {
-        // ===== 酷狗：检测页面 DOM 上的登录状态 =====
-        if (platform === 'kugou' && !loginWin.isDestroyed()) {
-          const isLoggedIn = await loginWin.webContents.executeJavaScript(`
-            (() => {
-              return Boolean(
-                document.querySelector('.user-avatar') ||
-                document.querySelector('.user-name') ||
-                document.querySelector('[class*="nickname"]') ||
-                document.querySelector('[class*="user_name"]') ||
-                (document.title && !/登录|login/i.test(document.title))
-              );
-            })()
-          `, false).catch(() => false);
+        const statusRes = await httpsRequest(
+          'https://login-user.kugou.com/v2/get_userinfo_qrcode',
+          { params: { plat: 4, appid: KUGOU_APPID, srcappid: KUGOU_SRCAPPID, qrcode: key } }
+        ).catch(() => null);
 
-          if (isLoggedIn) {
-            console.log('[IvyM] KuGou DOM login detected, waiting for page load...');
-            await new Promise(r => setTimeout(r, 3000));
-            if (loginWin.isDestroyed()) return;
+        const status = statusRes?.body?.data?.status;
 
-            const cookies = await getPlatformCookies(platform);
-            const cookieStr = cookies.map(c => `${c.name}=${c.value}`).join('; ');
-            const userInfo = await getUserInfo(platform, cookieStr, loginWin);
-            finish({ platform, success: true, cookie: cookieStr, user: userInfo });
-          }
-          return;
+        if (status === 4) {
+          // 登录成功！
+          const token = statusRes.body.data.token;
+          const userid = statusRes.body.data.userid;
+          console.log(`[IvyM] KuGou QR login success! userid=${userid}`);
+
+          finish({
+            platform,
+            success: true,
+            cookie: `token=${token}; userid=${userid}`,
+            user: { platform, nickname: '', avatar: '', userId: String(userid), vip: false, vipName: '' },
+          });
+        } else if (status === 0) {
+          // 二维码过期
+          finish({ platform, success: false, msg: '二维码已过期，请重试' });
         }
-
-        // ===== 网易云/QQ：检测 cookie =====
-        const cookies = await getPlatformCookies(platform);
-        if (hasLoginCookies(platform, cookies)) {
-          console.log(`[IvyM] ${platform} login cookie detected`);
-          const cookieStr = cookies.map(c => `${c.name}=${c.value}`).join('; ');
-          const userInfo = await getUserInfo(platform, cookieStr, loginWin);
-          if (userInfo && (userInfo.nickname || userInfo.userId)) {
-            finish({ platform, success: true, cookie: cookieStr, user: userInfo });
-          }
-        }
+        // status 1=等待扫码, 2=待确认 → 继续轮询
       } catch { /* ignore */ }
-    }, 1000);
+    }, 2000);
 
-    // 窗口被用户关闭 → 尝试最后一次抓 cookie
-    loginWin.on('closed', async () => {
+    qrWin.on('closed', async () => {
       if (settled) return;
-      const cookies = await getPlatformCookies(platform);
-      if (hasLoginCookies(platform, cookies)) {
-        const cookieStr = cookies.map(c => `${c.name}=${c.value}`).join('; ');
-        const userInfo = await getUserInfo(platform, cookieStr, loginWin);
-        if (userInfo?.nickname || userInfo?.userId) {
-          finish({ platform, success: true, cookie: cookieStr, user: userInfo });
-          return;
-        }
-      }
       finish({ platform, success: false, msg: '已取消登录' });
     });
-
-    loginWin.loadURL(url);
   });
-});
+}
 
 // 解绑：网易云/QQ 清数据，酷狗直接废弃 session
 ipcMain.handle('login:clear', async (event, platform) => {
