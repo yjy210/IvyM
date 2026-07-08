@@ -110,14 +110,16 @@
   gap: 16px;
 }
 
-/* ── 歌曲信息 ── */
+/* ── 歌曲信息：固定宽度 25%，超长截断 ── */
 .player-song-info {
+  width: 25%;
+  min-width: 120px;
+  max-width: 320px;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 12px;
-  max-width: 25%;
-  min-width: 120px;
-  flex-shrink: 1;
+  overflow: hidden;
 }
 
 .player-cover {
@@ -153,41 +155,39 @@
 
 /* ── 控制区布局 ── */
 .player-layout {
+  flex: 1;
   display: flex;
   align-items: center;
-  flex: 1;
+  justify-content: center;
   position: relative;
   min-width: 0;
   height: 100%;
 }
 
-.player-left-tools,
+.player-left-tools {
+  display: flex;
+  align-items: center;
+  gap: clamp(3px, 0.5vw, 8px);
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+}
+
 .player-right-tools {
   display: flex;
   align-items: center;
   gap: clamp(3px, 0.5vw, 8px);
-  flex: 1;
-  min-width: 0;
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
   z-index: 2;
-  height: 100%;
-}
-
-.player-left-tools {
-  justify-content: flex-start;
-  padding-left: 16px;
-}
-
-.player-right-tools {
-  justify-content: flex-end;
-  padding-right: 16px;
 }
 
 /* 播放控制组：绝对居中 */
 .player-play-group {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
   display: flex;
   align-items: center;
   gap: clamp(3px, 0.5vw, 8px);
@@ -201,6 +201,9 @@
   min-width: 120px;
   max-width: 25%;
   overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 @media (max-width: 900px) {

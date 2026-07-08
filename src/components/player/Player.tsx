@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { usePlayerStore } from '../../stores/playerStore';
 import GlassSurface from './GlassSurface';
 import VolumeSlider from './VolumeSlider';
@@ -249,7 +250,7 @@ export default function Player() {
             </div>
           </div>
 
-          {/* 控制按钮 */}
+          {/* 工具组（左右等分，播放按钮绝对居中不受影响） */}
           <div className="player-layout">
             {/* 左侧：喜欢 + 歌词 */}
             <div className="player-left-tools">
@@ -313,10 +314,11 @@ export default function Player() {
                     <svg viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
                   )}
                 </button>
-                {showVolume && (
+                {showVolume && createPortal(
                   <div className="volume-panel" style={{ top: volumePos.top, left: volumePos.left }}>
                     <VolumeSlider value={volume} onChange={setVolume} />
-                  </div>
+                  </div>,
+                  document.body
                 )}
               </div>
             </div>
