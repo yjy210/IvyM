@@ -1,26 +1,9 @@
-.volume-slider-wrapper {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-}
-
-.volume-percent {
-  font-size: 11px;
-  font-weight: 600;
-  color: #1a1a2e;
-  font-variant-numeric: tabular-nums;
-  min-width: 32px;
-  text-align: center;
-}
-
 .volume-slider {
-  height: 100px;
+  width: 100%;
+  height: 100%;
   display: flex;
-  align-items: center;
   justify-content: center;
-  touch-action: none;
-  user-select: none;
+  align-items: center;
 }
 
 .volume-track {
@@ -33,7 +16,7 @@
   transition: width 0.15s;
 }
 
-.volume-slider:hover .volume-track {
+.volume-track:hover {
   width: 6px;
 }
 
@@ -44,7 +27,6 @@
   width: 100%;
   background: #1a1a2e;
   border-radius: 2px;
-  transform-origin: bottom;
 }
 
 .volume-thumb {
@@ -59,6 +41,6 @@
   cursor: grab;
 }
 
-.volume-slider:active .volume-thumb {
+.volume-track:active .volume-thumb {
   cursor: grabbing;
 }

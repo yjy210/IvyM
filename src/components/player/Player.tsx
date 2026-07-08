@@ -2,10 +2,10 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { usePlayerStore } from '../../stores/playerStore';
 import GlassSurface from './GlassSurface';
-import ElasticSlider from './ElasticSlider';
+import VolumeSlider from './VolumeSlider';
 import './player.css';
 import './GlassSurface.css';
-import './ElasticSlider.css';
+import './VolumeSlider.css';
 
 interface Song {
   id: string;
@@ -318,12 +318,7 @@ export default function Player() {
                   <div className="volume-popup-wrapper" style={{ top: volumePos.top, left: volumePos.left }}>
                     <span className="volume-value">{volume}%</span>
                     <div className="volume-panel">
-                      <ElasticSlider
-                        defaultValue={volume}
-                        startingValue={0}
-                        maxValue={100}
-                        onChange={setVolume}
-                      />
+                      <VolumeSlider value={volume} onChange={setVolume} />
                     </div>
                   </div>,
                   document.body
