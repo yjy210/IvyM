@@ -5,8 +5,10 @@ import { LogoAnimation } from './components/splash/LogoAnimation';
 import Grainient from './components/grainient/Grainient';
 import LoginDropdown from './components/login-dropdown/LoginDropdown';
 import SearchBar from './components/search/SearchBar';
+import Player from './components/player/Player';
 import './components/login-dropdown/login-dropdown.css';
 import './components/search/search-bar.css';
+import './components/player/player.css';
 
 export default function App() {
   const [entered, setEntered] = useState(false);
@@ -44,9 +46,12 @@ export default function App() {
         {/* 搜索框 - 顶部居中 GSAP 动画 */}
         <SearchBar />
 
-        <div className="flex-1 overflow-y-auto z-10">
+        <div className="flex-1 overflow-y-auto z-10 pb-20">
           {/* 主内容 */}
         </div>
+
+        {/* 播放控制栏 */}
+        <Player />
 
         {/* 右上角控制 - 登录 + 窗口控制 */}
         <div className="absolute top-4 right-4 z-50 flex items-center gap-3" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>

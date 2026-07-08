@@ -35,8 +35,10 @@ export default function SearchBar() {
 
   const searchResults = usePlayerStore(s => s.searchResults);
   const setSearchResults = usePlayerStore(s => s.setSearchResults);
-  const setPlaylist = usePlayerStore(s => s.setPlaylist);
+  const play = usePlayerStore(s => s.play);
   const API_BASE = 'http://localhost:3001';
+
+  void setSearchResults; // 保留引用
 
   const openSearch = useCallback(() => {
     if (isOpen || !islandRef.current) return;
@@ -142,19 +144,18 @@ export default function SearchBar() {
 
   const selectSong = useCallback((song: MergedSong) => {
     if (searchResults) {
-      const all: Song[] = [];
-      song.sources.forEach(s => {
-        if (s.platform === 'netease') {
+      // 找到第一个可用平台的歌并播放
+      for (const src of song.sources) {
+        if (src.platform === 'netease') {
           const found = searchResults.netease.find((n: Song) => n.name === song.name && n.artists === song.artists);
-          if (found) all.push(found);
+          if (found) { play(found); return; }
         } else {
           const found = searchResults.qq.find((q: Song) => q.name === song.name && q.artists === song.artists);
-          if (found) all.push(found);
+          if (found) { play(found); return; }
         }
-      });
-      setPlaylist(all);
+      }
     }
-  }, [searchResults, setPlaylist]);
+  }, [searchResults, play]);
 
   const showPanel = keyword.trim().length > 0;
   const getSrcLabel = (platform: 'netease' | 'qq') => platform === 'netease' ? '网易云' : 'QQ';

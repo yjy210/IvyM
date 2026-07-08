@@ -1,0 +1,224 @@
+/* ── Player Bar ── */
+.player-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 72px;
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(20px) saturate(1.8);
+  -webkit-backdrop-filter: blur(20px) saturate(1.8);
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 16px;
+  z-index: 800;
+  -webkit-app-region: no-drag;
+}
+
+/* ── 歌曲信息 ── */
+.player-song-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 240px;
+  min-width: 0;
+}
+
+.player-cover {
+  width: 48px;
+  height: 48px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.06);
+  flex-shrink: 0;
+  object-fit: cover;
+}
+
+.player-text {
+  min-width: 0;
+}
+
+.player-song-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a1a2e;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.player-song-artist {
+  font-size: 11px;
+  color: #999;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── 控制区 ── */
+.player-controls {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.player-btns {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.player-btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background 0.15s;
+  -webkit-app-region: no-drag;
+}
+
+.player-btn:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.player-btn svg {
+  width: 18px;
+  height: 18px;
+  stroke: #333;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.player-btn-play {
+  width: 36px;
+  height: 36px;
+  background: #1a1a2e;
+}
+
+.player-btn-play:hover {
+  background: #333;
+}
+
+.player-btn-play svg {
+  stroke: #fff;
+  fill: #fff;
+  width: 16px;
+  height: 16px;
+}
+
+/* ── 进度条 ── */
+.player-progress-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 480px;
+}
+
+.player-time {
+  font-size: 10px;
+  color: #999;
+  min-width: 36px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.player-progress {
+  flex: 1;
+  height: 4px;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 2px;
+  cursor: pointer;
+  position: relative;
+  -webkit-app-region: no-drag;
+}
+
+.player-progress-bar {
+  height: 100%;
+  background: #1a1a2e;
+  border-radius: 2px;
+  position: relative;
+}
+
+.player-progress-bar::after {
+  content: '';
+  position: absolute;
+  right: -5px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 10px;
+  height: 10px;
+  background: #1a1a2e;
+  border-radius: 50%;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.player-progress:hover .player-progress-bar::after {
+  opacity: 1;
+}
+
+/* ── 音量 ── */
+.player-volume {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 120px;
+}
+
+.player-volume svg {
+  width: 16px;
+  height: 16px;
+  stroke: #666;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex-shrink: 0;
+}
+
+.player-volume-slider {
+  flex: 1;
+  height: 4px;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 2px;
+  cursor: pointer;
+  position: relative;
+  -webkit-app-region: no-drag;
+}
+
+.player-volume-bar {
+  height: 100%;
+  background: #1a1a2e;
+  border-radius: 2px;
+}
+
+/* ── 播放模式 ── */
+.player-mode {
+  width: 28px;
+  height: 28px;
+}
+
+.player-mode svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* ── 无歌曲占位 ── */
+.player-empty {
+  font-size: 13px;
+  color: #999;
+  text-align: center;
+  flex: 1;
+}
