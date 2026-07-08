@@ -12,8 +12,11 @@ export function TitleBar() {
       {/* 中间：留空 */}
       <div className="flex-1" />
 
-      {/* 右侧：窗口控制按钮 */}
-      <div className="app-region-no-drag">
+      {/* 右侧：登录 + 窗口控制 */}
+      <div className="app-region-no-drag flex items-center gap-3">
+        <button className="px-3 py-1.5 rounded-full bg-primary text-white text-xs font-medium hover:bg-primary-dark transition-colors">
+          登录
+        </button>
         <WindowControls />
       </div>
     </div>
