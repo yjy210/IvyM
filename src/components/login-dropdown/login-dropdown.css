@@ -140,21 +140,16 @@
 
 .platform-bound { padding: 8px 0; }
 
-.platform-header {
-  margin-bottom: 10px;
-}
-
-.platform-avatar { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; }
-.platform-avatar-placeholder { display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #6366f1, #a855f7); color: white; font-size: 16px; font-weight: 700; }
-
-.platform-nickname-row {
+.platform-user-row {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 10px;
   margin-bottom: 10px;
-  flex-wrap: wrap;
 }
+
+.platform-avatar { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+.platform-avatar-placeholder { display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #6366f1, #a855f7); color: white; font-size: 16px; font-weight: 700; }
 
 .platform-nickname { font-size: 15px; font-weight: 700; color: #1a1a2e; }
 
@@ -162,8 +157,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  margin-bottom: 8px;
+  gap: 4px;
+  margin-bottom: 10px;
   font-size: 13px;
 }
 
@@ -173,7 +168,20 @@
 
 .platform-vip-value {
   font-weight: 600;
-  color: #1a1a2e;
+  color: #999;
+}
+
+.platform-vip-value.is-gold {
+  background: linear-gradient(135deg, #ffd700, #ff8c00);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 700;
+}
+
+.platform-vip-value.is-green {
+  color: #1a8c50;
+  font-weight: 700;
 }
 
 .platform-userid {

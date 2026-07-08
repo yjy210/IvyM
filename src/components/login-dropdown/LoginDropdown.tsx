@@ -197,28 +197,25 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
                 }
                 return (
                   <div className="platform-bound">
-                    <div className="platform-header">
+                    <div className="platform-user-row">
                       {account.avatar ? (
                         <img src={account.avatar} alt="" className="platform-avatar" />
                       ) : (
                         <div className="platform-avatar platform-avatar-placeholder">{account.nickname?.[0] || '?'}</div>
                       )}
-                    </div>
-                    <div className="platform-nickname-row">
                       <span className="platform-nickname">{account.nickname || '用户' + account.userId}</span>
-                      {account.vip && (
-                        <span className="bound-vip-inline">
-                          {account.platform === 'netease' ? '黑胶VIP' : '豪华绿钻'}
-                        </span>
-                      )}
                     </div>
                     <div className="platform-vip-row">
                       <span className="platform-vip-label">
-                        {account.platform === 'netease' ? '黑胶会员' : '豪华绿钻'}：
+                        {account.platform === 'netease' ? '黑胶会员：' : '豪华绿钻：'}
                       </span>
-                      <span className="platform-vip-value">
-                        {getVipLabel(account.platform, account.vip, account.vipName)}
-                      </span>
+                      {account.vip ? (
+                        <span className={`platform-vip-value ${account.platform === 'netease' ? 'is-gold' : 'is-green'}`}>
+                          {account.platform === 'netease' ? '黑胶VIP' : '豪华绿钻'}
+                        </span>
+                      ) : (
+                        <span className="platform-vip-value">无</span>
+                      )}
                     </div>
                     <div className="platform-userid">ID：{account.userId}</div>
                     <button className="platform-unbind-btn" onClick={() => handleUnbind(activeTab)}>
