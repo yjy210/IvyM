@@ -105,7 +105,7 @@ class ImageTrailVariant1 {
       .to(img.DOM.el!, { duration: 0.4, ease: 'power3', opacity: 0, scale: 0.2 }, 0.4);
   }
 
-  onImageActivated() { this.activeImagesCount++; this.idle = false; }
+  onImageActivated() { this.activeImagesCount++; this.isIdle = false; }
   onImageDeactivated() { this.activeImagesCount--; if (this.activeImagesCount === 0) this.isIdle = true; }
 }
 
@@ -119,7 +119,8 @@ export default function ImageTrail({ items = [], variant = 1 }: ImageTrailProps)
   useEffect(() => {
     if (!containerRef.current) return;
 
-    // 等图片都加载完成再初始化 GSAP Promise.all(
+    // 等图片都加载完成再初始化 GSAP
+    Promise.all(
       Array.from(containerRef.current.querySelectorAll('.content__img-inner')).map(el => {
         const bg = getComputedStyle(el).backgroundImage;
         const url = bg.slice(5, -2);
