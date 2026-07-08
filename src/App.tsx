@@ -26,9 +26,9 @@ export default function App() {
     <>
       {!entered && <LogoAnimation onEnter={() => setEntered(true)} />}
 
-      <div className="w-full h-full flex flex-col relative overflow-hidden" style={{ background: 'transparent' }}>
+      <div className="w-full h-full flex flex-col relative overflow-hidden">
         {/* Grainient 流动背景 - 全屏 */}
-        <div className="absolute inset-0" style={{ zIndex: 0 }}>
+        <div className="absolute inset-0 z-0">
           <Grainient
             color1="#ffffff" color2="#f5f5dc" color3="#766A5E"
             timeSpeed={0.25} warpStrength={1.0} warpFrequency={5.0} warpSpeed={2.0}
