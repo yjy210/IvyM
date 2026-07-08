@@ -303,7 +303,7 @@ async function getUserInfo(platform, cookieStr) {
                     !!vipData.green_diamond || !!vipData.vip_role || Number(vipData.role || 0) > 0;
             if (isVip) break;
           } catch (vipErr) {
-            console.warn(`[IvyM] QQ VIP (${vipUrl.split('/().pop()}) failed:`, vipErr.message);
+            console.warn(`[IvyM] QQ VIP (${vipUrl.split('/').pop()}) failed:`, vipErr.message);
           }
         }
       }
