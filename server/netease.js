@@ -61,4 +61,17 @@ async function neteaseLyric(id) {
   return { code: 200, data: res.lrc?.lyric || '' };
 }
 
-module.exports = { neteaseSearch, neteaseSongUrl, neteaseLyric };
+async function neteaseQrLogin() {
+  const keyRes = await neteaseRequest('/api/login/qrcode/unikey', { timer: Date.now() });
+  if (!keyRes.unikey) return { code: -1, msg: '获取 key 失败' };
+  const qrRes = await neteaseRequest('/api/login/qrcode/create', { key: keyRes.unikey, qrimg: 1, timer: Date.now() });
+  if (!qrRes.qrimg) return { code: -1, msg: '获取二维码失败' };
+  return { code: 200, data: { qrimg: qrRes.qrimg, unikey: keyRes.unikey } };
+}
+
+async function neteaseQrCheck(unikey) {
+  const res = await neteaseRequest('/api/login/qrcode/client/login', { key: unikey, timer: Date.now() });
+  return { code: res.code, msg: res.message || '', cookie: res.cookie || '' };
+}
+
+module.exports = { neteaseSearch, neteaseSongUrl, neteaseLyric, neteaseQrLogin, neteaseQrCheck };

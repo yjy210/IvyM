@@ -62,4 +62,43 @@ async function qqSongUrl(mid) {
   return { code: 200, data: { url } };
 }
 
-module.exports = { qqSearch, qqSongUrl };
+async function qqQrLogin() {
+  const res = await qqRequest('/cgi-bin/qrlogin/login', {
+    _: Date.now(),
+    g_tk: 5381,
+    uin: 0,
+    format: 'json',
+    inCharset: 'utf-8',
+    outCharset: 'utf-8',
+    notice: 0,
+    platform: 'yqq',
+    uid: 0,
+    g_tk_openkey: 0,
+  });
+  if (!res.qrcode) return { code: -1, msg: '获取二维码失败' };
+  return { code: 200, data: { qrimg: res.qrcode, sigx: res.sigx || '' } };
+}
+
+async function qqQrCheck(sigx) {
+  const res = await qqRequest('/cgi-bin/qrlogin/ptqrlogin', {
+    _: Date.now(),
+    g_tk: 5381,
+    uin: 0,
+    format: 'json',
+    inCharset: 'utf-8',
+    outCharset: 'utf-8',
+    notice: 0,
+    platform: 'yqq',
+    uid: 0,
+    g_tk_openkey: 0,
+    pt_uisted: 0,
+    ptwebqq: '',
+    pt_randsig: sigx,
+    pt_guid_sig: '',
+    pt_no_auth: 0,
+    pt_login_type: 3,
+  });
+  return { code: res.errcode, msg: res.msg || '', cookie: res.cookie || '', uin: res.uin || 0 };
+}
+
+module.exports = { qqSearch, qqSongUrl, qqQrLogin, qqQrCheck };

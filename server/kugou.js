@@ -58,4 +58,32 @@ async function kugouSongUrl(hash) {
   return { code: 200, data: { url: playUrl } };
 }
 
-module.exports = { kugouSearch, kugouSongUrl };
+async function kugouQrLogin() {
+  const res = await kugouRequest('/yyy/loginqrcode/portal', {
+    _: Date.now(),
+    dfid: '-',
+    appid: '1005',
+    platid: '4',
+    mid: '123456',
+    hex: '0',
+    regalias: '',
+    json: 1,
+  });
+  if (!res.data || !res.data.qrcode) return { code: -1, msg: '获取二维码失败' };
+  return { code: 200, data: { qrimg: res.data.qrcode, sig: res.data.sig || '' } };
+}
+
+async function kugouQrCheck(sig) {
+  const res = await kugouRequest('/yyy/loginqrcode/portal/Polling', {
+    _: Date.now(),
+    dfid: '-',
+    appid: '1005',
+    platid: '4',
+    mid: '123456',
+    sig,
+    json: 1,
+  });
+  return { code: res.status, msg: res.errmsg || '', cookie: res.data?.cookie || '' };
+}
+
+module.exports = { kugouSearch, kugouSongUrl, kugouQrLogin, kugouQrCheck };

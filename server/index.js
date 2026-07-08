@@ -1,7 +1,7 @@
 const http = require('http');
-const { neteaseSearch, neteaseSongUrl, neteaseLyric } = require('./netease');
-const { qqSearch, qqSongUrl } = require('./qq');
-const { kugouSearch, kugouSongUrl } = require('./kugou');
+const { neteaseSearch, neteaseSongUrl, neteaseLyric, neteaseQrLogin } = require('./netease');
+const { qqSearch, qqSongUrl, qqQrLogin } = require('./qq');
+const { kugouSearch, kugouSongUrl, kugouQrLogin } = require('./kugou');
 
 const PORT = 3001;
 
@@ -70,6 +70,29 @@ const server = http.createServer(async (req, res) => {
       const data = await kugouSongUrl(hash);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(data));
+      return;
+    }
+
+    // ===== 登录 =====
+    // 网易云 QR 码登录
+    if (url.pathname === '/api/netease/login/qr') {
+      const qr = await neteaseQrLogin();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(qr));
+      return;
+    }
+    // QQ音乐 QR 码登录
+    if (url.pathname === '/api/qq/login/qr') {
+      const qr = await qqQrLogin();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(qr));
+      return;
+    }
+    // 酷狗 QR 码登录
+    if (url.pathname === '/api/kugou/login/qr') {
+      const qr = await kugouQrLogin();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(qr));
       return;
     }
 
