@@ -187,7 +187,7 @@ async function fetchUserInfo(platform, cookieStr) {
   return null;
 }
 
-// 解析各平台用户信息
+// 解析各平台用户信息（平台返回什么就显示什么，不替换）
 function parseUserInfo(platform, raw) {
   if (!raw) return null;
 
@@ -204,35 +204,37 @@ function parseUserInfo(platform, raw) {
     };
   }
 
-  // QQ音乐（Mineradio 方案：从 musicu.fcg 返回的 req_1.data 解析）
+  // QQ音乐 — 从 musicu.fcg 响应解析（Mineradio 兼容结构）
   if (platform === 'qq') {
+    // 结构可能是 { req_1: { data: { creator: {...} } } } 或 { data: { creator: {...} } }
     const qqData = raw.req_1?.data || raw.data || raw;
     const creator = qqData.creator || qqData;
-    const uin = qqData.uin || raw.req_1?.data?.uin || '';
-    // 从 cookie 中提取昵称备选
-    const nickname = creator?.nick || creator?.nickname || creator?.name || creator?.hostname || creator?.title || '';
-    const avatar = creator?.headpic || creator?.avatar || creator?.avatarUrl || creator?.logo ||
-      (uin ? `https://q1.qlogo.cn/g?b=qq&nk=${uin}` : '');
+    const uin = String(qqData.uin || raw.uin || '');
+
+    // 平台返回什么昵称就用什么（可能是 "用户12345" 这样的默认昵称）
+    const nickname = creator?.nick || creator?.nickname || creator?.name ||
+      creator?.hostname || creator?.title || qqData.nickname || '';
+    // 平台返回什么头像就用什么（可能是空白图）
+    const avatar = creator?.headpic || creator?.avatar || creator?.avatarUrl ||
+      creator?.logo || qqData.headpic || qqData.avatar || '';
+
     return {
       platform,
       nickname,
       avatar,
-      userId: String(uin),
+      userId: uin,
       vip: (qqData.vipType || qqData.vip_type || 0) > 0,
       vipName: (qqData.vipType || qqData.vip_type || 0) > 0 ? '绿钻会员' : '',
     };
   }
 
-  // 酷狗（直接从 cookie 里解析用户信息，不需要额外 API）
+  // 酷狗 — cookie 通常没有昵称/头像，返回空即可（前端会显示 placeholder）
   if (platform === 'kugou') {
-    // raw 这里传的是 cookies 聚合的 info 对象
-    const userid = raw.userid || raw.KG_FID || raw.kg_mid || '';
-    const nickname = raw.nickname || raw.Nickname || raw.KuGoo || '';
-    const avatar = raw.head || raw.avatar || raw.Head || '';
+    const userid = raw.userid || raw.KG_FID || raw.kg_mid || raw.USERID || '';
     return {
       platform,
-      nickname,
-      avatar,
+      nickname: raw.nickname || raw.Nickname || raw.nick || '',
+      avatar: raw.head || raw.avatar || raw.Head || raw.LOGO || '',
       userId: String(userid),
       vip: false,
       vipName: '',
@@ -338,6 +340,24 @@ ipcMain.handle('login:open', async (event, platform) => {
 
     loginWin.loadURL(url);
   });
+});
+
+// 解绑：清除该平台 partition 的所有 cookie/storage
+ipcMain.handle('login:clear', async (event, platform) => {
+  const partition = PLATFORM_PARTITIONS[platform];
+  if (!partition) return;
+  const ses = session.fromPartition(partition);
+  // 清除该 partition 的所有 cookie
+  const urls = COOKIE_URLS[platform] || [];
+  for (const url of urls) {
+    const cookies = await ses.cookies.get({ url });
+    for (const c of cookies) {
+      await ses.cookies.remove(url, c.name);
+    }
+  }
+  // 清除 localStorage / cache
+  await ses.clearStorageData({ storages: ['localstorage', 'indexdb', 'cachestorage'] });
+  console.log(`[IvyM] ${platform} session cleared`);
 });
 
 app.whenReady().then(async () => {

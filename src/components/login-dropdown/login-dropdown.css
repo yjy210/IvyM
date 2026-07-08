@@ -85,6 +85,7 @@
 }
 
 .bound-avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; }
+.bound-avatar-placeholder { display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #6366f1, #a855f7); color: white; font-size: 14px; font-weight: 700; }
 
 .bound-info { flex: 1; min-w: 0; }
 
@@ -144,6 +145,7 @@
 }
 
 .platform-avatar { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; }
+.platform-avatar-placeholder { display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #6366f1, #a855f7); color: white; font-size: 16px; font-weight: 700; }
 
 .platform-nickname { font-size: 15px; font-weight: 700; color: #1a1a2e; }
 

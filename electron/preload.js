@@ -21,4 +21,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onLoginResult: (callback) => {
     ipcRenderer.on('login:result', (event, result) => callback(result));
   },
+  // --- 解绑：清除平台的登录 session ---
+  clearPlatformSession: (platform) => ipcRenderer.invoke('login:clear', platform),
 });

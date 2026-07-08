@@ -42,8 +42,10 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
     localStorage.setItem('ivym_accounts', JSON.stringify(accs));
   }, []);
 
-  // 解绑账号
+  // 解绑账号（同时清除该平台 partition 的 cookie）
   const handleUnbind = useCallback((platform: 'netease' | 'qq' | 'kugou') => {
+    // 通知主进程清除该平台的登录 session
+    window.electronAPI?.clearPlatformSession(platform);
     const filtered = accounts.filter(a => a.platform !== platform);
     saveAccounts(filtered);
   }, [accounts, saveAccounts]);
@@ -142,10 +144,14 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
                   const platform = PLATFORMS.find(p => p.id === acc.platform)!;
                   return (
                     <div key={acc.platform} className="bound-item">
-                      <img src={acc.avatar || '/logo.png'} alt="" className="bound-avatar" />
+                      {acc.avatar ? (
+                        <img src={acc.avatar} alt="" className="bound-avatar" />
+                      ) : (
+                        <div className="bound-avatar bound-avatar-placeholder">{acc.nickname?.[0] || '?'}</div>
+                      )}
                       <div className="bound-info">
                         <div className="bound-name-row">
-                          <span className="bound-nickname">{acc.nickname}</span>
+                          <span className="bound-nickname">{acc.nickname || '用户' + acc.userId}</span>
                           {acc.vip && <span className="bound-vip">{acc.vipName || `${platform.name}会员`}</span>}
                         </div>
                         <div className="bound-platform" style={{ color: platform.color }}>
@@ -182,9 +188,13 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
                 return (
                   <div className="platform-bound">
                     <div className="platform-header">
-                      <img src={account.avatar || '/logo.png'} alt="" className="platform-avatar" />
+                      {account.avatar ? (
+                        <img src={account.avatar} alt="" className="platform-avatar" />
+                      ) : (
+                        <div className="platform-avatar platform-avatar-placeholder">{account.nickname?.[0] || '?'}</div>
+                      )}
                       <div>
-                        <div className="platform-nickname">{account.nickname}</div>
+                        <div className="platform-nickname">{account.nickname || '用户' + account.userId}</div>
                         {account.vip && <span className="bound-vip">{account.vipName || `${platform.name}会员`}</span>}
                       </div>
                     </div>
