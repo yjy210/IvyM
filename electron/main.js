@@ -282,19 +282,29 @@ async function getUserInfo(platform, cookieStr) {
       const cookieVipType = Number(cookieObj.vip_type || cookieObj.vipType || cookieObj.vipmusic_pay_type || cookieObj.vip_sub_type || 0);
       if (cookieVipType > 0) isVip = true;
 
-      // 再尝试 VIP 接口
+      // 再尝试 VIP 接口（多个端点）
       if (!isVip) {
-        try {
-          const vipRes = await httpsRequest(
-            'https://c.y.qq.com/rsc/fcgi-bin/fcg_get_vip_info.fcg',
-            { params: { _: Date.now() }, headers: { 'Cookie': cookieStr, 'Referer': 'https://y.qq.com' } }
-          );
-          const vipRaw = safeJsonParse(vipRes);
-          console.log('[IvyM DEBUG] QQ VIP API response:', JSON.stringify(vipRaw)?.slice(0, 300));
-          const vipData = vipRaw?.data || {};
-          isVip = !!vipData.vip || !!vipData.is_vip || !!vipData.isVip || Number(vipData.vip_level || 0) > 0 || Number(vipData.vipType || 0) > 0;
-        } catch (vipErr) {
-          console.warn('[IvyM] QQ VIP API failed:', vipErr.message);
+        const vipEndpoints = [
+          'https://c.y.qq.com/rsc/fcgi-bin/fcg_getmemberrule.fcg',
+          'https://c.y.qq.com/rsc/fcgi-bin/fcg_get_vip_info.fcg',
+          'https://c.y.qq.com/v6/rsc/fcgi-bin/fcg_get_vip_info.fcg',
+        ];
+        for (const vipUrl of vipEndpoints) {
+          try {
+            const vipRes = await httpsRequest(vipUrl, {
+              params: { _: Date.now(), format: 'json' },
+              headers: { 'Cookie': cookieStr, 'Referer': 'https://y.qq.com' }
+            });
+            const vipRaw = safeJsonParse(vipRes);
+            console.log(`[IvyM DEBUG] QQ VIP (${vipUrl.split('/').pop()}):`, JSON.stringify(vipRaw)?.slice(0, 400));
+            const vipData = vipRaw?.data || vipRaw;
+            isVip = !!vipData.vip || !!vipData.is_vip || !!vipData.isVip ||
+                    Number(vipData.vip_level || 0) > 0 || Number(vipData.vipType || 0) > 0 ||
+                    !!vipData.green_diamond || !!vipData.vip_role || Number(vipData.role || 0) > 0;
+            if (isVip) break;
+          } catch (vipErr) {
+            console.warn(`[IvyM] QQ VIP (${vipUrl.split('/().pop()}) failed:`, vipErr.message);
+          }
         }
       }
 
