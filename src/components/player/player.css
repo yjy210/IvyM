@@ -173,6 +173,10 @@
   -webkit-text-stroke: 0.5px #333;
 }
 
+.icon-geci32 {
+  font-size: 24px !important;
+}
+
 .player-btn-save {
   border-radius: 8px !important;
 }
