@@ -102,13 +102,15 @@
   display: block;
 }
 
-/* ── 主内容区：Grid 三栏布局 ── */
+/* ── 主内容区 ── */
 .player-main {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  padding: 17px 20px;
+  height: 72px;
+  padding: 0 20px;
   gap: 16px;
+  box-sizing: border-box;
 }
 
 /* ── 歌曲信息：左侧固定 ── */
