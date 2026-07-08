@@ -1,12 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { usePlayerStore } from '../../stores/playerStore';
-import ElasticSlider from './ElasticSlider';
 import GlassSurface from './GlassSurface';
-import VolumeSlider from './VolumeSlider';
 import './player.css';
-import './ElasticSlider.css';
 import './GlassSurface.css';
-import './VolumeSlider.css';
 
 interface Song {
   id: string;
@@ -31,7 +27,6 @@ export default function Player() {
   const setPlaylist = usePlayerStore(s => s.setPlaylist);
 
   const audioRef = useRef<HTMLAudioElement>(null);
-  const volumeRef = useRef<HTMLDivElement>(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(70);
@@ -120,13 +115,6 @@ export default function Player() {
     }
   };
 
-  // 关闭所有弹窗
-  const closeAllPopups = useCallback(() => {
-    setShowVolume(false);
-    setShowPlaylist(false);
-    setShowLyrics(false);
-    setShowSaveToPlaylist(false);
-  }, []);
 
   const togglePlayMode = () => {
     const modes: Array<'sequence' | 'loop' | 'shuffle'> = ['sequence', 'loop', 'shuffle'];
@@ -240,9 +228,9 @@ export default function Player() {
           </div>
 
           {/* 控制按钮 */}
-          <div className="player-controls">
+          <div className="player-layout">
             {/* 左侧：喜欢 + 歌词 */}
-            <div className="player-controls-left">
+            <div className="player-left-tools">
               <button className={`player-btn${isLiked ? ' liked' : ''}`} onClick={toggleLike} title="喜欢">
                 <i className="iconfont icon-xihuan" />
               </button>
@@ -252,7 +240,7 @@ export default function Player() {
             </div>
 
             {/* 中间：播放控制（绝对居中） */}
-            <div className="player-controls-center">
+            <div className="player-center-tools">
               <button className={`player-btn${playMode !== 'sequence' ? ' active' : ''}`} onClick={togglePlayMode} title={playMode === 'sequence' ? '顺序播放' : playMode === 'loop' ? '单曲循环' : '随机播放'}>
                 {playMode === 'sequence' && <i className="iconfont icon-a-shunxupoppy_icon_positive_order" />}
                 {playMode === 'loop' && <i className="iconfont icon-a-25px" />}
@@ -277,14 +265,13 @@ export default function Player() {
             </div>
 
             {/* 右侧：收藏 + 音量 */}
-            <div className="player-controls-right">
+            <div className="player-right-tools">
               <button className="player-btn player-btn-save" data-popup-btn onClick={() => setShowSaveToPlaylist(!showSaveToPlaylist)} title="收藏到歌单">
                 <img src="/icons/jiahaojilu.svg" alt="收藏" className="player-save-icon" />
               </button>
-              <div className="player-volume-wrapper" ref={volumeRef}>
+              <div className="player-volume-wrapper">
                 <button
                   className="player-btn"
-                  data-popup-btn
                   onClick={() => setShowVolume(!showVolume)}
                   title="音量"
                 >
@@ -294,6 +281,17 @@ export default function Player() {
                     <svg viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
                   )}
                 </button>
+                {showVolume && (
+                  <div className="volume-panel">
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={volume}
+                      onChange={e => setVolume(+e.target.value)}
+                    />
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -390,14 +388,6 @@ export default function Player() {
         </div>
       )}
 
-      {/* 音量弹窗 */}
-      {showVolume && (
-        <div className="player-volume-backdrop" onClick={closeAllPopups}>
-          <div className="player-volume-popup" onClick={e => e.stopPropagation()}>
-            <VolumeSlider value={volume} onChange={setVolume} />
-          </div>
-        </div>
-      )}
     </>
   );
 }
