@@ -94,9 +94,22 @@ async function initServer() {
 // 平台用户信息 API
 const USER_API = {
   netease: 'https://music.163.com/api/nuser/account/get',
-  qq: 'https://u.y.qq.com/cgi-bin/musicu.fcg',
+  // QQ 用 profile homepage（Mineradio 方案，不是 musicu.fcg）
+  qq: 'https://c.y.qq.com/rsc/fcgi-bin/fcg_get_profile_homepage.fcg',
   kugou: 'https://www.kugou.com/UserInfo/User',
 };
+
+// QQ 头像合成 URL（当平台没有返回头像时）
+function qqAvatarUrl(uin) {
+  return uin ? `https://q1.qlogo.cn/g?b=qq&nk=${encodeURIComponent(uin)}&s=100` : '';
+}
+
+// 剥掉 QQ JSONP 回调壳：callback({...}) → {...}
+function stripJsonp(text) {
+  if (!text) return text;
+  const m = text.match(/^\s*[^(]*\((.*)\)\s*;?\s*$/s);
+  return m ? m[1] : text;
+}
 
 // 抓取指定 partition 下的 cookie
 async function getPlatformCookies(platform) {
@@ -124,7 +137,7 @@ function hasLoginCookies(platform, cookies) {
   return keys.some(k => names.includes(k));
 }
 
-// 通用 https 请求（支持 GET/POST）
+// 通用 https 请求（支持 GET/POST），返回 raw text（兼容 JSONP）
 function httpsRequest(url, { method = 'GET', headers = {}, body } = {}) {
   return new Promise((resolve, reject) => {
     const urlObj = new URL(url);
@@ -135,6 +148,7 @@ function httpsRequest(url, { method = 'GET', headers = {}, body } = {}) {
       method,
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Referer': 'https://y.qq.com',
         ...headers,
       },
     };
@@ -145,16 +159,21 @@ function httpsRequest(url, { method = 'GET', headers = {}, body } = {}) {
     const req = https.request(options, (res) => {
       let data = '';
       res.on('data', chunk => data += chunk);
-      res.on('end', () => {
-        try { resolve(JSON.parse(data)); }
-        catch (e) { resolve(data); }
-      });
+      res.on('end', () => resolve(data));
     });
     req.on('error', reject);
     req.setTimeout(15000, () => { req.destroy(); reject(new Error('timeout')); });
     if (body) req.write(body);
     req.end();
   });
+}
+
+// 安全解析 JSON（兼容 JSONP）
+function safeJsonParse(text) {
+  if (!text) return null;
+  const cleaned = stripJsonp(text.trim());
+  try { return JSON.parse(cleaned); }
+  catch { return null; }
 }
 
 // 从 cookie 中提取 userId
@@ -175,63 +194,56 @@ function getUserIdFromCookies(platform, cookies) {
   return '';
 }
 
-// 从已登录页面直接抓取用户信息（DOM 抓取，最准确）
-async function scrapeFromPage(loginWin, platform) {
-  if (loginWin.isDestroyed()) return null;
-  try {
-    const result = await loginWin.webContents.executeJavaScript(`
-      (() => {
-        ${platform === 'netease' ? `
-          // 网易云：右上角头像+昵称
-          const img = document.querySelector('.m-nav .head img, .m-user img, img[src*="music.163"]');
-          const nameEl = document.querySelector('.m-nav .name, .s-fc3, .j-txt');
-          // 也可能是 #imgbar 头像
-          const barImg = document.querySelector('#bar-entity img, .n-bnner img');
-          return {
-            nickname: nameEl?.textContent?.trim() || document.title.replace(' - 网易云音乐', '') || '',
-            avatar: img?.src || barImg?.src || '',
-          };
-        ` : ''}
-        ${platform === 'qq' ? `
-          // QQ音乐：顶部用户区域
-          const img = document.querySelector('.mod_profile img, .header__user img, .profile__img img, .user_head img, img[class*="avatar"], img[class*="headpic"]');
-          const nameEl = document.querySelector('.profile__name, .header__username, .mod_name, .user_name, [class*="nickname"], [class*="user_name"]');
-          return {
-            nickname: nameEl?.textContent?.trim() || '',
-            avatar: img?.src || '',
-          };
-        ` : ''}
-        ${platform === 'kugou' ? `
-          // 酷狗：用户区域
-          const img = document.querySelector('.userHead img, .userInfo img, .login_info img, .user_head img, .avatar img, img[class*="head"], img[class*="avatar"]');
-          const nameEl = document.querySelector('.userName, .user_name, .login_name, .nickname, [class*="userName"], [class*="nick"]');
-          return {
-            nickname: nameEl?.textContent?.trim() || '',
-            avatar: img?.src || '',
-          };
-        ` : ''}
-        return null;
-      })()
-    `, true);
-    return result;
-  } catch (e) {
-    console.error('[IvyM] scrape failed:', e.message);
-    return null;
+// 从 cookie 对象中获取 QQ 昵称（Mineradio 方案：从 ptnick_<uin> 获取）
+function qqNicknameFromCookie(cookieObj, uin) {
+  const padded = uin ? '0' + uin : '';
+  const keys = [
+    uin && ('ptnick_' + uin),
+    padded && ('ptnick_' + padded),
+    'ptnick',
+    'nick',
+    'nickname',
+    'qq_nickname',
+  ].filter(Boolean);
+  for (const key of keys) {
+    if (cookieObj[key]) {
+      try { return decodeURIComponent(cookieObj[key].replace(/\+/g, '%20')).trim(); }
+      catch { return cookieObj[key].trim(); }
+    }
   }
+  // 尝试任何 ptnick_ 开头的 cookie
+  for (const k of Object.keys(cookieObj)) {
+    if (/^ptnick_/i.test(k) && cookieObj[k]) {
+      try { return decodeURIComponent(cookieObj[k].replace(/\+/g, '%20')).trim(); }
+      catch { return cookieObj[k].trim(); }
+    }
+  }
+  return '';
 }
 
-// 解析用户信息 = cookie(userId) + DOM(昵称/头像)
+// 从 cookie 对象中获取 QQ 头像
+function qqAvatarFromCookie(cookieObj) {
+  const direct = cookieObj['qqmusic_avatar'] || cookieObj['avatar'] || cookieObj['avatarUrl'] || cookieObj['headpic'];
+  if (direct) {
+    try { return decodeURIComponent(direct); }
+    catch { return direct; }
+  }
+  return '';
+}
+
+// 获取用户信息（Mineradio 方案）
 async function getUserInfo(loginWin, platform, cookieStr) {
   const cookies = await getPlatformCookies(platform);
   const userId = getUserIdFromCookies(platform, cookies);
 
-  // 网易云用 API（最准确）
+  // ===== 网易云 =====
   if (platform === 'netease') {
     try {
-      const raw = await httpsRequest(USER_API.netease, {
+      const text = await httpsRequest(USER_API.netease, {
         headers: { 'Referer': 'https://music.163.com', 'Cookie': cookieStr },
       });
-      if (raw.profile) {
+      const raw = safeJsonParse(text);
+      if (raw?.profile) {
         return {
           platform,
           nickname: raw.profile.nickname || '',
@@ -241,25 +253,110 @@ async function getUserInfo(loginWin, platform, cookieStr) {
           vipName: (raw.profile.vipType || 0) > 0 ? '黑胶VIP' : '',
         };
       }
-    } catch {}
-    // API 失败 → DOM 抓取
-    const scraped = await scrapeFromPage(loginWin, platform);
-    if (scraped) {
-      return { platform, nickname: scraped.nickname, avatar: scraped.avatar, userId, vip: false, vipName: '' };
+    } catch (e) {
+      console.warn('[IvyM] Netease API failed:', e.message);
     }
     return { platform, nickname: '', avatar: '', userId, vip: false, vipName: '' };
   }
 
-  // QQ 和酷狗：DOM 抓取（最准确）
-  const scraped = await scrapeFromPage(loginWin, platform);
-  return {
-    platform,
-    nickname: scraped?.nickname || '',
-    avatar: scraped?.avatar || '',
-    userId: userId || '',
-    vip: false,
-    vipName: '',
-  };
+  // ===== QQ音乐（Mineradio 方案：fcg_get_profile_homepage.fcg） =====
+  if (platform === 'qq') {
+    const cookieObj = {};
+    cookies.forEach(c => { cookieObj[c.name] = c.value; });
+
+    // 1. 从 cookie 提取昵称/头像（响应式，不需要 API）
+    const cookieNick = qqNicknameFromCookie(cookieObj, userId);
+    const cookieAvatar = qqAvatarFromCookie(cookieObj);
+
+    // 2. 调用 QQ profile homepage API（GET，不是 POST）
+    try {
+      const apiUrl = new URL(USER_API.qq);
+      apiUrl.searchParams.set('cid', '205360838');
+      apiUrl.searchParams.set('userid', userId);
+      apiUrl.searchParams.set('reqfrom', '1');
+      apiUrl.searchParams.set('reqtype', '1');
+
+      const text = await httpsRequest(apiUrl.toString(), {
+        headers: { 'Cookie': cookieStr, 'Referer': 'https://y.qq.com' },
+      });
+      const raw = safeJsonParse(text);
+      console.log('[IvyM] QQ profile API response:', JSON.stringify(raw).slice(0, 400));
+
+      // 解析 creator 数据
+      const data = raw?.data || raw?.profile || raw?.creator || raw?.result || {};
+      const creator = data.creator || data.user || data.profile || data || {};
+      const vipInfo = data.vipInfo || data.vipinfo || data.vip || {};
+
+      const profileNick = creator.nick || creator.nickname || creator.name || creator.hostname || creator.title || '';
+      const profileAvatar = creator.headpic || creator.avatar || creator.avatarUrl || creator.logo || '';
+
+      // 合并优先级：API creator → cookie → 合成头像
+      const nickname = profileNick || cookieNick || (userId ? 'QQ ' + userId : 'QQ 音乐');
+      const avatar = profileAvatar || cookieAvatar || qqAvatarUrl(userId);
+
+      // VIP 检测
+      const vipType = Number(
+        cookieObj.vipType || cookieObj.vip_type || data.vipType || data.vip_type ||
+        creator.vipType || creator.vip_type || vipInfo.vipType || 0
+      ) || 0;
+      const isVip = vipType > 0 || data.isVip || creator.isVip || vipInfo.isVip;
+
+      return {
+        platform,
+        nickname,
+        avatar,
+        userId,
+        vip: !!isVip,
+        vipName: isVip ? '绿钻会员' : '',
+      };
+    } catch (e) {
+      console.warn('[IvyM] QQ profile API failed:', e.message);
+    }
+
+    // API 失败 fallback：用 cookie 信息
+    return {
+      platform,
+      nickname: cookieNick || (userId ? 'QQ ' + userId : 'QQ 音乐'),
+      avatar: cookieAvatar || qqAvatarUrl(userId),
+      userId,
+      vip: false,
+      vipName: '',
+    };
+  }
+
+  // ===== 酷狗（Mineradio 没做，用 DOM 抓取） =====
+  if (platform === 'kugou') {
+    // 从 cookie 提取基本信息
+    const cookieObj = {};
+    cookies.forEach(c => { cookieObj[c.name] = c.value; });
+
+    // 尝试从页面 DOM 抓取
+    let domNick = '';
+    let domAvatar = '';
+    try {
+      if (!loginWin.isDestroyed()) {
+        const result = await loginWin.webContents.executeJavaScript(`
+          (() => {
+            const img = document.querySelector('img[src*="head"], img[src*="avatar"], img[class*="head"], img[class*="avatar"], .userHead img, .userInfo img');
+            const nameEl = document.querySelector('[class*="userName"], [class*="nickname"], [class*="user_name"]');
+            return {
+              nickname: nameEl?.textContent?.trim() || document.title.replace(/[_-].*$/, '').trim() || '',
+              avatar: img?.src || '',
+            };
+          })()
+        `, true);
+        domNick = result?.nickname || '';
+        domAvatar = result?.avatar || '';
+      }
+    } catch {}
+
+    const nickname = domNick || cookieObj['nickname'] || cookieObj['nick'] || (userId ? '用户' + userId : '');
+    const avatar = domAvatar || cookieObj['head'] || cookieObj['avatar'] || '';
+
+    return { platform, nickname, avatar, userId, vip: false, vipName: '' };
+  }
+
+  return null;
 }
 
 // 打开平台官方登录窗口（独立 partition + 轮询 cookie + 自动关窗 + DOM 抓取用户信息）
