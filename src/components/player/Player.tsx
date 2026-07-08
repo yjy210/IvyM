@@ -300,7 +300,7 @@ export default function Player() {
                     if (!showVolume && volumeBtnRef.current) {
                       const rect = volumeBtnRef.current.getBoundingClientRect();
                       setVolumePos({
-                        top: rect.top - 165,
+                        top: rect.top - 195,
                         left: rect.left + rect.width / 2,
                       });
                     }
