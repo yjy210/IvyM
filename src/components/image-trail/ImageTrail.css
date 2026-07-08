@@ -6,7 +6,7 @@
   border-radius: 8px;
   background: transparent;
   overflow: visible;
-  pointer-events: none;
+  pointer-events: auto;
 }
 
 .content__img {

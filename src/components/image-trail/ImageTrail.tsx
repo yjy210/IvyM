@@ -60,7 +60,7 @@ class ImageTrailVariant1 {
     this.zIndexVal = 1;
     this.activeImagesCount = 0;
     this.isIdle = true;
-    this.threshold = 80;
+    this.threshold = 10;  // 降低阈值
     this.mousePos = { x: 0, y: 0 };
     this.lastMousePos = { x: 0, y: 0 };
     this.cacheMousePos = { x: 0, y: 0 };
@@ -94,6 +94,7 @@ class ImageTrailVariant1 {
   }
 
   showNextImage() {
+    console.log('show');  // 调试用
     ++this.zIndexVal;
     this.imgPosition = this.imgPosition < this.imagesTotal - 1 ? this.imgPosition + 1 : 0;
     const img = this.images[this.imgPosition];
@@ -104,7 +105,7 @@ class ImageTrailVariant1 {
       .to(img.DOM.el!, { duration: 0.4, ease: 'power3', opacity: 0, scale: 0.2 }, 0.4);
   }
 
-  onImageActivated() { this.activeImagesCount++; this.isIdle = false; }
+  onImageActivated() { this.activeImagesCount++; this.idle = false; }
   onImageDeactivated() { this.activeImagesCount--; if (this.activeImagesCount === 0) this.isIdle = true; }
 }
 
@@ -117,8 +118,22 @@ export default function ImageTrail({ items = [], variant = 1 }: ImageTrailProps)
 
   useEffect(() => {
     if (!containerRef.current) return;
-    const Cls = variantMap[variant] || variantMap[1];
-    new Cls(containerRef.current);
+
+    // 等图片都加载完成再初始化 GSAP Promise.all(
+      Array.from(containerRef.current.querySelectorAll('.content__img-inner')).map(el => {
+        const bg = getComputedStyle(el).backgroundImage;
+        const url = bg.slice(5, -2);
+        return new Promise<void>(resolve => {
+          const img = new Image();
+          img.src = url;
+          img.onload = () => resolve();
+          img.onerror = () => resolve();
+        });
+      })
+    ).then(() => {
+      const Cls = variantMap[variant] || variantMap[1];
+      new Cls(containerRef.current!);
+    });
   }, [variant, items]);
 
   return (
