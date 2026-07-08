@@ -4,7 +4,9 @@ import { WindowControls } from './components/WindowControls';
 import { LogoAnimation } from './components/splash/LogoAnimation';
 import Grainient from './components/grainient/Grainient';
 import LoginDropdown from './components/login-dropdown/LoginDropdown';
+import SearchBar from './components/search/SearchBar';
 import './components/login-dropdown/login-dropdown.css';
+import './components/search/search-bar.css';
 
 export default function App() {
   const [entered, setEntered] = useState(false);
@@ -38,6 +40,9 @@ export default function App() {
         </div>
 
         <TitleBar />
+
+        {/* 搜索框 - 顶部居中 GSAP 动画 */}
+        <SearchBar />
 
         <div className="flex-1 overflow-y-auto z-10">
           {/* 主内容 */}
