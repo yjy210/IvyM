@@ -98,6 +98,10 @@ async function qqQrCheck(sigx) {
     pt_no_auth: 0,
     pt_login_type: 3,
   });
+  // DEBUG: 查看 QR 登录返回的完整数据
+  console.log('[IvyM DEBUG] qqQrCheck full response keys:', Object.keys(res));
+  console.log('[IvyM DEBUG] qqQrCheck errcode:', res.errcode, 'msg:', res.msg);
+  console.log('[IvyM DEBUG] qqQrCheck vip_role:', res.vip_role, 'vip_type:', res.vip_type);
   return { code: res.errcode, msg: res.msg || '', cookie: res.cookie || '', uin: res.uin || 0 };
 }
 
@@ -113,7 +117,13 @@ async function qqUserInfo(cookie) {
       let body = '';
       res.on('data', chunk => body += chunk);
       res.on('end', () => {
-        try { resolve(JSON.parse(body)); }
+        try {
+          const parsed = JSON.parse(body);
+          // DEBUG
+          console.log('[IvyM DEBUG] qqUserInfo response keys:', Object.keys(parsed));
+          console.log('[IvyM DEBUG] qqUserInfo body (first 500):', body.slice(0, 500));
+          resolve(parsed);
+        }
         catch (e) { resolve({}); }
       });
     });
