@@ -31,13 +31,15 @@ export default function SearchBar({ onOpenChange, closeTrigger }: SearchBarProps
   const removeHistory = useSearchStore(s => s.removeHistory);
   const setCurrentView = usePlayerStore(s => s.setCurrentView);
 
-  // 初始化 Timeline
+  // 初始化 Timeline — Overlay 在首位，反向时最先消失
   useEffect(() => {
     if (!islandRef.current || !overlayRef.current) return;
     tlRef.current = gsap.timeline({ paused: true })
+      .set(overlayRef.current, { autoAlpha: 0 })
+      .to(overlayRef.current, { autoAlpha: 1, duration: 0.15 }, 0)
       .to(islandRef.current, { width: Math.min(window.innerWidth * 0.9, 400), duration: 0.5, ease: 'power2.out' }, 0)
-      .to(overlayRef.current, { autoAlpha: 1, duration: 0.3 }, 0)
       .to(searchRef.current, { opacity: 1, duration: 0.2 }, 0.1)
+      .eventCallback('onComplete', () => setAnimationState('open'))
       .eventCallback('onReverseComplete', () => {
         setIsOpen(false);
         setAnimationState('closed');
