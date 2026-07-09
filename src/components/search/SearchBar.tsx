@@ -7,7 +7,7 @@ import './search-bar.css';
 
 export default function SearchBar() {
   const [isOpen, setIsOpen] = useState(false);
-  const [showDropdown, setShowDropdown] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
 
   const searchRef = useRef<HTMLInputElement>(null);
@@ -27,7 +27,7 @@ export default function SearchBar() {
     if (isOpen || !islandRef.current) return;
     setIsOpen(true);
     // 空输入时显示历史
-    if (!keyword.trim()) setShowDropdown(true);
+    if (!keyword.trim()) setShowHistory(true);
     requestAnimationFrame(() => {
       gsap.to(islandRef.current, {
         width: Math.min(window.innerWidth * 0.9, 400),
@@ -41,7 +41,7 @@ export default function SearchBar() {
   // 关闭搜索框：先隐藏下拉框 → 播放动画 → 结束重置状态
   const closeSearch = useCallback(() => {
     if (!isOpen || isClosing || !islandRef.current) return;
-    setShowDropdown(false);          // 立即隐藏下拉框
+    setShowHistory(false);           // 立即隐藏历史下拉框
     setIsClosing(true);              // 进入关闭动画
     gsap.to(islandRef.current, {
       width: 40,
@@ -57,7 +57,7 @@ export default function SearchBar() {
   // 清空输入框：只清空，不关闭，显示历史
   const clearInput = useCallback(() => {
     setKeyword('');
-    if (history.length > 0) setShowDropdown(true);
+    if (history.length > 0) setShowHistory(true);
   }, [setKeyword, history.length]);
 
   // 点击外部关闭
@@ -85,7 +85,7 @@ export default function SearchBar() {
   const submitSearch = useCallback((kw: string) => {
     const trimmed = kw.trim();
     if (!trimmed) return;
-    setShowDropdown(false);
+    setShowHistory(false);
     addHistory(trimmed);
     search(trimmed).then(() => setCurrentView('search'));
   }, [addHistory, search, setCurrentView]);
@@ -93,12 +93,12 @@ export default function SearchBar() {
   // 点击历史项：填充 + 搜索
   const selectHistory = useCallback((kw: string) => {
     setKeyword(kw);
-    setShowDropdown(false);
+    setShowHistory(false);
     addHistory(kw);
     search(kw).then(() => setCurrentView('search'));
   }, [setKeyword, addHistory, search, setCurrentView]);
 
-  const showPanel = isOpen && showDropdown;
+  const showPanel = isOpen && showHistory;
 
   return (
     <>
