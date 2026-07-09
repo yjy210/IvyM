@@ -102,6 +102,16 @@
   stroke: #333;
 }
 
+/* ── 透明 Overlay ── */
+.search-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 800;
+  background: rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
 /* ── 搜索结果面板 ── */
 .search-results-panel {
   position: fixed;

@@ -12,6 +12,7 @@ export default function SearchBar() {
   const searchRef = useRef<HTMLInputElement>(null);
   const islandRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
   const tlRef = useRef<gsap.core.Timeline | null>(null);
 
   const keyword = useSearchStore(s => s.keyword);
@@ -22,7 +23,7 @@ export default function SearchBar() {
   const removeHistory = useSearchStore(s => s.removeHistory);
   const setCurrentView = usePlayerStore(s => s.setCurrentView);
 
-  // 初始化 Timeline（只创建一次）
+  // 初始化 Timeline
   useEffect(() => {
     if (!islandRef.current) return;
     tlRef.current = gsap.timeline({ paused: true })
@@ -43,7 +44,7 @@ export default function SearchBar() {
     setTimeout(() => searchRef.current?.focus(), 400);
   }, [isOpen, keyword]);
 
-  // 关闭：先隐藏历史 → 反转动画 → 结束后重置 isOpen
+  // 关闭：隐藏历史 → 反转动画 → 结束重置
   const closeSearch = useCallback(() => {
     if (!isOpen) return;
     setShowHistory(false);
@@ -52,24 +53,19 @@ export default function SearchBar() {
     });
   }, [isOpen]);
 
-  // 清空输入：只清空关键词，不关闭，显示历史
-  const clearInput = useCallback(() => {
+  // 清空输入：阻止默认 focus → 清空 → 显示历史
+  const clearInput = useCallback((e: React.MouseEvent) => {
+    e.preventDefault(); // 防止按钮获得 focus（消除橙色 ring）
     setKeyword('');
     if (history.length > 0) setShowHistory(true);
+    // 清空后让 input 重新获得 focus
+    searchRef.current?.focus();
   }, [setKeyword, history.length]);
 
-  // 点击外部关闭
-  useEffect(() => {
-    if (!isOpen) return;
-    const handler = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (islandRef.current && !islandRef.current.contains(target) && panelRef.current && !panelRef.current.contains(target)) {
-        closeSearch();
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [isOpen, closeSearch]);
+  // 点击 Overlay 关闭
+  const handleOverlayClick = useCallback(() => {
+    closeSearch();
+  }, [closeSearch]);
 
   // Esc 关闭
   useEffect(() => {
@@ -100,6 +96,15 @@ export default function SearchBar() {
 
   return (
     <>
+      {/* 透明 Overlay — 阻止事件穿透到页面内容 */}
+      {isOpen && (
+        <div
+          ref={overlayRef}
+          className="search-overlay"
+          onClick={handleOverlayClick}
+        />
+      )}
+
       <div className={`search-island-wrapper ${isOpen ? 'open' : ''}`} ref={islandRef}>
         <GlassSurface
           width="100%" height={40} borderRadius={999}
