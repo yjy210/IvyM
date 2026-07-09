@@ -9,6 +9,7 @@
 
 .glass-surface__filter {
   display: none;
+  pointer-events: none;
 }
 
 .glass-surface__content {
