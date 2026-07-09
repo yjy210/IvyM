@@ -1,8 +1,6 @@
 import { create } from 'zustand';
 import type { Song } from '../types';
 
-export type SearchStatus = 'idle' | 'loading' | 'success' | 'empty' | 'error';
-
 export interface PlatformResults {
   songs: Song[];
   page: number;
@@ -29,95 +27,63 @@ function persistHistory(list: string[]) {
 }
 
 interface SearchState {
-  status: SearchStatus;
   keyword: string;
   results: SearchResultData | null;
-  searchedKeyword: string; // 当前结果对应的关键词（用于避免重复请求）
   history: string[];
-  activeRequests: AbortController | null;
 
-  // actions
   setKeyword: (kw: string) => void;
   search: (kw: string) => Promise<void>;
   loadMore: (platform: 'netease' | 'qq' | 'kugou') => Promise<void>;
   addHistory: (kw: string) => void;
   removeHistory: (kw: string) => void;
   clearHistory: () => void;
-  clearResults: () => void;
 }
 
 export const useSearchStore = create<SearchState>((set, get) => ({
-  status: 'idle',
   keyword: '',
   results: null,
-  searchedKeyword: '',
   history: loadHistory(),
-  activeRequests: null,
 
   setKeyword: (kw) => set({ keyword: kw }),
 
+  // 只在回车时调用一次
   search: async (kw) => {
     const trimmed = kw.trim();
-    if (!trimmed) { set({ status: 'idle', results: null }); return; }
+    if (!trimmed) return;
 
-    // 已有该关键词的结果且非加载中 → 直接复用，不发重复请求
-    const { searchedKeyword, results, status: curStatus } = get();
-    if (searchedKeyword === trimmed && results && curStatus !== 'loading') return;
+    const [neteaseRes, qqRes, kugouRes] = await Promise.allSettled([
+      fetch(`${API_BASE}/api/netease/search?keyword=${encodeURIComponent(trimmed)}&limit=30&page=1`),
+      fetch(`${API_BASE}/api/qq/search?keyword=${encodeURIComponent(trimmed)}&limit=30&page=1`),
+      fetch(`${API_BASE}/api/kugou/search?keyword=${encodeURIComponent(trimmed)}&limit=30&page=1`),
+    ]);
 
-    // 取消上一个请求
-    get().activeRequests?.abort();
-    const controller = new AbortController();
+    const netease = neteaseRes.status === 'fulfilled' ? await neteaseRes.value.json().catch(() => null) : null;
+    const qq = qqRes.status === 'fulfilled' ? await qqRes.value.json().catch(() => null) : null;
+    const kugou = kugouRes.status === 'fulfilled' ? await kugouRes.value.json().catch(() => null) : null;
+    const limit = 30;
 
-    set({ status: 'loading', keyword: trimmed, activeRequests: controller });
-
-    try {
-      const [neteaseRes, qqRes, kugouRes] = await Promise.allSettled([
-        fetch(`${API_BASE}/api/netease/search?keyword=${encodeURIComponent(trimmed)}&limit=30&page=1`, { signal: controller.signal }),
-        fetch(`${API_BASE}/api/qq/search?keyword=${encodeURIComponent(trimmed)}&limit=30&page=1`, { signal: controller.signal }),
-        fetch(`${API_BASE}/api/kugou/search?keyword=${encodeURIComponent(trimmed)}&limit=30&page=1`, { signal: controller.signal }),
-      ]);
-
-      if (controller.signal.aborted) return;
-
-      const netease = neteaseRes.status === 'fulfilled' ? await neteaseRes.value.json().catch(() => null) : null;
-      const qq = qqRes.status === 'fulfilled' ? await qqRes.value.json().catch(() => null) : null;
-      const kugou = kugouRes.status === 'fulfilled' ? await kugouRes.value.json().catch(() => null) : null;
-      const limit = 30;
-
-      const result: SearchResultData = {
+    set({
+      keyword: trimmed,
+      results: {
         keyword: trimmed,
         netease: { songs: netease?.code === 200 ? netease.data || [] : [], page: 1, hasMore: (netease?.total || 0) > limit, loading: false },
         qq: { songs: qq?.code === 200 ? qq.data || [] : [], page: 1, hasMore: (qq?.total || 0) > limit, loading: false },
         kugou: { songs: kugou?.code === 200 ? kugou.data || [] : [], page: 1, hasMore: (kugou?.total || 0) > limit, loading: false },
-      };
-
-      const totalSongs = result.netease.songs.length + result.qq.songs.length + result.kugou.songs.length;
-      set({ status: totalSongs > 0 ? 'success' : 'empty', results: result, searchedKeyword: trimmed });
-    } catch (err: any) {
-      if (err?.name === 'AbortError' || controller.signal.aborted) return;
-      set({ status: 'error', results: null });
-    }
+      },
+    });
   },
 
   loadMore: async (platform) => {
-    const { results, keyword, activeRequests } = get();
+    const { results, keyword } = get();
     if (!results) return;
     const state = results[platform];
     if (!state.hasMore || state.loading) return;
 
-    activeRequests?.abort();
-    const controller = new AbortController();
-
-    set({ results: { ...results, [platform]: { ...state, loading: true } }, activeRequests: controller });
+    set({ results: { ...results, [platform]: { ...state, loading: true } } });
 
     try {
-      const res = await fetch(
-        `${API_BASE}/api/${platform}/search?keyword=${encodeURIComponent(keyword)}&limit=30&page=${state.page + 1}`,
-        { signal: controller.signal }
-      );
-      if (controller.signal.aborted) return;
+      const res = await fetch(`${API_BASE}/api/${platform}/search?keyword=${encodeURIComponent(keyword)}&limit=30&page=${state.page + 1}`);
       const json = await res.json();
-
       const current = get().results;
       if (!current) return;
       const prev = current[platform];
@@ -132,14 +98,13 @@ export const useSearchStore = create<SearchState>((set, get) => ({
           },
         },
       });
-    } catch (err: any) {
-      if (err?.name === 'AbortError' || controller.signal.aborted) return;
+    } catch {
       const current = get().results;
-      if (!current) return;
-      set({ results: { ...current, [platform]: { ...current[platform], loading: false } } });
+      if (current) set({ results: { ...current, [platform]: { ...current[platform], loading: false } } });
     }
   },
 
+  // 去重复：已有的关键词移到最前面
   addHistory: (kw) => {
     const trimmed = kw.trim();
     if (!trimmed) return;
@@ -159,6 +124,4 @@ export const useSearchStore = create<SearchState>((set, get) => ({
     persistHistory([]);
     set({ history: [] });
   },
-
-  clearResults: () => set({ results: null, status: 'idle' }),
 }));

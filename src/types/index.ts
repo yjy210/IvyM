@@ -13,21 +13,6 @@ export interface Song {
   vip?: boolean;
 }
 
-/** 单个平台的搜索结果（含分页元数据） */
-export interface PlatformResults {
-  songs: Song[];
-  page: number;
-  hasMore: boolean;
-  loading: boolean;
-}
-
-export interface SearchResult {
-  keyword: string;
-  netease: PlatformResults;
-  qq: PlatformResults;
-  kugou: PlatformResults;
-}
-
 export type PlayMode = 'sequence' | 'loop' | 'shuffle';
 
 /** 当前显示的页面视图 */
