@@ -94,22 +94,23 @@ export default function SearchBar({ onOpenChange, closeTrigger }: SearchBarProps
     }
   }, [closeTrigger, closeSearch]);
 
-  // 回车：搜索 → 跳转结果页
+  // 回车：立即退出搜索模式 → 搜索 → 跳转结果页
   const submitSearch = useCallback((kw: string) => {
     const trimmed = kw.trim();
     if (!trimmed) return;
-    setHistoryActive(false);
+    closeSearch();
     addHistory(trimmed);
-    search(trimmed).then(() => setCurrentView('search'));
-  }, [addHistory, search, setCurrentView]);
+    search(trimmed);
+    setCurrentView('search');
+  }, [addHistory, search, setCurrentView, closeSearch]);
 
-  // 点击历史项
+  // 点击历史项：同样立即退出搜索模式
   const selectHistory = useCallback((kw: string) => {
-    setKeyword(kw);
-    setHistoryActive(false);
+    closeSearch();
     addHistory(kw);
-    search(kw).then(() => setCurrentView('search'));
-  }, [setKeyword, addHistory, search, setCurrentView]);
+    search(kw);
+    setCurrentView('search');
+  }, [addHistory, search, setCurrentView, closeSearch]);
 
   return (
     <>
