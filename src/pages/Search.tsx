@@ -1,11 +1,13 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { gsap } from 'gsap';
 import { usePlayerStore } from '../stores/playerStore';
+import type { Song } from '../types';
 import './search-page.css';
 
 const API_BASE = 'http://localhost:3001';
 
 type Platform = 'all' | 'netease' | 'qq' | 'kugou';
+type SortMode = 'mixed' | 'netease' | 'qq' | 'kugou';
 
 export default function Search() {
   const searchResults = usePlayerStore(s => s.searchResults);
@@ -14,18 +16,47 @@ export default function Search() {
   const setPlatformLoading = usePlayerStore(s => s.setPlatformLoading);
 
   const [activeFilter, setActiveFilter] = useState<Platform>('all');
+  const [sortMode, setSortMode] = useState<SortMode>('mixed');
   const containerRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
-  // 平铺所有歌曲并标记平台
+  // 根据排序模式排列歌曲
   const allSongs = useMemo(() => {
     if (!searchResults) return [];
-    const list: { song: typeof searchResults.netease.songs[0]; platform: 'netease' | 'qq' | 'kugou' }[] = [];
-    searchResults.netease.songs.forEach(s => list.push({ song: s, platform: 'netease' }));
-    searchResults.qq.songs.forEach(s => list.push({ song: s, platform: 'qq' }));
-    searchResults.kugou.songs.forEach(s => list.push({ song: s, platform: 'kugou' }));
+    const list: { song: Song; platform: 'netease' | 'qq' | 'kugou' }[] = [];
+
+    const neteaseSongs = searchResults.netease.songs;
+    const qqSongs = searchResults.qq.songs;
+    const kugouSongs = searchResults.kugou.songs;
+
+    if (sortMode === 'mixed') {
+      // 轮询交替：网易1/QQ1/酷狗1/网易2/QQ2/酷狗2...
+      const sources = [
+        { platform: 'netease' as const, songs: neteaseSongs },
+        { platform: 'qq' as const, songs: qqSongs },
+        { platform: 'kugou' as const, songs: kugouSongs },
+      ];
+      const maxLen = Math.max(...sources.map(s => s.songs.length));
+      for (let i = 0; i < maxLen; i++) {
+        for (const src of sources) {
+          if (i < src.songs.length) list.push({ song: src.songs[i], platform: src.platform });
+        }
+      }
+    } else if (sortMode === 'netease') {
+      neteaseSongs.forEach(s => list.push({ song: s, platform: 'netease' }));
+      qqSongs.forEach(s => list.push({ song: s, platform: 'qq' }));
+      kugouSongs.forEach(s => list.push({ song: s, platform: 'kugou' }));
+    } else if (sortMode === 'qq') {
+      qqSongs.forEach(s => list.push({ song: s, platform: 'qq' }));
+      neteaseSongs.forEach(s => list.push({ song: s, platform: 'netease' }));
+      kugouSongs.forEach(s => list.push({ song: s, platform: 'kugou' }));
+    } else if (sortMode === 'kugou') {
+      kugouSongs.forEach(s => list.push({ song: s, platform: 'kugou' }));
+      neteaseSongs.forEach(s => list.push({ song: s, platform: 'netease' }));
+      qqSongs.forEach(s => list.push({ song: s, platform: 'qq' }));
+    }
     return list;
-  }, [searchResults]);
+  }, [searchResults, sortMode]);
 
   // GSAP 筛选动画
   useEffect(() => {
@@ -77,7 +108,7 @@ export default function Search() {
     }
   }, [activeFilter, searchResults, appendSearchResults, setPlatformLoading]);
 
-  // IntersectionObserver — 监听父滚动容器（App.tsx 的 overflow-y-auto）
+  // IntersectionObserver
   useEffect(() => {
     const scrollParent = containerRef.current?.parentElement;
     const observer = new IntersectionObserver(
@@ -95,6 +126,20 @@ export default function Search() {
 
   return (
     <div className="search-page" ref={containerRef}>
+      {/* 排序菜单 */}
+      <div className="sort-bar">
+        <span className="sort-label">排序</span>
+        {(['mixed', 'netease', 'qq', 'kugou'] as SortMode[]).map(mode => (
+          <button
+            key={mode}
+            className={`sort-tab ${sortMode === mode ? 'active' : ''}`}
+            onClick={() => setSortMode(mode)}
+          >
+            {mode === 'mixed' ? '综合' : mode === 'netease' ? '网易优先' : mode === 'qq' ? 'QQ优先' : '酷狗优先'}
+          </button>
+        ))}
+      </div>
+
       {/* 平台筛选标签 */}
       <div className="filter-bar">
         <button

@@ -5,10 +5,28 @@ import GlassSurface from './GlassSurface';
 import type { Song } from '../../types';
 import './search-bar.css';
 
+const HISTORY_KEY = 'ivym_search_history';
+const HISTORY_MAX = 10;
+
+function loadHistory(): string[] {
+  try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[])'); } catch { return []; }
+}
+function saveHistory(list: string[]) {
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(list.slice(0, HISTORY_MAX)));
+}
+function addHistory(kw: string) {
+  const trimmed = kw.trim();
+  if (!trimmed) return;
+  const list = loadHistory().filter(h => h !== trimmed);
+  list.unshift(trimmed);
+  saveHistory(list);
+}
+
 export default function SearchBar() {
   const [isOpen, setIsOpen] = useState(false);
   const [keyword, setKeyword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [history, setHistory] = useState<string[]>(loadHistory);
 
   const searchRef = useRef<HTMLInputElement>(null);
   const islandRef = useRef<HTMLDivElement>(null);
@@ -49,10 +67,11 @@ export default function SearchBar() {
     });
   }, [isOpen, setSearchResults]);
 
-  // 点击外部收起
+  // 点击外部收起 — 仅当输入框为空时才关闭；有内容时只能点叉号关闭
   useEffect(() => {
     if (!isOpen) return;
     const handler = (e: MouseEvent) => {
+      if (keyword.trim()) return; // 有内容时不允许外部点击关闭
       const target = e.target as Node;
       if (islandRef.current && !islandRef.current.contains(target) && panelRef.current && !panelRef.current.contains(target)) {
         closeSearch();
@@ -60,7 +79,7 @@ export default function SearchBar() {
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, [isOpen, closeSearch]);
+  }, [isOpen, closeSearch, keyword]);
 
   // Escape 收起
   useEffect(() => {
@@ -90,10 +109,15 @@ export default function SearchBar() {
         qq: { songs: qq?.code === 200 ? qq.data : [], page: 1, hasMore: (qq?.total || 0) > limit, loading: false },
         kugou: { songs: kugou?.code === 200 ? kugou.data : [], page: 1, hasMore: (kugou?.total || 0) > limit, loading: false },
       });
+      // 记录搜索历史
+      addHistory(kw);
+      setHistory(loadHistory());
       // 搜索完成后跳转到搜索结果页
       setCurrentView('search');
     } catch {
       setSearchResults({ keyword: kw, netease: { songs: [], page: 1, hasMore: false, loading: false }, qq: { songs: [], page: 1, hasMore: false, loading: false }, kugou: { songs: [], page: 1, hasMore: false, loading: false } });
+      addHistory(kw);
+      setHistory(loadHistory());
       setCurrentView('search');
     } finally {
       setLoading(false);
@@ -107,15 +131,21 @@ export default function SearchBar() {
     return () => clearTimeout(timer);
   }, [keyword, doSearch]);
 
-  // 不合并：每个平台单独显示（仅前 10 条作为快速预览）
+  // 轮询交替：网易1/QQ1/酷狗1/网易2/QQ2/酷狗2... 平台耗尽自动跳过
   const flatSongs = useMemo(() => {
     if (!searchResults) return [];
     const list: { song: Song; platform: 'netease' | 'qq' | 'kugou' }[] = [];
-
-    searchResults.netease.songs.slice(0, 10).forEach(song => list.push({ song, platform: 'netease' }));
-    searchResults.qq.songs.slice(0, 10).forEach(song => list.push({ song, platform: 'qq' }));
-    searchResults.kugou.songs.slice(0, 10).forEach(song => list.push({ song, platform: 'kugou' }));
-
+    const sources: { platform: 'netease' | 'qq' | 'kugou'; songs: Song[] }[] = [
+      { platform: 'netease', songs: searchResults.netease.songs },
+      { platform: 'qq', songs: searchResults.qq.songs },
+      { platform: 'kugou', songs: searchResults.kugou.songs },
+    ];
+    const maxLen = Math.max(...sources.map(s => s.songs.length));
+    for (let i = 0; i < maxLen; i++) {
+      for (const src of sources) {
+        if (i < src.songs.length) list.push({ song: src.songs[i], platform: src.platform });
+      }
+    }
     return list;
   }, [searchResults]);
 
@@ -123,7 +153,20 @@ export default function SearchBar() {
     play(entry.song);
   }, [play]);
 
-  const showPanel = keyword.trim().length > 0;
+  // 点击历史项直接搜索
+  const selectHistory = useCallback((kw: string) => {
+    setKeyword(kw);
+    doSearch(kw);
+  }, [doSearch]);
+
+  // 删除单条历史
+  const removeHistory = useCallback((kw: string) => {
+    const next = loadHistory().filter(h => h !== kw);
+    saveHistory(next);
+    setHistory(next);
+  }, []);
+
+  const showPanel = isOpen; // 有内容或空输入（空时展示历史）
   const getSrcLabel = (platform: 'netease' | 'qq' | 'kugou') => {
     if (platform === 'netease') return '网易云';
     if (platform === 'qq') return 'QQ';
@@ -184,9 +227,10 @@ export default function SearchBar() {
 
       {showPanel && (
         <div className="search-results-panel" ref={panelRef} style={{ visibility: 'visible', opacity: 1 }}>
-          {loading && <div className="search-empty">搜索中...</div>}
-          {!loading && flatSongs.length === 0 && <div className="search-empty">未找到相关结果</div>}
-          {!loading && flatSongs.length > 0 && (
+          {/* 有内容时显示搜索结果 */}
+          {keyword.trim() && loading && <div className="search-empty">搜索中...</div>}
+          {keyword.trim() && !loading && flatSongs.length === 0 && <div className="search-empty">未找到相关结果</div>}
+          {keyword.trim() && !loading && flatSongs.length > 0 && (
             <>
               {flatSongs.map((entry, i) => {
                 const { song, platform } = entry;
@@ -217,6 +261,27 @@ export default function SearchBar() {
                 查看全部结果 →
               </div>
             </>
+          )}
+
+          {/* 空输入时显示搜索历史 */}
+          {!keyword.trim() && history.length > 0 && (
+            <div className="search-history">
+              <div className="search-history-title">搜索历史</div>
+              {history.map((kw, i) => (
+                <div key={`h-${i}`} className="search-history-item" onClick={() => selectHistory(kw)}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+                  </svg>
+                  <span className="search-history-text">{kw}</span>
+                  <button className="search-history-remove" onClick={(e) => { e.stopPropagation(); removeHistory(kw); }}>×</button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* 空输入且无历史 */}
+          {!keyword.trim() && history.length === 0 && (
+            <div className="search-empty">输入关键词搜索歌曲</div>
           )}
         </div>
       )}

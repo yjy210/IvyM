@@ -6,13 +6,53 @@
   overflow: hidden;
 }
 
+/* ── 排序菜单 ── */
+.sort-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 0 10px 0;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: transparent;
+}
+
+.sort-label {
+  font-size: 11px;
+  color: rgba(0, 0, 0, 0.4);
+  margin-right: 2px;
+}
+
+.sort-tab {
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  background: rgba(0, 0, 0, 0.04);
+  color: rgba(0, 0, 0, 0.5);
+  transition: all 0.2s;
+}
+
+.sort-tab:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.sort-tab.active {
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  font-weight: 600;
+}
+
 /* ── 顶部筛选标签条 ── */
 .filter-bar {
   display: flex;
   gap: 8px;
   padding: 0 0 12px 0;
   position: sticky;
-  top: 0;
+  top: 28px;
   z-index: 20;
   background: transparent;
 }
