@@ -1,17 +1,16 @@
-/* ── 搜索 Island 容器 ── */
-.search-island-wrapper {
-  position: fixed;
-  top: 1.25rem;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 1000;
-  width: 40px;
+/* ── 搜索容器 ── */
+.search-bar-container {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  padding: 0.5rem 0;
+}
+
+/* ── 搜索框（常驻，不展开） ── */
+.search-bar-static {
+  width: 360px;
+  max-width: 90vw;
   height: 40px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  background: transparent;
-  overflow: hidden;
-  -webkit-app-region: no-drag;
 }
 
 .search-island.glass-surface,
@@ -29,28 +28,7 @@
   height: 100%;
 }
 
-/* ── 打开按钮（整个 40x40 区域） ── */
-.s-open-btn {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  border: 0;
-  background: transparent;
-  cursor: pointer;
-  z-index: 999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  -webkit-app-region: no-drag;
-}
-
-.s-search-icon {
-  position: static;
-  transform: none;
-}
-
-/* ── 输入区域 ── */
+/* ── 输入区域（始终可见） ── */
 .s-input-area {
   position: absolute;
   inset: 0;
@@ -59,9 +37,6 @@
   padding: 0 14px;
   gap: 10px;
   z-index: 1000;
-  opacity: 1;
-  pointer-events: auto;
-  -webkit-app-region: no-drag;
 }
 
 .s-input {
@@ -79,104 +54,96 @@
   color: rgba(0, 0, 0, 0.35);
 }
 
-/* ── 关闭按钮 ── */
-.s-close-btn {
-  width: 36px;
-  height: 36px;
+/* ── 清空按钮 ── */
+.s-clear-btn {
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
   border: none;
   background: transparent;
+  color: rgba(0, 0, 0, 0.4);
+  font-size: 16px;
   cursor: pointer;
   border-radius: 50%;
   flex-shrink: 0;
-  -webkit-app-region: no-drag;
+  transition: all 0.12s;
 }
 
-.s-close-btn:hover {
+.s-clear-btn:hover {
   background: rgba(0, 0, 0, 0.06);
+  color: rgba(0, 0, 0, 0.7);
 }
 
-.s-close-btn:hover svg {
-  stroke: #333;
-}
-
-/* ── 透明 Overlay ── */
-.search-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 800;
-  background: rgba(0, 0, 0, 0.15);
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
-}
-
-/* ── 搜索结果面板 ── */
-.search-results-panel {
-  position: fixed;
-  top: 4.5rem;
+/* ── 历史面板（Popover） ── */
+.search-history-popover {
+  position: absolute;
+  top: calc(100% + 8px);
   left: 50%;
   transform: translateX(-50%);
   z-index: 900;
-  width: 90vw;
-  max-width: 400px;
-  max-height: 50vh;
-  background: rgba(255, 255, 255, 0.9);
+  width: 360px;
+  max-width: 90vw;
+  max-height: 300px;
+  background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(20px) saturate(1.8);
   -webkit-backdrop-filter: blur(20px) saturate(1.8);
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  border-radius: 16px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
   padding: 0.4rem;
   overflow-y: auto;
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.12);
-  -webkit-app-region: no-drag;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  animation: popoverIn 0.15s ease-out;
 }
 
-/* 搜索历史 */
-.search-history {
-  padding: 0.3rem 0;
+@keyframes popoverIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
 }
 
 .search-history-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.4rem 0.7rem 0.2rem;
+  padding: 0.3rem 0.5rem 0.4rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+  margin-bottom: 0.2rem;
 }
 
 .search-history-title {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
-  color: rgba(0, 0, 0, 0.3);
-  letter-spacing: 0.5px;
+  color: rgba(0, 0, 0, 0.35);
 }
 
-.search-history-close {
-  width: 18px;
-  height: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.search-history-clear-all {
+  font-size: 10px;
+  color: rgba(0, 0, 0, 0.35);
   border: none;
   background: transparent;
-  color: rgba(0, 0, 0, 0.25);
-  font-size: 14px;
   cursor: pointer;
-  border-radius: 50%;
+  padding: 2px 6px;
+  border-radius: 4px;
   transition: all 0.12s;
 }
 
-.search-history-close:hover {
-  background: rgba(0, 0, 0, 0.06);
-  color: rgba(0, 0, 0, 0.5);
+.search-history-clear-all:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: rgba(0, 0, 0, 0.6);
 }
 
 .search-history-item {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 0.45rem 0.7rem;
+  padding: 0.5rem 0.5rem;
   border-radius: 6px;
   cursor: pointer;
   transition: background 0.12s;
@@ -193,8 +160,8 @@
 
 .search-history-text {
   flex: 1;
-  font-size: 12px;
-  color: rgba(0, 0, 0, 0.6);
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.7);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -209,21 +176,18 @@
   border: none;
   background: transparent;
   color: rgba(0, 0, 0, 0.2);
-  font-size: 14px;
+  font-size: 12px;
   cursor: pointer;
   border-radius: 50%;
+  opacity: 0;
   transition: all 0.12s;
+}
+
+.search-history-item:hover .search-history-remove {
+  opacity: 1;
 }
 
 .search-history-remove:hover {
   background: rgba(0, 0, 0, 0.06);
   color: rgba(0, 0, 0, 0.5);
-}
-
-/* 空结果/加载 */
-.search-empty {
-  text-align: center;
-  padding: 1.5rem 1rem;
-  color: rgba(0, 0, 0, 0.3);
-  font-size: 12px;
 }

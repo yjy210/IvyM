@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { TitleBar } from './components/TitleBar';
 import { WindowControls } from './components/WindowControls';
 import { LogoAnimation } from './components/splash/LogoAnimation';
@@ -19,18 +19,8 @@ import './pages/search-page.css';
 export default function App() {
   const [entered, setEntered] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [searchCloseTrigger, setSearchCloseTrigger] = useState(0);
   const currentView = usePlayerStore(s => s.currentView);
   const setCurrentView = usePlayerStore(s => s.setCurrentView);
-
-  const handleSearchOpenChange = useCallback((open: boolean) => {
-    setSearchOpen(open);
-  }, []);
-
-  const requestSearchClose = useCallback(() => {
-    setSearchCloseTrigger(t => t + 1);
-  }, []);
 
   useEffect(() => {
     const updateMax = async () => {
@@ -61,13 +51,8 @@ export default function App() {
 
         <TitleBar />
 
-        {/* 搜索框 - 顶部居中 GSAP 动画 */}
-        <SearchBar onOpenChange={handleSearchOpenChange} closeTrigger={searchCloseTrigger} />
-
-        {/* Header 区域点击捕获 — 搜索框打开时，点击 Header 其他区域关闭搜索 */}
-        {searchOpen && (
-          <div className="absolute top-0 left-0 right-0 h-14 z-[700]" onClick={requestSearchClose} />
-        )}
+        {/* 搜索框 - 常驻 */}
+        <SearchBar />
 
         {/* 左上角 Logo — 点击返回主页 */}
         <button
