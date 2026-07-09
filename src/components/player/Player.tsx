@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { createPortal } from 'react-dom';
 import { usePlayerStore } from '../../stores/playerStore';
 import GlassSurface from './GlassSurface';
 import VolumeSlider from './VolumeSlider';
@@ -42,8 +41,8 @@ export default function Player() {
   const [showPlaylist, setShowPlaylist] = useState(false);
   const [showLyrics, setShowLyrics] = useState(false);
   const [showSaveToPlaylist, setShowSaveToPlaylist] = useState(false);
-  const [volumePos, setVolumePos] = useState({ top: 0, left: 0 });
   const volumeBtnRef = useRef<HTMLButtonElement>(null);
+  const prevVolumeRef = useRef(70);
 
   // 喜欢的歌曲
   const [likes, setLikes] = useState<string[]>(() => {
@@ -162,20 +161,6 @@ export default function Player() {
       return () => clearTimeout(timer);
     }
   }, [currentSong, userVip]);
-
-  // 点击外部关闭音量面板
-  useEffect(() => {
-    if (!showVolume) return;
-    const handler = (e: MouseEvent) => {
-      const panel = document.querySelector('.volume-panel');
-      const btn = volumeBtnRef.current;
-      if (panel && !panel.contains(e.target as Node) && btn && !btn.contains(e.target as Node)) {
-        setShowVolume(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [showVolume]);
 
   const onTimeUpdate = () => {
     if (audioRef.current) setCurrentTime(audioRef.current.currentTime);
@@ -366,36 +351,38 @@ export default function Player() {
               <button className="player-btn player-btn-save" data-popup-btn onClick={() => setShowSaveToPlaylist(!showSaveToPlaylist)} title="收藏到歌单">
                 <img src="/icons/jiahaojilu.svg" alt="收藏" className="player-save-icon" />
               </button>
-              <div className="player-volume-wrapper">
+              <div
+                className="player-volume-wrapper"
+                onMouseEnter={() => setShowVolume(true)}
+                onMouseLeave={() => setShowVolume(false)}
+              >
                 <button
                   ref={volumeBtnRef}
                   className="player-btn"
                   onClick={() => {
-                    if (!showVolume && volumeBtnRef.current) {
-                      const rect = volumeBtnRef.current.getBoundingClientRect();
-                      setVolumePos({
-                        top: rect.top - 195,
-                        left: rect.left + rect.width / 2,
-                      });
+                    if (volume > 0) {
+                      prevVolumeRef.current = volume;
+                      setVolume(0);
+                    } else {
+                      setVolume(prevVolumeRef.current || 70);
                     }
-                    setShowVolume(!showVolume);
                   }}
-                  title="音量"
+                  title={volume === 0 ? '取消静音' : '静音'}
                 >
-                  {volume >= 50 ? (
-                    <svg viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
-                  ) : (
-                    <svg viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
-                  )}
+                  <img
+                    src="/icons/sound.svg"
+                    alt="音量"
+                    className="volume-icon"
+                    style={{ opacity: volume === 0 ? 0.5 : 1 }}
+                  />
                 </button>
-                {showVolume && createPortal(
-                  <div className="volume-popup-wrapper" style={{ top: volumePos.top, left: volumePos.left }}>
+                {showVolume && (
+                  <div className="volume-popover">
                     <span className="volume-value">{volume}%</span>
                     <div className="volume-panel">
                       <VolumeSlider value={volume} onChange={setVolume} />
                     </div>
-                  </div>,
-                  document.body
+                  </div>
                 )}
               </div>
             </div>
