@@ -5,9 +5,17 @@ import { useSearchStore } from '../../stores/searchStore';
 import GlassSurface from './GlassSurface';
 import './search-bar.css';
 
-export default function SearchBar() {
+type AnimationState = 'closed' | 'opening' | 'open' | 'closing';
+
+interface SearchBarProps {
+  onOpenChange?: (open: boolean) => void;
+  closeTrigger?: number;
+}
+
+export default function SearchBar({ onOpenChange, closeTrigger }: SearchBarProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
+  const [animationState, setAnimationState] = useState<AnimationState>('closed');
+  const [historyActive, setHistoryActive] = useState(false);
 
   const searchRef = useRef<HTMLInputElement>(null);
   const islandRef = useRef<HTMLDivElement>(null);
@@ -25,47 +33,49 @@ export default function SearchBar() {
 
   // 初始化 Timeline
   useEffect(() => {
-    if (!islandRef.current) return;
+    if (!islandRef.current || !overlayRef.current) return;
     tlRef.current = gsap.timeline({ paused: true })
-      .to(islandRef.current, {
-        width: Math.min(window.innerWidth * 0.9, 400),
-        duration: 0.5,
-        ease: 'power2.out',
+      .to(islandRef.current, { width: Math.min(window.innerWidth * 0.9, 400), duration: 0.5, ease: 'power2.out' }, 0)
+      .to(overlayRef.current, { autoAlpha: 1, duration: 0.3 }, 0)
+      .to(searchRef.current, { opacity: 1, duration: 0.2 }, 0.1)
+      .eventCallback('onReverseComplete', () => {
+        setIsOpen(false);
+        setAnimationState('closed');
+        onOpenChange?.(false);
       });
     return () => { tlRef.current?.kill(); };
   }, []);
 
   // 展开
   const openSearch = useCallback(() => {
-    if (isOpen) return;
+    if (animationState !== 'closed') return;
+    setAnimationState('opening');
     setIsOpen(true);
-    if (!keyword.trim()) setShowHistory(true);
+    if (!keyword.trim()) setHistoryActive(true);
     tlRef.current?.play();
     setTimeout(() => searchRef.current?.focus(), 400);
-  }, [isOpen, keyword]);
+    onOpenChange?.(true);
+  }, [animationState, keyword, onOpenChange]);
 
-  // 关闭：隐藏历史 → 反转动画 → 结束重置
+  // 关闭：先隐藏历史 → 反转动画
   const closeSearch = useCallback(() => {
-    if (!isOpen) return;
-    setShowHistory(false);
-    tlRef.current?.reverse().then(() => {
-      if (tlRef.current?.reversed()) setIsOpen(false);
-    });
-  }, [isOpen]);
+    if (animationState !== 'open') return;
+    setAnimationState('closing');
+    setHistoryActive(false);
+    tlRef.current?.reverse();
+  }, [animationState]);
 
-  // 清空输入：阻止默认 focus → 清空 → 显示历史
+  // × 按钮：阻止 focus → 清空 → blur button → focus input
   const clearInput = useCallback((e: React.MouseEvent) => {
-    e.preventDefault(); // 防止按钮获得 focus（消除橙色 ring）
+    e.preventDefault();
     setKeyword('');
-    if (history.length > 0) setShowHistory(true);
-    // 清空后让 input 重新获得 focus
+    (e.target as HTMLButtonElement)?.blur();
     searchRef.current?.focus();
+    if (history.length > 0) setHistoryActive(true);
   }, [setKeyword, history.length]);
 
   // 点击 Overlay 关闭
-  const handleOverlayClick = useCallback(() => {
-    closeSearch();
-  }, [closeSearch]);
+  const handleOverlayClick = useCallback(() => closeSearch(), [closeSearch]);
 
   // Esc 关闭
   useEffect(() => {
@@ -75,34 +85,37 @@ export default function SearchBar() {
     return () => document.removeEventListener('keydown', handler);
   }, [isOpen, closeSearch]);
 
-  // 回车：发送搜索 → 跳转结果页
+  // 父组件触发关闭（点击 Header 区域）
+  const prevCloseTrigger = useRef(closeTrigger);
+  useEffect(() => {
+    if (closeTrigger !== undefined && closeTrigger !== prevCloseTrigger.current) {
+      prevCloseTrigger.current = closeTrigger;
+      closeSearch();
+    }
+  }, [closeTrigger, closeSearch]);
+
+  // 回车：搜索 → 跳转结果页
   const submitSearch = useCallback((kw: string) => {
     const trimmed = kw.trim();
     if (!trimmed) return;
-    setShowHistory(false);
+    setHistoryActive(false);
     addHistory(trimmed);
     search(trimmed).then(() => setCurrentView('search'));
   }, [addHistory, search, setCurrentView]);
 
-  // 点击历史项：填充 + 搜索
+  // 点击历史项
   const selectHistory = useCallback((kw: string) => {
     setKeyword(kw);
-    setShowHistory(false);
+    setHistoryActive(false);
     addHistory(kw);
     search(kw).then(() => setCurrentView('search'));
   }, [setKeyword, addHistory, search, setCurrentView]);
 
-  const showPanel = isOpen && showHistory && history.length > 0;
-
   return (
     <>
-      {/* 透明 Overlay — 阻止事件穿透到页面内容 */}
+      {/* Overlay — 仅覆盖页面内容 */}
       {isOpen && (
-        <div
-          ref={overlayRef}
-          className="search-overlay"
-          onClick={handleOverlayClick}
-        />
+        <div ref={overlayRef} className="search-overlay" onClick={handleOverlayClick} />
       )}
 
       <div className={`search-island-wrapper ${isOpen ? 'open' : ''}`} ref={islandRef}>
@@ -130,6 +143,7 @@ export default function SearchBar() {
                 value={keyword}
                 onChange={e => setKeyword(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') submitSearch(keyword); }}
+                style={{ opacity: 0 }}
               />
               <button type="button" className="s-close-btn" onClick={clearInput} title="清空">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2" strokeLinecap="round">
@@ -141,14 +155,14 @@ export default function SearchBar() {
         </GlassSurface>
       </div>
 
-      {/* 下拉框：仅显示搜索历史 */}
-      {showPanel && (
-        <div className="search-results-panel" ref={panelRef} style={{ visibility: 'visible', opacity: 1 }}>
+      {/* 历史面板 — 始终渲染，通过 CSS 控制显示 */}
+      {isOpen && (
+        <div ref={panelRef} className={`search-results-panel ${historyActive ? 'active' : ''}`}>
           {history.length > 0 ? (
             <div className="search-history">
               <div className="search-history-header">
                 <span className="search-history-title">搜索历史</span>
-                <button className="search-history-close" onClick={() => setShowHistory(false)}>×</button>
+                <button className="search-history-close" onClick={() => setHistoryActive(false)}>×</button>
               </div>
               {history.map((kw, i) => (
                 <div key={`h-${i}`} className="search-history-item" onClick={() => selectHistory(kw)}>
