@@ -46,40 +46,6 @@
   font-weight: 600;
 }
 
-/* ── 顶部筛选标签条 ── */
-.filter-bar {
-  display: flex;
-  gap: 8px;
-  padding: 0 0 12px 0;
-  position: sticky;
-  top: 28px;
-  z-index: 20;
-  background: transparent;
-}
-
-.filter-tab {
-  padding: 6px 14px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 500;
-  border: none;
-  cursor: pointer;
-  background: rgba(0, 0, 0, 0.04);
-  color: rgba(0, 0, 0, 0.5);
-  transition: all 0.2s;
-  white-space: nowrap;
-}
-
-.filter-tab:hover:not(.active) {
-  background: rgba(0, 0, 0, 0.08);
-}
-
-.filter-tab.active {
-  color: #fff;
-  font-weight: 600;
-  transform: scale(1.02);
-}
-
 /* ── 歌曲列表 ── */
 .song-list {
   flex: 1;

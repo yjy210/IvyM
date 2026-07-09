@@ -89,7 +89,7 @@ export default function SearchBar() {
     return () => document.removeEventListener('keydown', handler);
   }, [isOpen, closeSearch]);
 
-  // 搜索（请求三平台第一页，每平台 30 条）
+  // 搜索（仅更新下拉框预览，不跳转页面）
   const doSearch = useCallback(async (kw: string) => {
     if (!kw.trim()) { setSearchResults(null); return; }
     setLoading(true);
@@ -109,20 +109,22 @@ export default function SearchBar() {
         qq: { songs: qq?.code === 200 ? qq.data : [], page: 1, hasMore: (qq?.total || 0) > limit, loading: false },
         kugou: { songs: kugou?.code === 200 ? kugou.data : [], page: 1, hasMore: (kugou?.total || 0) > limit, loading: false },
       });
-      // 记录搜索历史
-      addHistory(kw);
-      setHistory(loadHistory());
-      // 搜索完成后跳转到搜索结果页
-      setCurrentView('search');
     } catch {
       setSearchResults({ keyword: kw, netease: { songs: [], page: 1, hasMore: false, loading: false }, qq: { songs: [], page: 1, hasMore: false, loading: false }, kugou: { songs: [], page: 1, hasMore: false, loading: false } });
-      addHistory(kw);
-      setHistory(loadHistory());
-      setCurrentView('search');
     } finally {
       setLoading(false);
     }
-  }, [API_BASE, setSearchResults, setCurrentView]);
+  }, [API_BASE, setSearchResults]);
+
+  // 回车：正式搜索 → 记录历史 + 跳转结果页 + 关闭下拉框
+  const submitSearch = useCallback(async (kw: string) => {
+    if (!kw.trim()) return;
+    addHistory(kw);
+    setHistory(loadHistory());
+    await doSearch(kw);
+    setCurrentView('search');
+    closeSearch();
+  }, [doSearch, setCurrentView, closeSearch]);
 
   // 防抖
   useEffect(() => {
@@ -212,7 +214,7 @@ export default function SearchBar() {
                 placeholder="搜索歌曲、歌手、专辑..."
                 value={keyword}
                 onChange={e => setKeyword(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') doSearch(keyword); }}
+                onKeyDown={e => { if (e.key === 'Enter') submitSearch(keyword); }}
               />
               <button type="button" className="s-close-btn" onClick={closeSearch}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2" strokeLinecap="round">
@@ -257,9 +259,6 @@ export default function SearchBar() {
                   </div>
                 );
               })}
-              <div className="search-view-all" onClick={() => setCurrentView('search')}>
-                查看全部结果 →
-              </div>
             </>
           )}
 

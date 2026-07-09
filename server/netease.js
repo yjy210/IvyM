@@ -36,21 +36,6 @@ async function neteaseSearch(keyword, limit = 30, offset = 0) {
   const body = res.body || {};
   const songs = body.result?.songs || [];
 
-  // 收集需要查询封面专辑 ID（去重）
-  const albumIds = [...new Set(songs.map(s => s.album?.id).filter(Boolean))];
-  const albumPicCache = new Map();
-
-  // 并发获取封面（每个专辑只查一次）
-  await Promise.all(
-    albumIds.map(async (aid) => {
-      try {
-        const res = await api.album({ id: aid });
-        const picUrl = res.body?.album?.picUrl || '';
-        if (picUrl) albumPicCache.set(aid, picUrl);
-      } catch { /* ignore */ }
-    })
-  );
-
   return {
     code: songs.length > 0 ? 200 : 0,
     data: songs.map(s => ({
@@ -61,7 +46,7 @@ async function neteaseSearch(keyword, limit = 30, offset = 0) {
       duration: s.duration,
       source: 'netease',
       vip: s.fee === 1 || s.fee === 4,
-      cover: albumPicCache.get(s.album?.id) || '',
+      cover: s.album?.picUrl || '',
     })),
     total: body.result?.songCount || songs.length,
   };
