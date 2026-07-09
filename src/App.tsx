@@ -18,6 +18,7 @@ export default function App() {
   const [entered, setEntered] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const currentView = usePlayerStore(s => s.currentView);
+  const setCurrentView = usePlayerStore(s => s.setCurrentView);
 
   useEffect(() => {
     const updateMax = async () => {
@@ -55,7 +56,7 @@ export default function App() {
         <button
           className="absolute top-3 left-4 z-50 px-3 h-8 flex items-center justify-center rounded-lg bg-black/40 backdrop-blur-sm hover:bg-black/60 transition-colors"
           style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
-          onClick={() => usePlayerStore.getState().setCurrentView('home')}
+          onClick={() => setCurrentView('home')}
           title="返回主页"
         >
           <span className="text-white text-sm font-bold tracking-wide">IvyM</span>

@@ -113,14 +113,13 @@
   box-sizing: border-box;
 }
 
-/* ── 歌曲信息：左侧固定，最大 1/4 播放器宽度 ── */
+/* ── 歌曲信息：左侧固定 ── */
 .player-song-info {
   justify-self: start;
   display: flex;
   align-items: center;
   gap: 12px;
   min-width: 0;
-  max-width: 25%;
   overflow: hidden;
 }
 
@@ -145,6 +144,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: min(320px, 25vw);
 }
 
 .player-song-artist {
@@ -154,6 +154,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: min(320px, 25vw);
 }
 
 /* ── 控制区：中间栏，永远居中 ── */

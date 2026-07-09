@@ -1,13 +1,13 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { gsap } from 'gsap';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useSearchStore } from '../../stores/searchStore';
-import type { Song } from '../../types';
 import GlassSurface from './GlassSurface';
 import './search-bar.css';
 
 export default function SearchBar() {
   const [isOpen, setIsOpen] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const islandRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -15,13 +15,10 @@ export default function SearchBar() {
 
   const keyword = useSearchStore(s => s.keyword);
   const setKeyword = useSearchStore(s => s.setKeyword);
-  const results = useSearchStore(s => s.results);
-  const status = useSearchStore(s => s.status);
   const history = useSearchStore(s => s.history);
   const search = useSearchStore(s => s.search);
   const addHistory = useSearchStore(s => s.addHistory);
   const removeHistory = useSearchStore(s => s.removeHistory);
-  const play = usePlayerStore(s => s.play);
   const setCurrentView = usePlayerStore(s => s.setCurrentView);
 
   const openSearch = useCallback(() => {
@@ -43,7 +40,7 @@ export default function SearchBar() {
       width: 40,
       duration: 0.5,
       ease: 'power2.out',
-      onComplete: () => { setIsOpen(false); },
+      onComplete: () => { setIsOpen(false); setShowDropdown(false); },
     });
   }, [isOpen]);
 
@@ -69,55 +66,46 @@ export default function SearchBar() {
     return () => document.removeEventListener('keydown', handler);
   }, [isOpen, closeSearch]);
 
-  // 输入 → 300ms 防抖 → 实时预览
+  // 输入 → 300ms 防抖 → 实时请求（仅更新 store，不显示下拉）
   const handleChange = useCallback((kw: string) => {
     setKeyword(kw);
     clearTimeout(debounceRef.current);
-    if (!kw.trim()) return;
+    if (!kw.trim()) {
+      setShowDropdown(true); // 空输入时显示历史
+      return;
+    }
+    setShowDropdown(false); // 有输入时隐藏下拉
     debounceRef.current = setTimeout(() => { search(kw); }, 300);
   }, [setKeyword, search]);
 
+  // focus 时如果为空则显示历史
+  const handleFocus = useCallback(() => {
+    if (!keyword.trim()) setShowDropdown(true);
+  }, [keyword]);
+
   // 回车：正式搜索 → 记录历史 + 跳转结果页 + 关闭下拉框
   const submitSearch = useCallback((kw: string) => {
-    if (!kw.trim()) return;
+    const trimmed = kw.trim();
+    if (!trimmed) return;
     clearTimeout(debounceRef.current);
-    addHistory(kw);
-    search(kw).then(() => {
+    addHistory(trimmed);
+    // search() 内部会判断是否已有该关键词的结果，有则直接复用
+    search(trimmed).then(() => {
       setCurrentView('search');
-      closeSearch();
+      setShowDropdown(false);
     });
-  }, [addHistory, search, setCurrentView, closeSearch]);
-
-  // 轮询交替
-  const flatSongs = useMemo(() => {
-    if (!results) return [];
-    const list: { song: Song; platform: 'netease' | 'qq' | 'kugou' }[] = [];
-    const sources: { platform: 'netease' | 'qq' | 'kugou'; songs: Song[] }[] = [
-      { platform: 'netease', songs: results.netease.songs },
-      { platform: 'qq', songs: results.qq.songs },
-      { platform: 'kugou', songs: results.kugou.songs },
-    ];
-    const maxLen = Math.max(...sources.map(s => s.songs.length));
-    for (let i = 0; i < maxLen; i++) {
-      for (const src of sources) {
-        if (i < src.songs.length) list.push({ song: src.songs[i], platform: src.platform });
-      }
-    }
-    return list;
-  }, [results]);
-
-  const selectSong = useCallback((entry: { song: Song; platform: 'netease' | 'qq' | 'kugou' }) => {
-    play(entry.song);
-  }, [play]);
+  }, [addHistory, search, setCurrentView]);
 
   const selectHistory = useCallback((kw: string) => {
     setKeyword(kw);
-    submitSearch(kw);
-  }, [setKeyword, submitSearch]);
+    addHistory(kw);
+    search(kw).then(() => {
+      setCurrentView('search');
+      setShowDropdown(false);
+    });
+  }, [setKeyword, addHistory, search, setCurrentView]);
 
-  const showPanel = isOpen;
-  const isLoading = status === 'loading';
-  const getSrcLabel = (p: 'netease' | 'qq' | 'kugou') => p === 'netease' ? '网易云' : p === 'qq' ? 'QQ' : '酷狗';
+  const showPanel = isOpen && showDropdown;
 
   return (
     <>
@@ -145,6 +133,7 @@ export default function SearchBar() {
                 placeholder="搜索歌曲、歌手、专辑..."
                 value={keyword}
                 onChange={e => handleChange(e.target.value)}
+                onFocus={handleFocus}
                 onKeyDown={e => { if (e.key === 'Enter') submitSearch(keyword); }}
               />
               <button type="button" className="s-close-btn" onClick={closeSearch}>
@@ -157,31 +146,10 @@ export default function SearchBar() {
         </GlassSurface>
       </div>
 
+      {/* 下拉框：仅显示搜索历史（不显示搜索结果预览） */}
       {showPanel && (
         <div className="search-results-panel" ref={panelRef} style={{ visibility: 'visible', opacity: 1 }}>
-          {keyword.trim() && isLoading && <div className="search-empty">搜索中...</div>}
-          {keyword.trim() && !isLoading && status === 'empty' && <div className="search-empty">未找到相关结果</div>}
-          {keyword.trim() && !isLoading && status === 'error' && <div className="search-empty">搜索出错，请稍后重试</div>}
-          {keyword.trim() && !isLoading && flatSongs.length > 0 && (
-            flatSongs.map((entry, i) => {
-              const { song, platform } = entry;
-              return (
-                <div key={`${platform}-${song.id}-${i}`} className="search-result-item" onClick={() => selectSong(entry)}>
-                  <img src={song.cover || '/logo.png'} alt="" className="search-result-cover" referrerPolicy="no-referrer" onError={(e) => { (e.target as HTMLImageElement).src = '/logo.png'; }} />
-                  <div className="search-result-info">
-                    <div className="search-result-name">{song.name}</div>
-                    <div className="search-result-artist">{song.artists}</div>
-                  </div>
-                  <span className="search-result-sources">
-                    <span className={`search-result-source ${platform}`}>{getSrcLabel(platform)}</span>
-                    {song.vip && <img src={`/icons/vip-${platform}.svg`} alt="VIP" className="search-result-vip-icon" />}
-                  </span>
-                </div>
-              );
-            })
-          )}
-
-          {!keyword.trim() && history.length > 0 && (
+          {history.length > 0 ? (
             <div className="search-history">
               <div className="search-history-title">搜索历史</div>
               {history.map((kw, i) => (
@@ -194,9 +162,7 @@ export default function SearchBar() {
                 </div>
               ))}
             </div>
-          )}
-
-          {!keyword.trim() && history.length === 0 && (
+          ) : (
             <div className="search-empty">输入关键词搜索歌曲</div>
           )}
         </div>

@@ -32,6 +32,7 @@ interface SearchState {
   status: SearchStatus;
   keyword: string;
   results: SearchResultData | null;
+  searchedKeyword: string; // 当前结果对应的关键词（用于避免重复请求）
   history: string[];
   activeRequests: AbortController | null;
 
@@ -49,6 +50,7 @@ export const useSearchStore = create<SearchState>((set, get) => ({
   status: 'idle',
   keyword: '',
   results: null,
+  searchedKeyword: '',
   history: loadHistory(),
   activeRequests: null,
 
@@ -57,6 +59,10 @@ export const useSearchStore = create<SearchState>((set, get) => ({
   search: async (kw) => {
     const trimmed = kw.trim();
     if (!trimmed) { set({ status: 'idle', results: null }); return; }
+
+    // 已有该关键词的结果且非加载中 → 直接复用，不发重复请求
+    const { searchedKeyword, results, status: curStatus } = get();
+    if (searchedKeyword === trimmed && results && curStatus !== 'loading') return;
 
     // 取消上一个请求
     get().activeRequests?.abort();
@@ -86,7 +92,7 @@ export const useSearchStore = create<SearchState>((set, get) => ({
       };
 
       const totalSongs = result.netease.songs.length + result.qq.songs.length + result.kugou.songs.length;
-      set({ status: totalSongs > 0 ? 'success' : 'empty', results: result });
+      set({ status: totalSongs > 0 ? 'success' : 'empty', results: result, searchedKeyword: trimmed });
     } catch (err: any) {
       if (err?.name === 'AbortError' || controller.signal.aborted) return;
       set({ status: 'error', results: null });
