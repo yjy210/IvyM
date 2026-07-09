@@ -7,6 +7,9 @@ import './search-bar.css';
 
 export default function SearchBar() {
   const [isOpen, setIsOpen] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
+
   const searchRef = useRef<HTMLInputElement>(null);
   const islandRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -19,9 +22,12 @@ export default function SearchBar() {
   const removeHistory = useSearchStore(s => s.removeHistory);
   const setCurrentView = usePlayerStore(s => s.setCurrentView);
 
+  // 展开搜索框
   const openSearch = useCallback(() => {
     if (isOpen || !islandRef.current) return;
     setIsOpen(true);
+    // 空输入时显示历史
+    if (!keyword.trim()) setShowDropdown(true);
     requestAnimationFrame(() => {
       gsap.to(islandRef.current, {
         width: Math.min(window.innerWidth * 0.9, 400),
@@ -30,23 +36,34 @@ export default function SearchBar() {
       });
     });
     setTimeout(() => searchRef.current?.focus(), 400);
-  }, [isOpen]);
+  }, [isOpen, keyword]);
 
+  // 关闭搜索框：先隐藏下拉框 → 播放动画 → 结束重置状态
   const closeSearch = useCallback(() => {
-    if (!isOpen || !islandRef.current) return;
+    if (!isOpen || isClosing || !islandRef.current) return;
+    setShowDropdown(false);          // 立即隐藏下拉框
+    setIsClosing(true);              // 进入关闭动画
     gsap.to(islandRef.current, {
       width: 40,
       duration: 0.5,
       ease: 'power2.out',
-      onComplete: () => setIsOpen(false),
+      onComplete: () => {
+        setIsOpen(false);
+        setIsClosing(false);
+      },
     });
-  }, [isOpen]);
+  }, [isOpen, isClosing]);
 
-  // 点击外部收起 — 仅当输入框为空时才关闭；有内容时只能点叉号关闭
+  // 清空输入框：只清空，不关闭，显示历史
+  const clearInput = useCallback(() => {
+    setKeyword('');
+    if (history.length > 0) setShowDropdown(true);
+  }, [setKeyword, history.length]);
+
+  // 点击外部关闭
   useEffect(() => {
     if (!isOpen) return;
     const handler = (e: MouseEvent) => {
-      if (keyword.trim()) return;
       const target = e.target as Node;
       if (islandRef.current && !islandRef.current.contains(target) && panelRef.current && !panelRef.current.contains(target)) {
         closeSearch();
@@ -54,9 +71,9 @@ export default function SearchBar() {
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, [isOpen, closeSearch, keyword]);
+  }, [isOpen, closeSearch]);
 
-  // Escape 收起
+  // Esc 关闭
   useEffect(() => {
     if (!isOpen) return;
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') closeSearch(); };
@@ -64,24 +81,24 @@ export default function SearchBar() {
     return () => document.removeEventListener('keydown', handler);
   }, [isOpen, closeSearch]);
 
-  // 回车：发送一次搜索 → 跳转结果页 → 关闭下拉框
+  // 回车：发送搜索 → 跳转结果页
   const submitSearch = useCallback((kw: string) => {
     const trimmed = kw.trim();
     if (!trimmed) return;
+    setShowDropdown(false);
     addHistory(trimmed);
-    search(trimmed).then(() => {
-      setCurrentView('search');
-    });
+    search(trimmed).then(() => setCurrentView('search'));
   }, [addHistory, search, setCurrentView]);
 
-  // 点击历史项：填充关键词并搜索
+  // 点击历史项：填充 + 搜索
   const selectHistory = useCallback((kw: string) => {
     setKeyword(kw);
+    setShowDropdown(false);
     addHistory(kw);
     search(kw).then(() => setCurrentView('search'));
   }, [setKeyword, addHistory, search, setCurrentView]);
 
-  const showPanel = isOpen && !keyword.trim();
+  const showPanel = isOpen && showDropdown;
 
   return (
     <>
@@ -111,7 +128,7 @@ export default function SearchBar() {
                 onChange={e => setKeyword(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') submitSearch(keyword); }}
               />
-              <button type="button" className="s-close-btn" onClick={closeSearch}>
+              <button type="button" className="s-close-btn" onClick={clearInput} title="清空">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2" strokeLinecap="round">
                   <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
                 </svg>
@@ -121,7 +138,7 @@ export default function SearchBar() {
         </GlassSurface>
       </div>
 
-      {/* 下拉框：仅显示搜索历史（有输入时隐藏） */}
+      {/* 下拉框：仅显示搜索历史 */}
       {showPanel && (
         <div className="search-results-panel" ref={panelRef} style={{ visibility: 'visible', opacity: 1 }}>
           {history.length > 0 ? (
