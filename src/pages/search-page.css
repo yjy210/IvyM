@@ -2,48 +2,44 @@
 .search-page {
   display: flex;
   flex-direction: column;
-  height: 100%;
-  overflow: hidden;
+  min-height: 0;
 }
 
-/* ── 排序菜单 ── */
-.sort-bar {
+/* ── 平台筛选标签 ── */
+.filter-bar {
   display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 0 0 10px 0;
+  gap: 8px;
+  padding: 0 0 12px 0;
   position: sticky;
   top: 0;
   z-index: 20;
-  background: transparent;
+  background: rgba(251, 250, 248, 0.85);
+  backdrop-filter: blur(8px);
+  margin: 0 -6px;
+  padding-inline: 6px;
 }
 
-.sort-label {
-  font-size: 11px;
-  color: rgba(0, 0, 0, 0.4);
-  margin-right: 2px;
-}
-
-.sort-tab {
-  padding: 4px 10px;
-  border-radius: 12px;
-  font-size: 11px;
+.filter-tab {
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 12px;
   font-weight: 500;
   border: none;
   cursor: pointer;
   background: rgba(0, 0, 0, 0.04);
   color: rgba(0, 0, 0, 0.5);
   transition: all 0.2s;
+  white-space: nowrap;
 }
 
-.sort-tab:hover {
+.filter-tab:hover:not(.active) {
   background: rgba(0, 0, 0, 0.08);
 }
 
-.sort-tab.active {
-  background: rgba(0, 0, 0, 0.75);
+.filter-tab.active {
   color: #fff;
   font-weight: 600;
+  transform: scale(1.02);
 }
 
 /* ── 歌曲列表 ── */

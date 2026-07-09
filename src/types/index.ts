@@ -41,8 +41,6 @@ export interface PlayerState {
   volume: number;
   playMode: PlayMode;
   playlist: Song[];
-  searchResults: SearchResult | null;
-  searchKeyword: string;
   currentView: ViewType;
 
   // actions
@@ -55,9 +53,5 @@ export interface PlayerState {
   setPlaylist: (songs: Song[]) => void;
   playNext: () => void;
   playPrev: () => void;
-  setSearchResults: (result: SearchResult | null) => void;
-  setSearchKeyword: (keyword: string) => void;
   setCurrentView: (view: ViewType) => void;
-  appendSearchResults: (platform: 'netease' | 'qq' | 'kugou', songs: Song[], hasMore: boolean) => void;
-  setPlatformLoading: (platform: 'netease' | 'qq' | 'kugou', loading: boolean) => void;
 }

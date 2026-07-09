@@ -1,30 +1,28 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { usePlayerStore } from '../stores/playerStore';
+import { useSearchStore } from '../stores/searchStore';
 import type { Song } from '../types';
 import './search-page.css';
 
-const API_BASE = 'http://localhost:3001';
-
-type SortMode = 'mixed' | 'netease' | 'qq' | 'kugou';
+type Platform = 'all' | 'netease' | 'qq' | 'kugou';
 
 export default function Search() {
-  const searchResults = usePlayerStore(s => s.searchResults);
+  const results = useSearchStore(s => s.results);
+  const loadMore = useSearchStore(s => s.loadMore);
   const play = usePlayerStore(s => s.play);
-  const appendSearchResults = usePlayerStore(s => s.appendSearchResults);
-  const setPlatformLoading = usePlayerStore(s => s.setPlatformLoading);
 
-  const [sortMode, setSortMode] = useState<SortMode>('mixed');
+  const [activeFilter, setActiveFilter] = useState<Platform>('all');
   const sentinelRef = useRef<HTMLDivElement>(null);
 
-  // 根据排序模式排列歌曲
+  // 根据筛选+轮询获取歌曲列表
   const allSongs = useMemo(() => {
-    if (!searchResults) return [];
+    if (!results) return [];
     const list: { song: Song; platform: 'netease' | 'qq' | 'kugou' }[] = [];
-    const { songs: neteaseSongs } = searchResults.netease;
-    const { songs: qqSongs } = searchResults.qq;
-    const { songs: kugouSongs } = searchResults.kugou;
+    const { songs: neteaseSongs } = results.netease;
+    const { songs: qqSongs } = results.qq;
+    const { songs: kugouSongs } = results.kugou;
 
-    if (sortMode === 'mixed') {
+    if (activeFilter === 'all') {
       const sources = [
         { platform: 'netease' as const, songs: neteaseSongs },
         { platform: 'qq' as const, songs: qqSongs },
@@ -36,72 +34,55 @@ export default function Search() {
           if (i < src.songs.length) list.push({ song: src.songs[i], platform: src.platform });
         }
       }
-    } else if (sortMode === 'netease') {
+    } else if (activeFilter === 'netease') {
       neteaseSongs.forEach(s => list.push({ song: s, platform: 'netease' }));
+    } else if (activeFilter === 'qq') {
       qqSongs.forEach(s => list.push({ song: s, platform: 'qq' }));
-      kugouSongs.forEach(s => list.push({ song: s, platform: 'kugou' }));
-    } else if (sortMode === 'qq') {
-      qqSongs.forEach(s => list.push({ song: s, platform: 'qq' }));
-      neteaseSongs.forEach(s => list.push({ song: s, platform: 'netease' }));
-      kugouSongs.forEach(s => list.push({ song: s, platform: 'kugou' }));
     } else {
       kugouSongs.forEach(s => list.push({ song: s, platform: 'kugou' }));
-      neteaseSongs.forEach(s => list.push({ song: s, platform: 'netease' }));
-      qqSongs.forEach(s => list.push({ song: s, platform: 'qq' }));
     }
     return list;
-  }, [searchResults, sortMode]);
+  }, [results, activeFilter]);
 
-  // 无限滚动：加载更多
-  const loadMore = useCallback(async () => {
-    if (!searchResults) return;
-    const keyword = searchResults.keyword;
-    const platformsToLoad: ('netease' | 'qq' | 'kugou')[] = ['netease', 'qq', 'kugou'];
-
-    for (const p of platformsToLoad) {
-      const state = searchResults[p];
-      if (state.hasMore && !state.loading) {
-        setPlatformLoading(p, true);
-        try {
-          const res = await fetch(
-            `${API_BASE}/api/${p}/search?keyword=${encodeURIComponent(keyword)}&limit=30&page=${state.page + 1}`
-          );
-          const json = await res.json();
-          appendSearchResults(p, json.data || [], (state.page + 1) * 30 < (json.total || 0));
-        } catch { appendSearchResults(p, [], false); }
-        setPlatformLoading(p, false);
-      }
+  // 无限滚动
+  const handleLoadMore = useCallback(() => {
+    if (activeFilter === 'all') {
+      loadMore('netease');
+      loadMore('qq');
+      loadMore('kugou');
+    } else {
+      loadMore(activeFilter);
     }
-  }, [searchResults, appendSearchResults, setPlatformLoading]);
+  }, [activeFilter, loadMore]);
 
-  // IntersectionObserver
   useEffect(() => {
-    const scrollParent = sentinelRef.current?.closest('.flex-1');
     const observer = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) loadMore(); },
-      { root: scrollParent, threshold: 0.1 }
+      ([entry]) => { if (entry.isIntersecting) handleLoadMore(); },
+      { root: sentinelRef.current?.closest('.flex-1'), threshold: 0.1 }
     );
     if (sentinelRef.current) observer.observe(sentinelRef.current);
     return () => observer.disconnect();
-  }, [loadMore]);
+  }, [handleLoadMore]);
 
-  if (!searchResults) return null;
-
+  if (!results) return null;
   const sourceLabel = (p: string) => p === 'netease' ? '网易云' : p === 'qq' ? 'QQ' : '酷狗';
 
   return (
     <div className="search-page">
-      {/* 排序菜单 */}
-      <div className="sort-bar">
-        <span className="sort-label">排序</span>
-        {(['mixed', 'netease', 'qq', 'kugou'] as SortMode[]).map(mode => (
+      {/* 平台筛选 */}
+      <div className="filter-bar">
+        {([
+          { key: 'all', label: '全部', count: results.netease.songs.length + results.qq.songs.length + results.kugou.songs.length, color: 'rgba(0,0,0,0.75)' },
+          { key: 'netease', label: '网易云', count: results.netease.songs.length, color: '#ec4141' },
+          { key: 'qq', label: 'QQ', count: results.qq.songs.length, color: '#31c27c' },
+          { key: 'kugou', label: '酷狗', count: results.kugou.songs.length, color: '#2196f3' },
+        ] as const).map(tab => (
           <button
-            key={mode}
-            className={`sort-tab ${sortMode === mode ? 'active' : ''}`}
-            onClick={() => setSortMode(mode)}
-          >
-            {mode === 'mixed' ? '综合' : mode === 'netease' ? '网易优先' : mode === 'qq' ? 'QQ优先' : '酷狗优先'}
-          </button>
+            key={tab.key}
+            className={`filter-tab ${activeFilter === tab.key ? 'active' : ''}`}
+            style={activeFilter === tab.key ? { background: tab.color, color: '#fff' } : undefined}
+            onClick={() => setActiveFilter(tab.key)}
+          >{tab.label} ({tab.count})</button>
         ))}
       </div>
 
@@ -113,15 +94,13 @@ export default function Search() {
             className="song-card"
             onClick={() => play(entry.song)}
           >
-            <img src={entry.song.cover || '/logo.png'} alt="" className="song-cover" />
+            <img src={entry.song.cover || '/logo.png'} alt="" className="song-cover" loading="lazy" referrerPolicy="no-referrer" onError={(e) => { (e.target as HTMLImageElement).src = '/logo.png'; }} />
             <div className="song-info">
               <div className="song-name">{entry.song.name}</div>
               <div className="song-artist">{entry.song.artists}</div>
             </div>
             <span className={`song-badge ${entry.platform}`}>{sourceLabel(entry.platform)}</span>
-            {entry.song.vip && (
-              <img src={`/icons/vip-${entry.platform}.svg`} alt="VIP" className="song-vip" />
-            )}
+            {entry.song.vip && <img src={`/icons/vip-${entry.platform}.svg`} alt="VIP" className="song-vip" />}
           </div>
         ))}
         <div ref={sentinelRef} className="scroll-sentinel" />

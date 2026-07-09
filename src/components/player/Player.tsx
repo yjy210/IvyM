@@ -23,7 +23,6 @@ export default function Player() {
   const isPlaying = usePlayerStore(s => s.isPlaying);
   const playMode = usePlayerStore(s => s.playMode);
   const playlist = usePlayerStore(s => s.playlist);
-  const searchResults = usePlayerStore(s => s.searchResults);
   const play = usePlayerStore(s => s.play);
   const pause = usePlayerStore(s => s.pause);
   const playNext = usePlayerStore(s => s.playNext);
@@ -79,6 +78,10 @@ export default function Player() {
         const res = await fetch(`${API_BASE}/api/qq/url?mid=${song.mid || song.id}`);
         const data = await res.json();
         url = data.data?.url || null;
+      } else if (song.source === 'kugou') {
+        const res = await fetch(`${API_BASE}/api/kugou/url?hash=${song.hash || song.id}`);
+        const data = await res.json();
+        url = data.data?.url || null;
       }
 
       setSongUrl(url);
@@ -103,6 +106,30 @@ export default function Player() {
       setSongUrl(null);
     }
   }, [currentSong, fetchSongUrl]);
+
+  // DEBUG: 测量播放器文字区域实际宽度
+  useEffect(() => {
+    if (!currentSong) return;
+    const timer = setTimeout(() => {
+      const main = document.querySelector('.player-main') as HTMLElement;
+      const songInfo = document.querySelector('.player-song-info') as HTMLElement;
+      const text = document.querySelector('.player-text') as HTMLElement;
+      const name = document.querySelector('.player-song-name') as HTMLElement;
+      const artist = document.querySelector('.player-song-artist') as HTMLElement;
+      const log = (el: HTMLElement | null, label: string) => {
+        if (!el) { console.log(`[${label}] NOT FOUND`); return; }
+        const s = getComputedStyle(el);
+        console.log(`[${label}] w=${el.offsetWidth}px display=${s.display} flex=${s.flex} grow=${s.flexGrow} shrink=${s.flexShrink} basis=${s.flexBasis} minW=${s.minWidth} maxW=${s.maxWidth}`);
+      };
+      console.log('===== 播放器文字区域测量 =====');
+      log(main, 'player-main');
+      log(songInfo, 'player-song-info');
+      log(text, 'player-text');
+      log(name, 'player-song-name');
+      log(artist, 'player-song-artist');
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [currentSong]);
 
   useEffect(() => {
     if (!audioRef.current) return;
@@ -239,7 +266,7 @@ export default function Player() {
     }
   };
 
-  const progressPct = duration ? (currentTime / duration) * 100 : 0;
+  const progressPct = duration ? Math.min((currentTime / duration) * 100, 100) : 0;
 
   return (
     <>

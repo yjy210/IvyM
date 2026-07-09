@@ -169,6 +169,7 @@
 .search-result-info {
   flex: 1;
   min-width: 0;
+  overflow: hidden;
 }
 
 .search-result-name {
@@ -178,6 +179,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 200px;
 }
 
 .search-result-artist {
@@ -187,6 +189,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 200px;
 }
 
 /* 来源 badges */

@@ -1,5 +1,7 @@
 import { create } from 'zustand';
-import type { PlayerState, Song, SearchResult, PlayMode } from '../types';
+import type { PlayerState, Song, PlayMode } from '../types';
+
+export type { ViewType } from '../types';
 
 export const usePlayerStore = create<PlayerState>((set, get) => ({
   currentSong: null,
@@ -9,8 +11,6 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   volume: 0.7,
   playMode: 'sequence',
   playlist: [],
-  searchResults: null,
-  searchKeyword: '',
   currentView: 'home',
 
   play: (song) => set({ currentSong: song, isPlaying: true, currentTime: 0 }),
@@ -20,40 +20,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   setVolume: (vol) => set({ volume: Math.max(0, Math.min(1, vol)) }),
   setPlayMode: (mode) => set({ playMode: mode }),
   setPlaylist: (songs) => set({ playlist: songs }),
-  setSearchResults: (result) => set({ searchResults: result }),
-  setSearchKeyword: (keyword) => set({ searchKeyword: keyword }),
   setCurrentView: (view) => set({ currentView: view }),
-
-  /** 将更多歌曲追加到指定平台（无限滚动加载更多） */
-  appendSearchResults: (platform, songs, hasMore) =>
-    set(state => {
-      if (!state.searchResults) return state;
-      const existing = state.searchResults[platform];
-      return {
-        searchResults: {
-          ...state.searchResults,
-          [platform]: {
-            ...existing,
-            songs: [...existing.songs, ...songs],
-            page: existing.page + 1,
-            hasMore,
-            loading: false,
-          },
-        },
-      };
-    }),
-
-  /** 标记平台是否正在加载（防止重复请求） */
-  setPlatformLoading: (platform, loading) =>
-    set(state => {
-      if (!state.searchResults) return state;
-      return {
-        searchResults: {
-          ...state.searchResults,
-          [platform]: { ...state.searchResults[platform], loading },
-        },
-      };
-    }),
 
   playNext: () => {
     const { playlist, currentSong, playMode } = get();

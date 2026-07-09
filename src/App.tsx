@@ -8,6 +8,7 @@ import SearchBar from './components/search/SearchBar';
 import Player from './components/player/Player';
 import Search from './pages/Search';
 import { usePlayerStore } from './stores/playerStore';
+import { Home } from './pages/Home';
 import './components/login-dropdown/login-dropdown.css';
 import './components/search/search-bar.css';
 import './components/player/player.css';
@@ -52,19 +53,19 @@ export default function App() {
 
         {/* 左上角 Logo — 点击返回主页 */}
         <button
-          className="absolute top-3 left-4 z-50 w-8 h-8 flex items-center justify-center rounded-lg bg-black/40 backdrop-blur-sm hover:bg-black/60 transition-colors"
+          className="absolute top-3 left-4 z-50 px-3 h-8 flex items-center justify-center rounded-lg bg-black/40 backdrop-blur-sm hover:bg-black/60 transition-colors"
           style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
           onClick={() => usePlayerStore.getState().setCurrentView('home')}
           title="返回主页"
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-            <polyline points="9 22 9 12 15 12 15 22" />
-          </svg>
+          <span className="text-white text-sm font-bold tracking-wide">IvyM</span>
         </button>
 
-        <div className="flex-1 overflow-y-auto z-10 pb-28 px-6 pt-2">
+        <div className="flex-1 overflow-y-auto z-10 px-6 pt-2">
           {currentView === 'search' && <Search />}
+          {currentView === 'home' && <Home />}
+          {/* 底部留白 — 播放器高86px+底边距12px，确保内容不被遮挡 */}
+          <div className="h-28 shrink-0" />
         </div>
 
         {/* 播放控制栏 */}
