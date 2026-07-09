@@ -8,11 +8,11 @@ import './search-bar.css';
 export default function SearchBar() {
   const [isOpen, setIsOpen] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
-  const [isClosing, setIsClosing] = useState(false);
 
   const searchRef = useRef<HTMLInputElement>(null);
   const islandRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const tlRef = useRef<gsap.core.Timeline | null>(null);
 
   const keyword = useSearchStore(s => s.keyword);
   const setKeyword = useSearchStore(s => s.setKeyword);
@@ -22,39 +22,37 @@ export default function SearchBar() {
   const removeHistory = useSearchStore(s => s.removeHistory);
   const setCurrentView = usePlayerStore(s => s.setCurrentView);
 
-  // 展开搜索框
-  const openSearch = useCallback(() => {
-    if (isOpen || !islandRef.current) return;
-    setIsOpen(true);
-    // 空输入时显示历史
-    if (!keyword.trim()) setShowHistory(true);
-    requestAnimationFrame(() => {
-      gsap.to(islandRef.current, {
+  // 初始化 Timeline（只创建一次）
+  useEffect(() => {
+    if (!islandRef.current) return;
+    tlRef.current = gsap.timeline({ paused: true })
+      .to(islandRef.current, {
         width: Math.min(window.innerWidth * 0.9, 400),
-        duration: 0.8,
-        ease: 'back.out(2)',
+        duration: 0.5,
+        ease: 'power2.out',
       });
-    });
+    return () => { tlRef.current?.kill(); };
+  }, []);
+
+  // 展开
+  const openSearch = useCallback(() => {
+    if (isOpen) return;
+    setIsOpen(true);
+    if (!keyword.trim()) setShowHistory(true);
+    tlRef.current?.play();
     setTimeout(() => searchRef.current?.focus(), 400);
   }, [isOpen, keyword]);
 
-  // 关闭搜索框：先隐藏下拉框 → 播放动画 → 结束重置状态
+  // 关闭：先隐藏历史 → 反转动画 → 结束后重置 isOpen
   const closeSearch = useCallback(() => {
-    if (!isOpen || isClosing || !islandRef.current) return;
-    setShowHistory(false);           // 立即隐藏历史下拉框
-    setIsClosing(true);              // 进入关闭动画
-    gsap.to(islandRef.current, {
-      width: 40,
-      duration: 0.5,
-      ease: 'power2.out',
-      onComplete: () => {
-        setIsOpen(false);
-        setIsClosing(false);
-      },
+    if (!isOpen) return;
+    setShowHistory(false);
+    tlRef.current?.reverse().then(() => {
+      if (tlRef.current?.reversed()) setIsOpen(false);
     });
-  }, [isOpen, isClosing]);
+  }, [isOpen]);
 
-  // 清空输入框：只清空，不关闭，显示历史
+  // 清空输入：只清空关键词，不关闭，显示历史
   const clearInput = useCallback(() => {
     setKeyword('');
     if (history.length > 0) setShowHistory(true);
