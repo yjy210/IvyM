@@ -138,12 +138,38 @@
   padding: 0.3rem 0;
 }
 
+.search-history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.4rem 0.7rem 0.2rem;
+}
+
 .search-history-title {
   font-size: 10px;
   font-weight: 600;
   color: rgba(0, 0, 0, 0.3);
-  padding: 0.4rem 0.7rem 0.2rem;
   letter-spacing: 0.5px;
+}
+
+.search-history-close {
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: rgba(0, 0, 0, 0.25);
+  font-size: 14px;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: all 0.12s;
+}
+
+.search-history-close:hover {
+  background: rgba(0, 0, 0, 0.06);
+  color: rgba(0, 0, 0, 0.5);
 }
 
 .search-history-item {

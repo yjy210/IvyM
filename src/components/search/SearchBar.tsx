@@ -92,7 +92,7 @@ export default function SearchBar() {
     search(kw).then(() => setCurrentView('search'));
   }, [setKeyword, addHistory, search, setCurrentView]);
 
-  const showPanel = isOpen && showHistory;
+  const showPanel = isOpen && showHistory && history.length > 0;
 
   return (
     <>
@@ -146,7 +146,10 @@ export default function SearchBar() {
         <div className="search-results-panel" ref={panelRef} style={{ visibility: 'visible', opacity: 1 }}>
           {history.length > 0 ? (
             <div className="search-history">
-              <div className="search-history-title">搜索历史</div>
+              <div className="search-history-header">
+                <span className="search-history-title">搜索历史</span>
+                <button className="search-history-close" onClick={() => setShowHistory(false)}>×</button>
+              </div>
               {history.map((kw, i) => (
                 <div key={`h-${i}`} className="search-history-item" onClick={() => selectHistory(kw)}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
