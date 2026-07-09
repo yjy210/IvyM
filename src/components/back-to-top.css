@@ -1,0 +1,32 @@
+/* ── 返回顶部按钮 ── */
+.back-to-top {
+  position: fixed;
+  bottom: 100px;
+  right: 24px;
+  z-index: 700;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: none;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.3s, transform 0.2s;
+  opacity: 0.8;
+}
+
+.back-to-top:hover {
+  opacity: 1;
+  transform: translateY(-2px);
+}
+
+.back-to-top img {
+  width: 24px;
+  height: 24px;
+  display: block;
+}

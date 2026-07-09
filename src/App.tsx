@@ -7,11 +7,13 @@ import LoginDropdown from './components/login-dropdown/LoginDropdown';
 import SearchBar from './components/search/SearchBar';
 import Player from './components/player/Player';
 import Search from './pages/Search';
+import BackToTop from './components/BackToTop';
 import { usePlayerStore } from './stores/playerStore';
 import { Home } from './pages/Home';
 import './components/login-dropdown/login-dropdown.css';
 import './components/search/search-bar.css';
 import './components/player/player.css';
+import './components/back-to-top.css';
 import './pages/search-page.css';
 
 export default function App() {
@@ -68,6 +70,9 @@ export default function App() {
           {/* 底部留白 — 播放器高86px+底边距12px，确保内容不被遮挡 */}
           <div className="h-28 shrink-0" />
         </div>
+
+        {/* 返回顶部按钮 */}
+        <BackToTop />
 
         {/* 播放控制栏 */}
         <Player />

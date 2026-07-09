@@ -10,13 +10,6 @@
   display: flex;
   gap: 8px;
   padding: 0 0 12px 0;
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  background: rgba(251, 250, 248, 0.85);
-  backdrop-filter: blur(8px);
-  margin: 0 -6px;
-  padding-inline: 6px;
 }
 
 .filter-tab {
@@ -26,19 +19,24 @@
   font-weight: 500;
   border: none;
   cursor: pointer;
-  background: rgba(0, 0, 0, 0.04);
-  color: rgba(0, 0, 0, 0.5);
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  color: rgba(0, 0, 0, 0.6);
   transition: all 0.2s;
   white-space: nowrap;
 }
 
 .filter-tab:hover:not(.active) {
-  background: rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.35);
 }
 
 .filter-tab.active {
   color: #fff;
   font-weight: 600;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   transform: scale(1.02);
 }
 
