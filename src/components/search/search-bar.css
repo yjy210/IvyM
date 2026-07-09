@@ -157,8 +157,8 @@
 
 /* 封面 */
 .search-result-cover {
-  width: 44px;
-  height: 44px;
+  width: 52px;
+  height: 52px;
   border-radius: 6px;
   background: rgba(0, 0, 0, 0.06);
   flex-shrink: 0;
@@ -191,7 +191,8 @@
 
 /* 来源 badges */
 .search-result-sources {
-  display: flex;
+  display: inline-flex;
+  align-items: center;
   gap: 4px;
   flex-shrink: 0;
 }
@@ -202,6 +203,15 @@
   padding: 2px 6px;
   border-radius: 3px;
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.search-result-vip-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
 }
 
 .search-result-source.netease {
@@ -214,17 +224,27 @@
   color: #31c27c;
 }
 
-/* VIP 歌曲：平台色加深 + 白色字体 */
-.search-result-source.netease.is-vip {
-  background: #ec4141;
-  color: #fff;
-  font-weight: 700;
+.search-result-source.kugou {
+  background: rgba(33, 150, 243, 0.08);
+  color: #2196f3;
 }
 
-.search-result-source.qq.is-vip {
-  background: #31c27c;
-  color: #fff;
-  font-weight: 700;
+/* VIP 歌曲：保留浅色背景 + 图标 */
+
+/* 查看全部结果 */
+.search-view-all {
+  text-align: center;
+  padding: 0.6rem;
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+  border-top: 1px solid rgba(0, 0, 0, 0.04);
+  transition: color 0.15s;
+}
+
+.search-view-all:hover {
+  color: rgba(0, 0, 0, 0.8);
 }
 
 /* 空结果/加载 */

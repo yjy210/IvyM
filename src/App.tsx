@@ -6,13 +6,17 @@ import Grainient from './components/grainient/Grainient';
 import LoginDropdown from './components/login-dropdown/LoginDropdown';
 import SearchBar from './components/search/SearchBar';
 import Player from './components/player/Player';
+import Search from './pages/Search';
+import { usePlayerStore } from './stores/playerStore';
 import './components/login-dropdown/login-dropdown.css';
 import './components/search/search-bar.css';
 import './components/player/player.css';
+import './pages/search-page.css';
 
 export default function App() {
   const [entered, setEntered] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
+  const currentView = usePlayerStore(s => s.currentView);
 
   useEffect(() => {
     const updateMax = async () => {
@@ -46,8 +50,8 @@ export default function App() {
         {/* 搜索框 - 顶部居中 GSAP 动画 */}
         <SearchBar />
 
-        <div className="flex-1 overflow-y-auto z-10 pb-20">
-          {/* 主内容 */}
+        <div className="flex-1 overflow-y-auto z-10 pb-20 px-6">
+          {currentView === 'search' && <Search />}
         </div>
 
         {/* 播放控制栏 */}

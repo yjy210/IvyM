@@ -1,0 +1,136 @@
+/* ── 搜索页容器 ── */
+.search-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* ── 顶部筛选标签条 ── */
+.filter-bar {
+  display: flex;
+  gap: 8px;
+  padding: 0 0 12px 0;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: transparent;
+}
+
+.filter-tab {
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  background: rgba(0, 0, 0, 0.04);
+  color: rgba(0, 0, 0, 0.5);
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.filter-tab:hover:not(.active) {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.filter-tab.active {
+  color: #fff;
+  font-weight: 600;
+  transform: scale(1.02);
+}
+
+/* ── 歌曲列表 ── */
+.song-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* ── 歌曲卡片 ── */
+.song-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.song-card:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.song-cover {
+  width: 52px;
+  height: 52px;
+  border-radius: 6px;
+  object-fit: cover;
+  background: rgba(0, 0, 0, 0.06);
+  flex-shrink: 0;
+}
+
+.song-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.song-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(0, 0, 0, 0.88);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.song-artist {
+  font-size: 11px;
+  color: rgba(0, 0, 0, 0.4);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── 平台标签 ── */
+.song-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.song-badge.netease {
+  background: rgba(236, 65, 65, 0.1);
+  color: #ec4141;
+}
+
+.song-badge.qq {
+  background: rgba(49, 194, 124, 0.1);
+  color: #31c27c;
+}
+
+.song-badge.kugou {
+  background: rgba(33, 150, 243, 0.1);
+  color: #2196f3;
+}
+
+/* ── VIP 图标 ── */
+.song-vip {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+/* ── 无限滚动哨兵 ── */
+.scroll-sentinel {
+  height: 20px;
+  width: 100%;
+  flex-shrink: 0;
+}

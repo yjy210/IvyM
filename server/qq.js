@@ -15,6 +15,14 @@ function getQQCookie() {
   }
 }
 
+function saveQQCookie(cookie) {
+  fs.writeFileSync(
+    QQ_COOKIE_FILE,
+    JSON.stringify({ cookie, time: Date.now() }, null, 2),
+  );
+  console.log('[IvyM] QQ cookie saved');
+}
+
 function qqRequest(path, params = {}) {
   return new Promise((resolve, reject) => {
     const qs = new URLSearchParams({
@@ -44,14 +52,14 @@ function qqRequest(path, params = {}) {
   });
 }
 
-async function qqSearch(keyword, limit = 30) {
+async function qqSearch(keyword, limit = 30, page = 1) {
   const res = await qqRequest('/soso/fcgi-bin/client_search_cp', {
     w: keyword,
     n: limit,
-    p: 1,
+    p: page,
     cr: 1,
   });
-  if (!res.data?.song?.list) return { code: 0, data: [] };
+  if (!res.data?.song?.list) return { code: 0, data: [], total: 0 };
   const songs = res.data.song.list.map(s => ({
     id: s.songid,
     mid: s.songmid,
@@ -61,21 +69,88 @@ async function qqSearch(keyword, limit = 30) {
     duration: s.interval ? s.interval * 1000 : 0,
     source: 'qq',
     vip: s.pay?.payplay === 1,
-    cover: s.albummid ? `https://y.qq.com/music/photo_new/T002R100x100M000${s.albummid}.jpg` : '',
+    cover: s.albummid ? `https://y.qq.com/music/photo_new/T002R300x300M000${s.albummid}.jpg` : '',
   }));
   return { code: 200, data: songs, total: res.data.song.totalnum || songs.length };
 }
 
-async function qqSongUrl(mid) {
-  // QQ音乐播放链接需要 vkey，这里是简化版
-  // 实际生产环境需要完整的 QQ 音乐 API（含 vkey 获取）
-  const res = await qqRequest('/base/fcgi-bin/fcg_music_express_mobile3.fcg',
-    { songmid: mid, filename: `C400${mid}.m4a`, guid: '123456', platform: 'yqq' }
-  );
-  const data = res.data?.items?.[0];
-  if (!data?.vkey) return { code: -1, data: null, msg: '需要安装QQ音乐cookie' };
-  const url = `http://isure.stream.qqmusic.qq.com/C400${mid}.m4a?vkey=${data.vkey}&guid=123456&uin=0&fromtag=66`;
-  return { code: 200, data: { url } };
+// 从 cookie 字符串提取 uin
+function getUinFromCookie(cookieStr) {
+  const match = cookieStr.match(/(?:^|;\s*)(?:uin|wxuin|p_uin)=o?(\d+)/);
+  return match ? match[1] : '0';
+}
+
+async function qqSongUrl(mid, quality = 'm4a') {
+  const cookie = getQQCookie();
+  if (!cookie) {
+    return { code: -1, data: null, msg: '请先登录QQ音乐' };
+  }
+
+  const uin = getUinFromCookie(cookie);
+  const guid = Date.now().toString(); // 简单用时间戳，足够用
+
+  // 文件名映射
+  const filenameMap = { m4a: `C400${mid}.m4a`, mp3: `M500${mid}.mp3` };
+  const filename = filenameMap[quality] || filenameMap.m4a;
+
+  const reqData = {
+    req_0: {
+      module: 'vkey.GetVkeyServer',
+      method: 'CgiGetVkey',
+      param: {
+        guid,
+        songmid: [mid],
+        songtype: [0],
+        uin,
+        loginflag: 1,
+        platform: '20',
+      },
+    },
+  };
+
+  return new Promise((resolve) => {
+    const url = new URL('https://u.y.qq.com/cgi-bin/musicu.fcg');
+    url.searchParams.set('g_tk', '5381');
+    url.searchParams.set('loginUin', uin);
+    url.searchParams.set('hostUin', '0');
+    url.searchParams.set('format', 'json');
+    url.searchParams.set('inCharset', 'utf8');
+    url.searchParams.set('outCharset', 'utf-8');
+    url.searchParams.set('notice', '0');
+    url.searchParams.set('platform', 'yqq.json');
+    url.searchParams.set('needNewCode', '0');
+    url.searchParams.set('data', JSON.stringify(reqData));
+
+    const req = https.get(url.toString(), {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Referer': 'https://y.qq.com',
+        'Cookie': cookie,
+      },
+    }, (res) => {
+      let body = '';
+      res.on('data', chunk => body += chunk);
+      res.on('end', () => {
+        try {
+          const json = JSON.parse(body);
+          const info = json.req_0?.data?.midurlinfo?.[0];
+          const sip = json.req_0?.data?.sip?.[0] || 'http://isure.stream.qqmusic.qq.com/';
+          const purl = info?.purl || '';
+          if (!purl) {
+            // purl 为空 → VIP 或不可用
+            const msg = json.req_0?.data?.sip?.length ? '该歌曲需要VIP或不可播放' : '获取播放链接失败';
+            resolve({ code: -1, data: null, msg });
+            return;
+          }
+          resolve({ code: 200, data: { url: sip + purl } });
+        } catch {
+          resolve({ code: -1, data: null, msg: '解析播放链接失败' });
+        }
+      });
+    });
+    req.on('error', (e) => resolve({ code: -1, data: null, msg: '网络错误: ' + e.message }));
+    req.setTimeout(10000, () => { req.destroy(); resolve({ code: -1, data: null, msg: '请求超时' }); });
+  });
 }
 
 async function qqQrLogin() {
@@ -120,9 +195,15 @@ async function qqQrCheck(sigx) {
   return { code: res.errcode, msg: res.msg || '', cookie: res.cookie || '', uin: res.uin || 0 };
 }
 
-async function qqUserInfo(cookie) {
-  return new Promise((resolve, reject) => {
-    const req = https.get('https://c.y.qq.com/rpc/fcgi-bin/cgi_get_portrait.fcg', {
+async function qqUserInfo() {
+  const cookie = getQQCookie();
+  if (!cookie) return null;
+
+  const uin = getUinFromCookie(cookie);
+  const url = `https://c.y.qq.com/rsc/fcgi-bin/fcg_get_profile_homepage.fcg?cid=205360838&userid=${uin}&reqfrom=1&reqtype=1`;
+
+  return new Promise((resolve) => {
+    const req = https.get(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         'Referer': 'https://y.qq.com',
@@ -133,18 +214,46 @@ async function qqUserInfo(cookie) {
       res.on('data', chunk => body += chunk);
       res.on('end', () => {
         try {
-          const parsed = JSON.parse(body);
-          // DEBUG
-          console.log('[IvyM DEBUG] qqUserInfo response keys:', Object.keys(parsed));
-          console.log('[IvyM DEBUG] qqUserInfo body (first 500):', body.slice(0, 500));
-          resolve(parsed);
+          const j = JSON.parse(body);
+          if (j.code !== 0 || !j.data?.creator) {
+            resolve(null);
+            return;
+          }
+          const c = j.data.creator;
+          // VIP 检测：使用 userInfoUI.iconlist
+          const iconlist = c.userInfoUI?.iconlist;
+          const isVip = Array.isArray(iconlist) && iconlist.length > 0;
+          let vipName = '';
+          if (isVip) {
+            const iconText = iconlist.map(i => (i.srcUrl || '') + ' ' + (i.ext || '')).join(' ').toLowerCase();
+            if (iconText.includes('svip') || iconText.includes('super') || iconText.includes('diamond')) {
+              vipName = '豪华绿钻';
+            } else if (iconText.includes('vip')) {
+              vipName = '绿钻';
+            }
+          }
+          console.log('[IvyM DEBUG] iconlist:', JSON.stringify(iconlist));
+          console.log('[IvyM DEBUG] VIP result:', JSON.stringify({ vip: isVip, vipName }));
+          resolve({
+            platform: 'qq',
+            nickname: c.nick || '',
+            avatar: c.headpic || '',
+            userId: uin,
+            vip: isVip,
+            vipName,
+          });
+        } catch (e) {
+          console.error('[IvyM] qqUserInfo parse error:', e.message);
+          resolve(null);
         }
-        catch (e) { resolve({}); }
       });
     });
-    req.on('error', reject);
-    req.setTimeout(10000, () => { req.destroy(); reject(new Error('timeout')); });
+    req.on('error', (e) => {
+      console.error('[IvyM] qqUserInfo request error:', e.message);
+      resolve(null);
+    });
+    req.setTimeout(10000, () => { req.destroy(); resolve(null); });
   });
 }
 
-module.exports = { qqSearch, qqSongUrl, qqQrLogin, qqQrCheck, qqUserInfo };
+module.exports = { qqSearch, qqSongUrl, qqQrLogin, qqQrCheck, qqUserInfo, saveQQCookie };

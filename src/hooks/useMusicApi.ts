@@ -18,20 +18,25 @@ export function useMusicApi() {
 
     // 双源并行搜索（网易云 + QQ）
     const [netease, qq] = await Promise.allSettled([
-      fetchJSON<{ code: number; data: Song[] }>(`${API_BASE}/api/netease/search?keyword=${encodeURIComponent(keyword)}`),
-      fetchJSON<{ code: number; data: Song[] }>(`${API_BASE}/api/qq/search?keyword=${encodeURIComponent(keyword)}`),
+      fetchJSON<{ code: number; data: Song[]; total?: number }>(`${API_BASE}/api/netease/search?keyword=${encodeURIComponent(keyword)}`),
+      fetchJSON<{ code: number; data: Song[]; total?: number }>(`${API_BASE}/api/qq/search?keyword=${encodeURIComponent(keyword)}`),
     ]);
 
+    const neteaseData = netease.status === 'fulfilled' && netease.value?.code === 200 ? netease.value : null;
+    const qqData = qq.status === 'fulfilled' && qq.value?.code === 200 ? qq.value : null;
+    const limit = 30;
+
     const result: SearchResult = {
-      netease: netease.status === 'fulfilled' && netease.value?.code === 200 ? netease.value.data : [],
-      qq: qq.status === 'fulfilled' && qq.value?.code === 200 ? qq.value.data : [],
       keyword,
+      netease: { songs: neteaseData?.data || [], page: 1, hasMore: (neteaseData?.total || 0) > limit, loading: false },
+      qq: { songs: qqData?.data || [], page: 1, hasMore: (qqData?.total || 0) > limit, loading: false },
+      kugou: { songs: [], page: 1, hasMore: false, loading: false },
     };
 
     setSearchResults(result);
 
     // 合并所有结果作为播放列表
-    const all = [...result.netease, ...result.qq];
+    const all = [...result.netease.songs, ...result.qq.songs];
     setPlaylist(all);
 
     return result;

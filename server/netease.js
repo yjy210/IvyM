@@ -23,12 +23,12 @@ function saveCookie(cookie) {
 }
 
 // ======================== 搜索 ========================
-async function neteaseSearch(keyword, limit = 30) {
+async function neteaseSearch(keyword, limit = 30, offset = 0) {
   const res = await api.search({
     keywords: keyword,
     type: 1, // 单曲
     limit,
-    offset: 0,
+    offset,
     cookie: getCookie(),
   });
 
@@ -175,4 +175,4 @@ async function neteaseUserInfo() {
   };
 }
 
-module.exports = { neteaseSearch, neteaseSongUrl, neteaseLyric, neteaseQrLogin, neteaseQrCheck, neteaseUserInfo };
+module.exports = { neteaseSearch, neteaseSongUrl, neteaseLyric, neteaseQrLogin, neteaseQrCheck, neteaseUserInfo, saveCookie };

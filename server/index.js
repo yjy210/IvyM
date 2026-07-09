@@ -1,6 +1,7 @@
 const http = require('http');
 const { neteaseSearch, neteaseSongUrl, neteaseLyric, neteaseQrLogin, neteaseQrCheck, neteaseUserInfo } = require('./netease');
 const { qqSearch, qqSongUrl, qqQrLogin, qqQrCheck, qqUserInfo } = require('./qq');
+const { kugouSearch, kugouSongUrl, kugouUserInfo, kugouQrLogin, kugouQrCheck } = require('./kugou');
 
 const PORT = 3001;
 
@@ -18,7 +19,8 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/api/netease/search') {
       const keyword = url.searchParams.get('keyword') || '';
       const limit = parseInt(url.searchParams.get('limit') || '30');
-      const data = await neteaseSearch(keyword, limit);
+      const page = parseInt(url.searchParams.get('page') || '1');
+      const data = await neteaseSearch(keyword, limit, (page - 1) * limit);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(data));
       return;
@@ -42,7 +44,8 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/api/qq/search') {
       const keyword = url.searchParams.get('keyword') || '';
       const limit = parseInt(url.searchParams.get('limit') || '30');
-      const data = await qqSearch(keyword, limit);
+      const page = parseInt(url.searchParams.get('page') || '1');
+      const data = await qqSearch(keyword, limit, page);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(data));
       return;
@@ -50,6 +53,49 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/api/qq/url') {
       const mid = url.searchParams.get('mid') || '';
       const data = await qqSongUrl(mid);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(data));
+      return;
+    }
+
+    // ===== 酷狗音乐 =====
+    if (url.pathname === '/api/kugou/search') {
+      const keyword = url.searchParams.get('keyword') || '';
+      const limit = parseInt(url.searchParams.get('limit') || '30');
+      const page = parseInt(url.searchParams.get('page') || '1');
+      const data = await kugouSearch(keyword, limit, page);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(data));
+      return;
+    }
+    if (url.pathname === '/api/kugou/url') {
+      const hash = url.searchParams.get('hash') || '';
+      const quality = url.searchParams.get('quality') || '128';
+      const data = await kugouSongUrl(hash, quality);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(data));
+      return;
+    }
+    if (url.pathname === '/api/kugou/user') {
+      const info = await kugouUserInfo();
+      if (!info) {
+        res.writeHead(401, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ code: 401, msg: '酷狗音乐未登录' }));
+      } else {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ code: 200, data: info }));
+      }
+      return;
+    }
+    if (url.pathname === '/api/kugou/login/qr') {
+      const qr = await kugouQrLogin();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(qr));
+      return;
+    }
+    if (url.pathname === '/api/kugou/login/check') {
+      const sigx = url.searchParams.get('sigx') || '';
+      const data = await kugouQrCheck(sigx);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(data));
       return;
@@ -92,19 +138,14 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     if (url.pathname === '/api/qq/user') {
-      const cookie = req.headers.cookie || '';
-      const res = await qqUserInfo(cookie);
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({
-        code: 200,
-        data: {
-          nickname: res.nickname || res.singerName || '',
-          avatar: res.headpic || '',
-          userId: res.uin || res.mid || '',
-          vip: false,
-          vipName: '',
-        },
-      }));
+      const info = await qqUserInfo();
+      if (!info) {
+        res.writeHead(401, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ code: 401, msg: 'QQ音乐未登录' }));
+      } else {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ code: 200, data: info }));
+      }
       return;
     }
     // ===== 登录 =====

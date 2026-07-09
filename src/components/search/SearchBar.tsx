@@ -2,27 +2,8 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { gsap } from 'gsap';
 import { usePlayerStore } from '../../stores/playerStore';
 import GlassSurface from './GlassSurface';
+import type { Song } from '../../types';
 import './search-bar.css';
-
-interface Song {
-  id: string;
-  mid?: string;
-  name: string;
-  artists: string;
-  album?: string;
-  duration?: number;
-  source?: string;
-  fee?: number;
-  cover?: string;
-}
-
-interface MergedSong {
-  id: string;
-  name: string;
-  artists: string;
-  sources: { platform: 'netease' | 'qq'; vip: boolean; cover?: string }[];
-  cover?: string;
-}
 
 export default function SearchBar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -35,6 +16,7 @@ export default function SearchBar() {
 
   const searchResults = usePlayerStore(s => s.searchResults);
   const setSearchResults = usePlayerStore(s => s.setSearchResults);
+  const setCurrentView = usePlayerStore(s => s.setCurrentView);
   const play = usePlayerStore(s => s.play);
   const API_BASE = 'http://localhost:3001';
 
@@ -88,28 +70,35 @@ export default function SearchBar() {
     return () => document.removeEventListener('keydown', handler);
   }, [isOpen, closeSearch]);
 
-  // 搜索
+  // 搜索（请求三平台第一页，每平台 30 条）
   const doSearch = useCallback(async (kw: string) => {
     if (!kw.trim()) { setSearchResults(null); return; }
     setLoading(true);
     try {
-      const [neteaseRes, qqRes] = await Promise.allSettled([
-        fetch(`${API_BASE}/api/netease/search?keyword=${encodeURIComponent(kw)}&limit=10`),
-        fetch(`${API_BASE}/api/qq/search?keyword=${encodeURIComponent(kw)}&limit=10`),
+      const [neteaseRes, qqRes, kugouRes] = await Promise.allSettled([
+        fetch(`${API_BASE}/api/netease/search?keyword=${encodeURIComponent(kw)}&limit=30&page=1`),
+        fetch(`${API_BASE}/api/qq/search?keyword=${encodeURIComponent(kw)}&limit=30&page=1`),
+        fetch(`${API_BASE}/api/kugou/search?keyword=${encodeURIComponent(kw)}&limit=30&page=1`),
       ]);
-      const netease = neteaseRes.status === 'fulfilled' && await neteaseRes.value.ok ? await neteaseRes.value.json() : null;
-      const qq = qqRes.status === 'fulfilled' && await qqRes.value.ok ? await qqRes.value.json() : null;
+      const netease = neteaseRes.status === 'fulfilled' && neteaseRes.value.ok ? await neteaseRes.value.json() : null;
+      const qq = qqRes.status === 'fulfilled' && qqRes.value.ok ? await qqRes.value.json() : null;
+      const kugou = kugouRes.status === 'fulfilled' && kugouRes.value.ok ? await kugouRes.value.json() : null;
+      const limit = 30;
       setSearchResults({
-        netease: netease?.code === 200 ? netease.data : [],
-        qq: qq?.code === 200 ? qq.data : [],
         keyword: kw,
+        netease: { songs: netease?.code === 200 ? netease.data : [], page: 1, hasMore: (netease?.total || 0) > limit, loading: false },
+        qq: { songs: qq?.code === 200 ? qq.data : [], page: 1, hasMore: (qq?.total || 0) > limit, loading: false },
+        kugou: { songs: kugou?.code === 200 ? kugou.data : [], page: 1, hasMore: (kugou?.total || 0) > limit, loading: false },
       });
+      // 搜索完成后跳转到搜索结果页
+      setCurrentView('search');
     } catch {
-      setSearchResults({ netease: [], qq: [], keyword: kw });
+      setSearchResults({ keyword: kw, netease: { songs: [], page: 1, hasMore: false, loading: false }, qq: { songs: [], page: 1, hasMore: false, loading: false }, kugou: { songs: [], page: 1, hasMore: false, loading: false } });
+      setCurrentView('search');
     } finally {
       setLoading(false);
     }
-  }, [API_BASE, setSearchResults]);
+  }, [API_BASE, setSearchResults, setCurrentView]);
 
   // 防抖
   useEffect(() => {
@@ -118,23 +107,28 @@ export default function SearchBar() {
     return () => clearTimeout(timer);
   }, [keyword, doSearch]);
 
-  // 不合并：每个平台单独显示
+  // 不合并：每个平台单独显示（仅前 10 条作为快速预览）
   const flatSongs = useMemo(() => {
     if (!searchResults) return [];
-    const list: { song: Song; platform: 'netease' | 'qq' }[] = [];
+    const list: { song: Song; platform: 'netease' | 'qq' | 'kugou' }[] = [];
 
-    searchResults.netease.forEach(song => list.push({ song, platform: 'netease' }));
-    searchResults.qq.forEach(song => list.push({ song, platform: 'qq' }));
+    searchResults.netease.songs.slice(0, 10).forEach(song => list.push({ song, platform: 'netease' }));
+    searchResults.qq.songs.slice(0, 10).forEach(song => list.push({ song, platform: 'qq' }));
+    searchResults.kugou.songs.slice(0, 10).forEach(song => list.push({ song, platform: 'kugou' }));
 
     return list;
   }, [searchResults]);
 
-  const selectSong = useCallback((entry: { song: Song; platform: 'netease' | 'qq' }) => {
+  const selectSong = useCallback((entry: { song: Song; platform: 'netease' | 'qq' | 'kugou' }) => {
     play(entry.song);
   }, [play]);
 
   const showPanel = keyword.trim().length > 0;
-  const getSrcLabel = (platform: 'netease' | 'qq') => platform === 'netease' ? '网易云' : 'QQ';
+  const getSrcLabel = (platform: 'netease' | 'qq' | 'kugou') => {
+    if (platform === 'netease') return '网易云';
+    if (platform === 'qq') return 'QQ';
+    return '酷狗';
+  };
 
   return (
     <>
@@ -191,28 +185,38 @@ export default function SearchBar() {
       {showPanel && (
         <div className="search-results-panel" ref={panelRef} style={{ visibility: 'visible', opacity: 1 }}>
           {loading && <div className="search-empty">搜索中...</div>}
-          {!loading && mergedSongs.length === 0 && <div className="search-empty">未找到相关结果</div>}
+          {!loading && flatSongs.length === 0 && <div className="search-empty">未找到相关结果</div>}
           {!loading && flatSongs.length > 0 && (
-            flatSongs.map((entry, i) => {
-              const { song, platform } = entry;
-              const isVip = song.vip;
-              return (
-                <div key={`s-${i}`} className="search-result-item" onClick={() => selectSong(entry)}>
-                  {song.cover ? (
-                    <img src={song.cover} alt="" className="search-result-cover" />
-                  ) : (
-                    <img src="/logo.png" alt="IvyM" className="search-result-cover" />
-                  )}
-                  <div className="search-result-info">
-                    <div className="search-result-name">{song.name}</div>
-                    <div className="search-result-artist">{song.artists}</div>
+            <>
+              {flatSongs.map((entry, i) => {
+                const { song, platform } = entry;
+                const isVip = song.vip;
+                return (
+                  <div key={`s-${i}`} className="search-result-item" onClick={() => selectSong(entry)}>
+                    {song.cover ? (
+                      <img src={song.cover} alt="" className="search-result-cover" />
+                    ) : (
+                      <img src="/logo.png" alt="IvyM" className="search-result-cover" />
+                    )}
+                    <div className="search-result-info">
+                      <div className="search-result-name">{song.name}</div>
+                      <div className="search-result-artist">{song.artists}</div>
+                    </div>
+                    <span className="search-result-sources">
+                      <span className={`search-result-source ${platform}`}>
+                        {getSrcLabel(platform)}
+                      </span>
+                      {isVip && (
+                        <img src={platform === 'qq' ? '/icons/vip-qq.svg' : platform === 'kugou' ? '/icons/vip-kugou.svg' : '/icons/vip-netease.svg'} alt="VIP" className="search-result-vip-icon" />
+                      )}
+                    </span>
                   </div>
-                  <span className={`search-result-source ${platform} ${isVip ? 'is-vip' : ''}`}>
-                    {getSrcLabel(platform)}{isVip ? 'VIP' : ''}
-                  </span>
-                </div>
-              );
-            })
+                );
+              })}
+              <div className="search-view-all" onClick={() => setCurrentView('search')}>
+                查看全部结果 →
+              </div>
+            </>
           )}
         </div>
       )}

@@ -6,20 +6,32 @@ export interface Song {
   artists: string;
   album?: string;
   duration?: number;
-  source: 'netease' | 'qq';
+  source: 'netease' | 'qq' | 'kugou';
   url?: string;
   cover?: string;
   lyric?: string;
   vip?: boolean;
 }
 
+/** 单个平台的搜索结果（含分页元数据） */
+export interface PlatformResults {
+  songs: Song[];
+  page: number;
+  hasMore: boolean;
+  loading: boolean;
+}
+
 export interface SearchResult {
-  netease: Song[];
-  qq: Song[];
   keyword: string;
+  netease: PlatformResults;
+  qq: PlatformResults;
+  kugou: PlatformResults;
 }
 
 export type PlayMode = 'sequence' | 'loop' | 'shuffle';
+
+/** 当前显示的页面视图 */
+export type ViewType = 'home' | 'search' | 'playlist' | 'favorite';
 
 export interface PlayerState {
   currentSong: Song | null;
@@ -31,6 +43,7 @@ export interface PlayerState {
   playlist: Song[];
   searchResults: SearchResult | null;
   searchKeyword: string;
+  currentView: ViewType;
 
   // actions
   play: (song: Song) => void;
@@ -44,4 +57,7 @@ export interface PlayerState {
   playPrev: () => void;
   setSearchResults: (result: SearchResult | null) => void;
   setSearchKeyword: (keyword: string) => void;
+  setCurrentView: (view: ViewType) => void;
+  appendSearchResults: (platform: 'netease' | 'qq' | 'kugou', songs: Song[], hasMore: boolean) => void;
+  setPlatformLoading: (platform: 'netease' | 'qq' | 'kugou', loading: boolean) => void;
 }
