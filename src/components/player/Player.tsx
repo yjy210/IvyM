@@ -5,23 +5,11 @@ import VolumeSlider from './VolumeSlider';
 import Toast from './Toast';
 import { playSong } from '../../services/playController';
 import { onPlayEvent } from '../../events/playEvents';
-import type { PlayEvent } from '../../types/playEvent';
-import { PermissionReason, SourceReason } from '../../types';
+import { getPlayEventMessage } from '../../utils/playEventMessage';
 import './player.css';
 import './GlassSurface.css';
 import './VolumeSlider.css';
 import './toast.css';
-
-function getToastMessage(e: PlayEvent): string {
-  if (e.reason === PermissionReason.VIP_ONLY) return '该歌曲需要VIP会员';
-  if (e.reason === PermissionReason.REGION_BLOCKED) return '该歌曲在当前地区不可用';
-  if (e.reason === PermissionReason.COPYRIGHT_RESTRICTED) return '版权限制，暂不可播放';
-  if (e.reason === PermissionReason.SONG_UNAVAILABLE) return '歌曲暂不可播放';
-  if (e.reason === SourceReason.NETWORK_ERROR) return '网络错误，请检查网络连接';
-  if (e.reason === SourceReason.SONG_REMOVED) return '歌曲已下架';
-  if (e.reason === SourceReason.COOKIE_EXPIRED) return '登录已过期，请重新登录';
-  return e.message || '播放失败';
-}
 
 interface Song {
   id: string;
@@ -56,6 +44,7 @@ export default function Player() {
   const prevVolumeRef = useRef(70);
   const [trialEndTime, setTrialEndTime] = useState<number | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const toastTimerRef = useRef<number | null>(null);
   const currentUrl = usePlayerStore(s => s.currentUrl);
 
   // 喜欢的歌曲
@@ -152,10 +141,15 @@ export default function Player() {
   useEffect(() => {
     const unsub = onPlayEvent(e => {
       if (e.type === 'PLAY_STARTED') return;
-      setToastMsg(getToastMessage(e));
-      setTimeout(() => setToastMsg(null), 3000);
+      setToastMsg(getPlayEventMessage(e.reason, e.message));
+      // 清除旧定时器，避免多个 setTimeout 冲突
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = window.setTimeout(() => setToastMsg(null), 3000);
     });
-    return unsub;
+    return () => {
+      unsub();
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
   }, []);
 
   const onLoadedMetadata = () => {
