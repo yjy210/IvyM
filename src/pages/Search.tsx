@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { usePlayerStore } from '../stores/playerStore';
 import { useSearchStore } from '../stores/searchStore';
-import { playSong } from '../services/playController';
+import { usePlaySong } from '../hooks/usePlaySong';
 import type { Song } from '../types/song';
 import './search-page.css';
 
@@ -10,8 +10,7 @@ type Platform = 'all' | 'netease' | 'qq' | 'kugou';
 export default function Search() {
   const results = useSearchStore(s => s.results);
   const loadMore = useSearchStore(s => s.loadMore);
-  const play = usePlayerStore(s => s.play);
-  const currentQuality = usePlayerStore(s => s.currentQuality);
+  const { playSong } = usePlaySong();
 
   const [activeFilter, setActiveFilter] = useState<Platform>('all');
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -66,14 +65,6 @@ export default function Search() {
     return () => observer.disconnect();
   }, [handleLoadMore]);
 
-  // 点击歌曲：通过 PlayController 检查权限 → 预取 URL → 播放
-  const handlePlay = useCallback(async (song: Song) => {
-    const result = await playSong(song, { quality: currentQuality });
-    if (result.started && result.source) {
-      play(song, result.source.url);
-    }
-  }, [play, currentQuality]);
-
   if (!results) return null;
   const sourceLabel = (p: string) => p === 'netease' ? '网易云' : p === 'qq' ? 'QQ' : '酷狗';
 
@@ -102,7 +93,7 @@ export default function Search() {
           <div
             key={`${entry.platform}-${entry.song.id}-${i}`}
             className="song-card"
-            onClick={() => handlePlay(entry.song)}
+            onClick={() => playSong(entry.song)}
           >
             <img src={entry.song.cover || '/logo.png'} alt="" className="song-cover" loading="lazy" referrerPolicy="no-referrer" onError={(e) => { (e.target as HTMLImageElement).src = '/logo.png'; }} />
             <div className="song-info">

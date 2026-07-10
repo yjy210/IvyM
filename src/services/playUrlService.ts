@@ -4,7 +4,7 @@ import type { PlaySourceResult, PlayOptions, SourceReason } from '../types/playS
 const API_BASE = 'http://localhost:3001';
 
 export async function getPlayUrl(song: Song, options?: PlayOptions): Promise<PlaySourceResult> {
-  if (!song) return { source: null, error: SourceReason.UNKNOWN };
+  if (!song) return { success: false, error: SourceReason.UNKNOWN };
 
   const path = song.platform === 'netease' ? 'netease' : song.platform === 'qq' ? 'qq' : 'kugou';
   const idParam =
@@ -22,12 +22,13 @@ export async function getPlayUrl(song: Song, options?: PlayOptions): Promise<Pla
 
     if (!data.data?.url) {
       if (data.code === 403 && data.reason === 'vip_required') {
-        return { source: null, error: SourceReason.LOGIN_REQUIRED };
+        return { success: false, error: SourceReason.LOGIN_REQUIRED };
       }
-      return { source: null, error: SourceReason.UNKNOWN };
+      return { success: false, error: SourceReason.UNKNOWN };
     }
 
     return {
+      success: true,
       source: {
         url: data.data.url,
         quality: options?.quality,
@@ -36,6 +37,6 @@ export async function getPlayUrl(song: Song, options?: PlayOptions): Promise<Pla
       },
     };
   } catch {
-    return { source: null, error: SourceReason.NETWORK_ERROR };
+    return { success: false, error: SourceReason.NETWORK_ERROR };
   }
 }

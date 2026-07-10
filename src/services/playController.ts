@@ -1,6 +1,6 @@
 import type { Song } from '../types/song';
 import type { Account } from '../types/account';
-import type { PlaySource, PlayOptions, PlaySourceResult } from '../types/playSource';
+import type { PlaySource, PlayOptions } from '../types/playSource';
 import type { PlayPermission } from '../types/permission';
 import { checkPlayPermission } from '../types/permission';
 import { getPlayUrl } from './playUrlService';
@@ -33,14 +33,14 @@ export async function playSong(song: Song, options?: PlayOptions): Promise<PlayR
     return { permission, source: null, started: false };
   }
 
-  const result: PlaySourceResult = await getPlayUrl(song, options);
-  if (!result.source) {
+  const result = await getPlayUrl(song, options);
+  if (!result.success) {
     emitPlayEvent({
       type: PlayEventType.SOURCE_FAILED,
       songId: song.id,
       platform: song.platform,
-      reason: result.error ?? SourceReason.UNKNOWN,
-      message: getErrorMessage(result.error ?? SourceReason.UNKNOWN),
+      reason: result.error,
+      message: getErrorMessage(result.error),
     });
     return { permission, source: null, started: false };
   }

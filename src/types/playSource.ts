@@ -7,10 +7,9 @@ export enum SourceReason {
   UNKNOWN = 'UNKNOWN',
 }
 
-export interface PlaySourceResult {
-  source: PlaySource | null;
-  error?: SourceReason;
-}
+export type PlaySourceResult =
+  | { success: true; source: PlaySource }
+  | { success: false; error: SourceReason };
 
 export type AudioQuality = 'standard' | 'higher' | 'lossless' | 'exhigh';
 
