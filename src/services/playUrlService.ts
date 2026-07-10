@@ -1,12 +1,9 @@
 import type { Song } from '../types/song';
+import type { PlaySource } from '../types/playSource';
 
 const API_BASE = 'http://localhost:3001';
 
-/**
- * 根据歌曲平台获取播放 URL
- * 仅负责 URL 获取，不涉及权限判断
- */
-export async function getPlayUrl(song: Song): Promise<string | null> {
+export async function getPlayUrl(song: Song): Promise<PlaySource | null> {
   if (!song) return null;
 
   const path = song.platform === 'netease' ? 'netease' : song.platform === 'qq' ? 'qq' : 'kugou';
@@ -21,7 +18,7 @@ export async function getPlayUrl(song: Song): Promise<string | null> {
     const res = await fetch(`${API_BASE}/api/${path}/url?${param}`);
     const data = await res.json();
     if (data.code === 403 && data.reason === 'vip_required') return null;
-    return data.data?.url || null;
+    return data.data?.url ? { url: data.data.url } : null;
   } catch {
     return null;
   }

@@ -14,6 +14,13 @@ export interface Song {
 
 export type PlayMode = 'sequence' | 'loop' | 'shuffle';
 
+export { PermissionReason } from './permission';
+export { SourceReason } from './playSource';
+export { PlayEventType } from './playEvent';
+export type { PlayPermission } from './permission';
+export type { PlaySource } from './playSource';
+export type { PlayEvent, PlayEventListener } from './playEvent';
+
 /** 当前显示的页面视图 */
 export type ViewType = 'home' | 'search' | 'playlist' | 'favorite';
 

@@ -68,8 +68,8 @@ export default function Search() {
   // 点击歌曲：通过 PlayController 检查权限 → 预取 URL → 播放
   const handlePlay = useCallback(async (song: Song) => {
     const result = await playSong(song);
-    if (result.started && result.url) {
-      play(song, result.url);
+    if (result.started && result.source) {
+      play(song, result.source.url);
     }
   }, [play]);
 

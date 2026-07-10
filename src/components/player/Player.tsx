@@ -129,9 +129,9 @@ export default function Player() {
   const handlePlay = useCallback(async () => {
     if (!currentSong) return;
     const result = await playSong(currentSong);
-    if (result.started && result.url) {
+    if (result.started && result.source) {
       setTrialEndTime(result.permission.type === 'trial' && result.permission.duration ? result.permission.duration : null);
-      play(currentSong, result.url);
+      play(currentSong, result.source.url);
     }
   }, [currentSong, play]);
 

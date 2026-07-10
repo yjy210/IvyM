@@ -1,14 +1,15 @@
 import type { Song } from '../types/song';
 import type { Account } from '../types/account';
+import type { PlaySource } from '../types/playSource';
 import type { PlayPermission } from '../types/permission';
-import { checkPlayPermission } from './playPermission';
+import { checkPlayPermission } from '../types/permission';
 import { getPlayUrl } from './playUrlService';
 import { emitPlayEvent } from '../events/playEvents';
-import { PlayEventType, PermissionReason, SourceReason } from '../types/events';
+import { PlayEventType, PermissionReason, SourceReason } from '../types';
 
 export interface PlayResult {
   permission: PlayPermission;
-  url: string | null;
+  source: PlaySource | null;
   started: boolean;
 }
 
@@ -26,14 +27,14 @@ export async function playSong(song: Song): Promise<PlayResult> {
       type: PlayEventType.PERMISSION_DENIED,
       songId: song.id,
       platform: song.platform,
-      reason: permission.reason,
+      reason: permission.reason as string,
       message: permission.reason ?? PermissionReason.SONG_UNAVAILABLE,
     });
-    return { permission, url: null, started: false };
+    return { permission, source: null, started: false };
   }
 
-  const url = await getPlayUrl(song);
-  if (!url) {
+  const source = await getPlayUrl(song);
+  if (!source) {
     emitPlayEvent({
       type: PlayEventType.SOURCE_FAILED,
       songId: song.id,
@@ -41,7 +42,7 @@ export async function playSong(song: Song): Promise<PlayResult> {
       reason: SourceReason.UNKNOWN,
       message: '无法获取播放链接',
     });
-    return { permission, url: null, started: false };
+    return { permission, source: null, started: false };
   }
 
   emitPlayEvent({
@@ -51,5 +52,5 @@ export async function playSong(song: Song): Promise<PlayResult> {
     message: permission.type === 'trial' ? `trial:${permission.duration}` : '',
   });
 
-  return { permission, url, started: true };
+  return { permission, source, started: true };
 }
