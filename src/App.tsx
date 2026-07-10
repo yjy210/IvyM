@@ -16,14 +16,9 @@ import './components/player/player.css';
 import './components/back-to-top.css';
 import './pages/search-page.css';
 
-interface ScrollInfo {
-  firstVisibleSong: { name: string; artists: string } | null;
-}
-
 export default function App() {
   const [entered, setEntered] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
-  const [scrollInfo, setScrollInfo] = useState<ScrollInfo>({ firstVisibleSong: null });
   const currentView = usePlayerStore(s => s.currentView);
   const setCurrentView = usePlayerStore(s => s.setCurrentView);
 
@@ -54,7 +49,7 @@ export default function App() {
           />
         </div>
 
-        <TitleBar scrollInfo={scrollInfo} />
+        <TitleBar />
 
         {/* 搜索框 - 常驻 */}
         <SearchBar />
@@ -70,7 +65,7 @@ export default function App() {
         </button>
 
         <div className="flex-1 overflow-y-auto z-10 px-6 pt-2">
-          {currentView === 'search' && <Search onScrollInfo={setScrollInfo} />}
+          {currentView === 'search' && <Search />}
           {currentView === 'home' && <Home />}
           {/* 底部留白 — 播放器高86px+底边距12px，确保内容不被遮挡 */}
           <div className="h-28 shrink-0" />
