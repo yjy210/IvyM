@@ -46,7 +46,9 @@ async function neteaseSearch(keyword, limit = 30, offset = 0) {
       duration: s.duration,
       source: 'netease',
       vip: s.fee === 1 || s.fee === 4,
-      cover: s.album?.picUrl || '',
+      cover: s.album?.picId
+        ? `https://p1.music.126.net/${s.album.picId}.jpg?param=300y300`
+        : '',
     })),
     total: body.result?.songCount || songs.length,
   };
