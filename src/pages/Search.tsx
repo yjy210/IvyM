@@ -6,13 +6,18 @@ import './search-page.css';
 
 type Platform = 'all' | 'netease' | 'qq' | 'kugou';
 
-export default function Search() {
+interface SearchProps {
+  onScrollInfo?: (info: { firstVisibleSong: { name: string; artists: string } | null }) => void;
+}
+
+export default function Search({ onScrollInfo }: SearchProps) {
   const results = useSearchStore(s => s.results);
   const loadMore = useSearchStore(s => s.loadMore);
   const play = usePlayerStore(s => s.play);
 
   const [activeFilter, setActiveFilter] = useState<Platform>('all');
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const songRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   // 根据筛选+轮询获取歌曲列表
   const allSongs = useMemo(() => {
@@ -64,6 +69,34 @@ export default function Search() {
     return () => observer.disconnect();
   }, [handleLoadMore]);
 
+  // 监听滚动，检测第一首可见歌曲
+  useEffect(() => {
+    if (!onScrollInfo) return;
+    const container = sentinelRef.current?.closest('.flex-1');
+    if (!container) return;
+
+    const handleScroll = () => {
+      const containerTop = container.getBoundingClientRect().top;
+      let firstVisible: { name: string; artists: string } | null = null;
+      songRefs.current.forEach((el, key) => {
+        const rect = el.getBoundingClientRect();
+        const isVisible = rect.top >= containerTop - 50 && rect.top < containerTop + 200 && rect.bottom > containerTop;
+        if (isVisible && !firstVisible) {
+          const [platform, id, idx] = key.split('-');
+          const entry = allSongs.find((e, i) => `${e.platform}-${e.song.id}-${i}` === key);
+          if (entry) {
+            firstVisible = { name: entry.song.name, artists: entry.song.artists };
+          }
+        }
+      });
+      onScrollInfo({ firstVisibleSong: firstVisible });
+    };
+
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [onScrollInfo, allSongs]);
+
   if (!results) return null;
   const sourceLabel = (p: string) => p === 'netease' ? '网易云' : p === 'qq' ? 'QQ' : '酷狗';
 
@@ -88,21 +121,25 @@ export default function Search() {
 
       {/* 歌曲列表 */}
       <div className="song-list">
-        {allSongs.map((entry, i) => (
-          <div
-            key={`${entry.platform}-${entry.song.id}-${i}`}
-            className="song-card"
-            onClick={() => play(entry.song)}
-          >
-            <img src={entry.song.cover || '/logo.png'} alt="" className="song-cover" loading="lazy" referrerPolicy="no-referrer" onError={(e) => { (e.target as HTMLImageElement).src = '/logo.png'; }} />
-            <div className="song-info">
-              <div className="song-name">{entry.song.name}</div>
-              <div className="song-artist">{entry.song.artists}</div>
+        {allSongs.map((entry, i) => {
+          const key = `${entry.platform}-${entry.song.id}-${i}`;
+          return (
+            <div
+              key={key}
+              ref={el => { if (el) songRefs.current.set(key, el); }}
+              className="song-card"
+              onClick={() => play(entry.song)}
+            >
+              <img src={entry.song.cover || '/logo.png'} alt="" className="song-cover" loading="lazy" referrerPolicy="no-referrer" onError={(e) => { (e.target as HTMLImageElement).src = '/logo.png'; }} />
+              <div className="song-info">
+                <div className="song-name">{entry.song.name}</div>
+                <div className="song-artist">{entry.song.artists}</div>
+              </div>
+              <span className={`song-badge ${entry.platform}`}>{sourceLabel(entry.platform)}</span>
+              {entry.song.vip && <img src={`/icons/vip-${entry.platform}.svg`} alt="VIP" className="song-vip" />}
             </div>
-            <span className={`song-badge ${entry.platform}`}>{sourceLabel(entry.platform)}</span>
-            {entry.song.vip && <img src={`/icons/vip-${entry.platform}.svg`} alt="VIP" className="song-vip" />}
-          </div>
-        ))}
+          );
+        })}
         <div ref={sentinelRef} className="scroll-sentinel" />
       </div>
     </div>
