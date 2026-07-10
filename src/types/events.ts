@@ -1,4 +1,4 @@
-export type PlayEventType = 'TRIAL_END' | 'VIP_REQUIRED' | 'PLAY_FAILED' | 'PLAY_STARTED';
+export type PlayEventType = 'PLAY_STARTED' | 'TRIAL_END' | 'VIP_REQUIRED' | 'PLAY_FAILED';
 
 export interface PlayEvent {
   type: PlayEventType;

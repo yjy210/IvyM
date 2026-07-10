@@ -2,7 +2,7 @@ import type { Song } from '../types/song';
 import type { Account } from '../types/account';
 import type { PlayPermission } from '../types/permission';
 
-const REASON = {
+export const REASON = {
   VIP_ONLY: '该歌曲需要VIP会员',
   REGION_BLOCKED: '该歌曲在当前地区不可用',
   COPYRIGHT_RESTRICTED: '版权限制，暂不可播放',

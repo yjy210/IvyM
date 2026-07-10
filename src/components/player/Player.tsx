@@ -110,8 +110,8 @@ export default function Player() {
       return;
     }
     // 如果歌曲已携带 URL（PlayController 预取），直接使用
-    if ((currentSong as any).url) {
-      setSongUrl((currentSong as any).url);
+    if (currentSong.url) {
+      setSongUrl(currentSong.url);
       return;
     }
     fetchSongUrl(currentSong);

@@ -1,7 +1,7 @@
 export interface Song {
   id: string;
   name: string;
-  artist: string;
+  artists: string;
   album?: string;
   duration?: number;
   platform: 'netease' | 'qq' | 'kugou';
@@ -10,5 +10,5 @@ export interface Song {
   vip?: boolean;
   mid?: string;
   hash?: string;
-  url?: string;
+  url?: string;  // 播放 URL（运行时附加，不持久化）
 }

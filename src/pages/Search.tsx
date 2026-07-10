@@ -69,7 +69,7 @@ export default function Search() {
   const handlePlay = useCallback(async (song: Song) => {
     const result = await playSong(song);
     if (result.started && result.url) {
-      play({ ...song, url: result.url } as any);
+      play({ ...song, url: result.url } as Song);
     }
   }, [play]);
 
