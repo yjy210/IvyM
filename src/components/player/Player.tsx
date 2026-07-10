@@ -3,7 +3,7 @@ import { usePlayerStore } from '../../stores/playerStore';
 import GlassSurface from './GlassSurface';
 import VolumeSlider from './VolumeSlider';
 import Toast from './Toast';
-import { playSong, setPlayOptions } from '../../services/playController';
+import { playSong } from '../../services/playController';
 import { onPlayEvent } from '../../events/playEvents';
 import { getPlayEventMessage } from '../../utils/playEventMessage';
 import './player.css';
@@ -31,6 +31,7 @@ export default function Player() {
   const playPrev = usePlayerStore(s => s.playPrev);
   const setPlayMode = usePlayerStore(s => s.setPlayMode);
   const setPlaylist = usePlayerStore(s => s.setPlaylist);
+  const currentQuality = usePlayerStore(s => s.currentQuality);
 
   const audioRef = useRef<HTMLAudioElement>(null);
   const [currentTime, setCurrentTime] = useState(0);
@@ -130,17 +131,12 @@ export default function Player() {
   // 点击播放按钮：先检查权限 → 预取 URL → 播放
   const handlePlay = useCallback(async () => {
     if (!currentSong) return;
-    const result = await playSong(currentSong);
+    const result = await playSong(currentSong, { quality: currentQuality });
     if (result.started && result.source) {
       setTrialEndTime(result.permission.type === 'trial' && result.permission.duration ? result.permission.duration : null);
       play(currentSong, result.source.url);
     }
-  }, [currentSong, play]);
-
-  // 同步音质偏好到 PlayController
-  useEffect(() => {
-    setPlayOptions({ quality: currentQuality as any });
-  }, [currentQuality]);
+  }, [currentSong, play, currentQuality]);
 
   // 监听播放事件（权限失败 / 资源失败 Toast）
   useEffect(() => {

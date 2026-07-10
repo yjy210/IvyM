@@ -34,7 +34,7 @@ export interface PlayerState {
   playMode: PlayMode;
   playlist: Song[];
   currentView: ViewType;
-  currentQuality: string;
+  currentQuality: import('./playSource').AudioQuality;
 
   // actions
   play: (song: Song, url?: string) => void;
@@ -48,5 +48,5 @@ export interface PlayerState {
   playPrev: () => void;
   setCurrentView: (view: ViewType) => void;
   setCurrentUrl: (url: string | null) => void;
-  setCurrentQuality: (q: string) => void;
+  setCurrentQuality: (q: import('./playSource').AudioQuality) => void;
 }

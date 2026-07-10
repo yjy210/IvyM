@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import type { PlayerState, Song, PlayMode } from '../types';
 import type { AudioQuality } from '../types/playSource';
 
+export const DEFAULT_QUALITY: AudioQuality = 'standard';
+
 export type { ViewType } from '../types';
 
 export const usePlayerStore = create<PlayerState>((set, get) => ({
@@ -14,7 +16,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   playMode: 'sequence',
   playlist: [],
   currentView: 'home',
-  currentQuality: 'standard',
+  currentQuality: DEFAULT_QUALITY,
 
   play: (song, url) => set({ currentSong: song, isPlaying: true, currentTime: 0, currentUrl: url ?? null }),
   pause: () => set({ isPlaying: false }),
