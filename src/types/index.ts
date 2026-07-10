@@ -1,13 +1,12 @@
-export type { Song, PlaySource } from './song';
+export type { Song } from './song';
 export type { Account, Membership } from './account';
 export type { PlayPermission } from './permission';
 export type { PlayEvent, PlayEventListener } from './playEvent';
-
-export { PermissionReason } from './permission';
-export { SourceReason } from './playSource';
-export { PlayEventType } from './playEvent';
-export { checkPlayPermission } from './permission';
+export type { PlaySource } from './playSource';
 export type { AudioQuality } from './playSource';
+
+export { PlayEventType, PermissionReason, SourceReason } from './playEvent';
+export { checkPlayPermission } from './permission';
 
 export type PlayMode = 'sequence' | 'loop' | 'shuffle';
 export type ViewType = 'home' | 'search' | 'playlist' | 'favorite';

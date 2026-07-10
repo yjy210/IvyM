@@ -115,8 +115,10 @@ async function kugouSearch(keyword, limit = 30, page = 1) {
     album: s.AlbumName || '',
     duration: s.Duration || 0,
     platform: 'kugou',
-    requiresVip: s.PayType > 0 || s.FailProcess > 0,
     cover: s.Image ? s.Image.replace('{size}', '300') : '',
+    badge: { vip: s.PayType > 0 || s.FailProcess > 0 },
+    // 酷狗：默认允许试听
+    availability: { trial: true, full: s.PayType === 0 && s.FailProcess === 0 },
   }));
   return { code: 200, data: songs, total: res.data.total || songs.length };
 }

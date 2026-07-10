@@ -13,12 +13,18 @@ export type PlaySourceResult =
 
 export type AudioQuality = 'standard' | 'higher' | 'lossless' | 'exhigh';
 
+export interface PlaySourceRestriction {
+  type: 'trial' | 'full';
+  duration?: number;  // trial时长（秒）
+}
+
 export interface PlaySource {
   url: string;
   expire?: number;
   quality?: AudioQuality;
   bitrate?: number;
   format?: string;
+  restriction: PlaySourceRestriction;
 }
 
 export interface PlayOptions {

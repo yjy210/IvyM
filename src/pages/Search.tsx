@@ -101,7 +101,7 @@ export default function Search() {
               <div className="song-artist">{entry.song.artists}</div>
             </div>
             <span className={`song-badge ${entry.platform}`}>{sourceLabel(entry.platform)}</span>
-            {entry.song.requiresVip && <img src={`/icons/vip-${entry.platform}.svg`} alt="VIP" className="song-vip" />}
+            {entry.song.badge.vip && <img src={`/icons/vip-${entry.platform}.svg`} alt="VIP" className="song-vip" />}
           </div>
         ))}
         <div ref={sentinelRef} className="scroll-sentinel" />

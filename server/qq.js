@@ -68,8 +68,10 @@ async function qqSearch(keyword, limit = 30, page = 1) {
     album: s.albumname || '',
     duration: s.interval ? s.interval * 1000 : 0,
     platform: 'qq',
-    requiresVip: s.pay?.payplay === 1,
     cover: s.albummid ? `https://y.qq.com/music/photo_new/T002R300x300M000${s.albummid}.jpg` : '',
+    badge: { vip: s.pay?.payplay === 1 },
+    // QQ音乐：后端通常返回完整URL，非会员也能播放
+    availability: { trial: true, full: true },
   }));
   return { code: 200, data: songs, total: res.data.song.totalnum || songs.length };
 }

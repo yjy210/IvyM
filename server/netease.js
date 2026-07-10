@@ -57,8 +57,10 @@ async function neteaseSearch(keyword, limit = 30, offset = 0) {
       album: s.album?.name || '',
       duration: s.duration,
       platform: 'netease',
-      requiresVip: s.fee === 1 || s.fee === 4,
       cover: coverMap.get(String(s.id)) || '',
+      badge: { vip: s.fee === 1 || s.fee === 4 },
+      // 默认允许试听，完整播放需要VIP（前端校验）
+      availability: { trial: true, full: s.fee !== 1 && s.fee !== 4 },
     })),
     total: body.result?.songCount || songs.length,
   };

@@ -19,11 +19,16 @@ export function setCurrentAccount(account: Account | null): void {
   currentAccount = account;
 }
 
+function makeEventId(): string {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
 export async function playSong(song: Song, options?: PlayOptions): Promise<PlayResult> {
   const permission = checkPlayPermission(song, currentAccount ?? undefined);
 
   if (permission.type === 'forbidden') {
     emitPlayEvent({
+      id: makeEventId(),
       type: PlayEventType.PERMISSION_DENIED,
       songId: song.id,
       platform: song.platform,
@@ -36,6 +41,7 @@ export async function playSong(song: Song, options?: PlayOptions): Promise<PlayR
   const result = await getPlayUrl(song, options);
   if (!result.success) {
     emitPlayEvent({
+      id: makeEventId(),
       type: PlayEventType.SOURCE_FAILED,
       songId: song.id,
       platform: song.platform,
@@ -45,11 +51,15 @@ export async function playSong(song: Song, options?: PlayOptions): Promise<PlayR
     return { permission, source: null, started: false };
   }
 
+  // 后端实际返回的播放源限制（可能歌曲标注VIP但后端给了完整URL）
+  const restriction = result.source.restriction;
+
   emitPlayEvent({
+    id: makeEventId(),
     type: PlayEventType.PLAY_STARTED,
     songId: song.id,
     platform: song.platform,
-    message: permission.type === 'trial' ? `trial:${permission.duration}` : '',
+    message: restriction.type === 'trial' ? `trial:${restriction.duration}` : '',
   });
 
   return { permission, source: result.source, started: true };

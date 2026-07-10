@@ -5,7 +5,24 @@ export enum PlayEventType {
   SOURCE_FAILED = 'SOURCE_FAILED',
 }
 
+export enum PermissionReason {
+  VIP_ONLY = 'VIP_ONLY',
+  REGION_BLOCKED = 'REGION_BLOCKED',
+  COPYRIGHT_RESTRICTED = 'COPYRIGHT_RESTRICTED',
+  SONG_UNAVAILABLE = 'SONG_UNAVAILABLE',
+}
+
+export enum SourceReason {
+  NETWORK_ERROR = 'NETWORK_ERROR',
+  SONG_REMOVED = 'SONG_REMOVED',
+  COOKIE_EXPIRED = 'COOKIE_EXPIRED',
+  QUALITY_UNAVAILABLE = 'QUALITY_UNAVAILABLE',
+  LOGIN_REQUIRED = 'LOGIN_REQUIRED',
+  UNKNOWN = 'UNKNOWN',
+}
+
 export interface PlayEvent {
+  id: string;  // 唯一标识，确保重复事件也能触发UI更新
   type: PlayEventType;
   message: string;
   songId?: string;

@@ -1,6 +1,5 @@
 import type { Song } from '../types/song';
-import type { PlaySourceResult, PlayOptions } from '../types/playSource';
-import { SourceReason } from '../types/playSource';
+import type { PlaySourceResult, PlayOptions, SourceReason } from '../types/playSource';
 
 const API_BASE = 'http://localhost:3001';
 
@@ -28,13 +27,21 @@ export async function getPlayUrl(song: Song, options?: PlayOptions): Promise<Pla
       return { success: false, error: SourceReason.UNKNOWN };
     }
 
+    // 根据后端返回的实际播放源类型决定限制
+    // trial_url 开头 = 试听，其他 = 完整
+    const url: string = data.data.url;
+    const isTrial = url.includes('trial') || data.data.trial;
+
     return {
       success: true,
       source: {
-        url: data.data.url,
+        url,
         quality: options?.quality,
         bitrate: data.data.bitrate,
         format: data.data.format,
+        restriction: isTrial
+          ? { type: 'trial', duration: data.data.trialDuration || 30 }
+          : { type: 'full' },
       },
     };
   } catch {
