@@ -35,9 +35,6 @@ export default function Player() {
   const [volume, setVolume] = useState(70);
   const [songUrl, setSongUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [showVolume, setShowVolume] = useState(false);
-  const [vipWarning, setVipWarning] = useState<{ platform: string; message: string } | null>(null);
-  const [userVip, setUserVip] = useState(false);
   const [showPlaylist, setShowPlaylist] = useState(false);
   const [showLyrics, setShowLyrics] = useState(false);
   const [showSaveToPlaylist, setShowSaveToPlaylist] = useState(false);
@@ -351,11 +348,7 @@ export default function Player() {
               <button className="player-btn player-btn-save" data-popup-btn onClick={() => setShowSaveToPlaylist(!showSaveToPlaylist)} title="收藏到歌单">
                 <img src="/icons/jiahaojilu.svg" alt="收藏" className="player-save-icon" />
               </button>
-              <div
-                className="player-volume-wrapper"
-                onMouseEnter={() => setShowVolume(true)}
-                onMouseLeave={() => setShowVolume(false)}
-              >
+              <div className="player-volume-wrapper">
                 <button
                   ref={volumeBtnRef}
                   className="player-btn"
@@ -369,21 +362,20 @@ export default function Player() {
                   }}
                   title={volume === 0 ? '取消静音' : '静音'}
                 >
-                  <img
-                    src="/icons/sound.svg"
-                    alt="音量"
-                    className="volume-icon"
-                    style={{ opacity: volume === 0 ? 0.5 : 1 }}
-                  />
+                  {volume === 0 ? (
+                    <img src="/icons/sound.svg" alt="静音" className="volume-icon" />
+                  ) : volume >= 50 ? (
+                    <svg viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+                  ) : (
+                    <svg viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+                  )}
                 </button>
-                {showVolume && (
-                  <div className="volume-popover">
-                    <span className="volume-value">{volume}%</span>
-                    <div className="volume-panel">
-                      <VolumeSlider value={volume} onChange={setVolume} />
-                    </div>
+                <div className="volume-popover">
+                  <span className="volume-value">{volume}%</span>
+                  <div className="volume-panel">
+                    <VolumeSlider value={volume} onChange={setVolume} />
                   </div>
-                )}
+                </div>
               </div>
             </div>
           </div>
