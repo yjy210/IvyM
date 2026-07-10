@@ -7,12 +7,8 @@ export interface Song {
   platform: 'netease' | 'qq' | 'kugou';
   cover: string;
   source?: string;
-  vip?: boolean;
+  requiresVip: boolean;
   mid?: string;
   hash?: string;
-}
-
-export interface PlaySource {
-  url: string;
-  expire?: number;
+  url?: string;
 }

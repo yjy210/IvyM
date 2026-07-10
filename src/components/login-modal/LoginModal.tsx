@@ -5,7 +5,13 @@ interface LoginModalProps {
   visible: boolean;
   platform: 'netease' | 'qq';
   onClose: () => void;
-  onLoginSuccess?: (info: { nickname: string; avatar: string; vip: boolean; vipName: string; userId: string; cookie: string }) => void;
+  onLoginSuccess?: (info: {
+    nickname: string;
+    avatar: string;
+    userId: string;
+    cookie: string;
+    membership: { status: 'vip' | 'normal' | 'unknown'; type: string | null; expireAt?: number };
+  }) => void;
 }
 
 type Platform = 'netease' | 'qq';
@@ -62,10 +68,9 @@ export function LoginModal({ visible, platform, onClose, onLoginSuccess }: Login
           onLoginSuccess?.({
             nickname: data.nickname || '用户',
             avatar: data.avatar || '',
-            vip: data.vip || false,
-            vipName: data.vipName || '',
             userId: data.userId || data.uin || '',
             cookie: data.cookie || '',
+            membership: { status: data.vip ? 'vip' : 'unknown', type: data.vip ? data.vipName || 'netease_vip' : null },
           });
         } else if (data.code === 800) {
           setStatus('二维码已过期，请刷新');

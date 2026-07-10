@@ -15,28 +15,16 @@ export interface PlayPermission {
 }
 
 export function checkPlayPermission(song: Song, account?: Account): PlayPermission {
-  // 未登录用户允许播放（由后端返回 403 时再提示登录）
-  if (!account) return { type: 'full' };
+  // 不需要VIP的歌曲 → 直接允许
+  if (!song.requiresVip) return { type: 'full' };
 
+  // 需要VIP但未登录 → 试听
+  if (!account) return { type: 'trial', duration: 30, reason: PermissionReason.VIP_ONLY };
+
+  // 需要VIP且已登录 → 检查会员状态
   const { membership } = account;
+  if (membership.status === 'vip') return { type: 'full' };
 
-  if (song.platform === 'netease') {
-    if (!song.vip) return { type: 'full' };
-    if (membership.status === 'vip') return { type: 'full' };
-    return { type: 'trial', duration: 30, reason: PermissionReason.VIP_ONLY };
-  }
-
-  if (song.platform === 'qq') {
-    if (!song.vip) return { type: 'full' };
-    if (membership.status === 'vip') return { type: 'full' };
-    return { type: 'trial', duration: 30, reason: PermissionReason.VIP_ONLY };
-  }
-
-  if (song.platform === 'kugou') {
-    if (!song.vip) return { type: 'full' };
-    if (membership.status === 'vip') return { type: 'full' };
-    return { type: 'trial', duration: 30, reason: PermissionReason.VIP_ONLY };
-  }
-
-  return { type: 'full' };
+  // 需要VIP但非会员 → 试听
+  return { type: 'trial', duration: 30, reason: PermissionReason.VIP_ONLY };
 }

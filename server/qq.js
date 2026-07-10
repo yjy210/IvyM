@@ -68,7 +68,7 @@ async function qqSearch(keyword, limit = 30, page = 1) {
     album: s.albumname || '',
     duration: s.interval ? s.interval * 1000 : 0,
     platform: 'qq',
-    vip: s.pay?.payplay === 1,
+    requiresVip: s.pay?.payplay === 1,
     cover: s.albummid ? `https://y.qq.com/music/photo_new/T002R300x300M000${s.albummid}.jpg` : '',
   }));
   return { code: 200, data: songs, total: res.data.song.totalnum || songs.length };

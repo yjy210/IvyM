@@ -57,7 +57,7 @@ async function neteaseSearch(keyword, limit = 30, offset = 0) {
       album: s.album?.name || '',
       duration: s.duration,
       platform: 'netease',
-      vip: s.fee === 1 || s.fee === 4,
+      requiresVip: s.fee === 1 || s.fee === 4,
       cover: coverMap.get(String(s.id)) || '',
     })),
     total: body.result?.songCount || songs.length,

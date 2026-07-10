@@ -5,10 +5,13 @@ interface PlatformAccount {
   platform: 'netease' | 'qq' | 'kugou';
   nickname: string;
   avatar: string;
-  vip?: boolean;
-  vipName?: string;
   userId: string;
   bindTime: number;
+  membership: {
+    status: 'vip' | 'normal' | 'unknown';
+    type: string | null;
+    expireAt?: number;
+  };
 }
 
 interface LoginDropdownProps {
@@ -90,10 +93,9 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
               platform: 'netease',
               nickname: info.nickname || '网易云用户',
               avatar: info.avatar || '',
-              vip: info.vip || false,
-              vipName: info.vipName || '',
               userId: String(info.userId || ''),
               bindTime: Date.now(),
+              membership: { status: info.vip ? 'vip' : 'unknown', type: info.vip ? info.vipName || 'netease_vip' : null },
             };
             window.electronAPI?.upsertAccount(newAccount);
             setAccounts(prev => [...prev.filter(a => a.platform !== 'netease'), newAccount]);
@@ -122,10 +124,9 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
             platform: 'kugou',
             nickname: '酷狗用户',
             avatar: '',
-            vip: false,
-            vipName: '',
             userId: String(res.userid || ''),
             bindTime: Date.now(),
+            membership: { status: 'unknown', type: null },
           };
           window.electronAPI?.upsertAccount(newAccount);
           setAccounts(prev => [...prev.filter(a => a.platform !== 'kugou'), newAccount]);
@@ -157,10 +158,9 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
       platform: result.user.platform as 'netease' | 'qq' | 'kugou',
       nickname: result.user.nickname,
       avatar: result.user.avatar || '',
-      vip: result.user.vip || false,
-      vipName: result.user.vipName || '',
       userId: result.user.userId || '',
       bindTime: Date.now(),
+      membership: { status: result.user.vip ? 'vip' : 'unknown', type: result.user.vip ? result.user.vipName || null : null },
     };
     window.electronAPI?.upsertAccount(newAccount);
     setAccounts(prev => [...prev.filter(a => a.platform !== result.user!.platform), newAccount]);
@@ -186,10 +186,10 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
   }, [onClose, qrModal.visible]);
 
   // 获取会员显示文本
-  const getVipLabel = (platform: 'netease' | 'qq', vip?: boolean, vipName?: string) => {
-    if (!vip) return '无';
-    if (vipName) return vipName;
-    return platform === 'netease' ? '黑胶VIP' : '豪华绿钻';
+  const getVipLabel = (membership: PlatformAccount['membership']) => {
+    if (membership.status !== 'vip') return '无';
+    if (membership.type) return membership.type;
+    return 'VIP';
   };
 
   return (
@@ -241,10 +241,10 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
                       <div className="bound-info">
                         <div className="bound-name-row">
                           <span className="bound-nickname">{acc.nickname || '用户' + acc.userId}</span>
-                          {acc.vip && (
+                          {acc.membership.status === 'vip' && (
                             <img
                               src={acc.platform === 'qq' ? '/icons/vip-qq.svg' : '/icons/vip-netease.svg'}
-                              alt={acc.platform === 'qq' ? '豪华绿钻' : '黑胶VIP'}
+                              alt={acc.membership.type || 'VIP'}
                               className="bound-vip-icon"
                             />
                           )}
@@ -294,14 +294,14 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
                     </div>
                     <div className="platform-vip-row">
                       <span className="platform-vip-label">会员：</span>
-                      {account.vip ? (
+                      {account.membership.status === 'vip' ? (
                         <img
                           src={account.platform === 'qq' ? '/icons/vip-qq.svg' : '/icons/vip-netease.svg'}
-                          alt={account.platform === 'qq' ? '豪华绿钻' : '黑胶VIP'}
+                          alt={account.membership.type || 'VIP'}
                           className="platform-vip-svg"
                         />
                       ) : (
-                        <span className="platform-vip-value">无</span>
+                        <span className="platform-vip-value">{account.membership.status === 'unknown' ? '未知' : '无'}</span>
                       )}
                     </div>
                     <div className="platform-userid">ID：{account.userId}</div>
