@@ -67,7 +67,7 @@ async function qqSearch(keyword, limit = 30, page = 1) {
     artists: s.singer?.map(a => a.name).join(', ') || '',
     album: s.albumname || '',
     duration: s.interval ? s.interval * 1000 : 0,
-    source: 'qq',
+    platform: 'qq',
     vip: s.pay?.payplay === 1,
     cover: s.albummid ? `https://y.qq.com/music/photo_new/T002R300x300M000${s.albummid}.jpg` : '',
   }));

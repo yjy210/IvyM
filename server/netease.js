@@ -56,7 +56,7 @@ async function neteaseSearch(keyword, limit = 30, offset = 0) {
       artists: s.artists?.map(a => a.name).join(', ') || '',
       album: s.album?.name || '',
       duration: s.duration,
-      source: 'netease',
+      platform: 'netease',
       vip: s.fee === 1 || s.fee === 4,
       cover: coverMap.get(String(s.id)) || '',
     })),

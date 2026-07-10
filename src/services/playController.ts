@@ -21,7 +21,6 @@ export function setCurrentAccount(account: Account | null): void {
 
 export async function playSong(song: Song, options?: PlayOptions): Promise<PlayResult> {
   const permission = checkPlayPermission(song, currentAccount ?? undefined);
-  console.log('[PLAY_DEBUG] permission:', JSON.stringify(permission), 'song:', song.name, 'platform:', song.platform);
 
   if (permission.type === 'forbidden') {
     emitPlayEvent({

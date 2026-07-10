@@ -114,7 +114,7 @@ async function kugouSearch(keyword, limit = 30, page = 1) {
     artists: s.SingerName || s.Singers?.map(a => a.name).join(', ') || '',
     album: s.AlbumName || '',
     duration: s.Duration || 0,
-    source: 'kugou',
+    platform: 'kugou',
     vip: s.PayType > 0 || s.FailProcess > 0,
     cover: s.Image ? s.Image.replace('{size}', '300') : '',
   }));

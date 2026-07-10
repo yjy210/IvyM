@@ -1,27 +1,15 @@
-export interface Song {
-  id: string;
-  mid?: string;
-  hash?: string;
-  name: string;
-  artists: string;
-  album?: string;
-  duration?: number;
-  source: 'netease' | 'qq' | 'kugou';
-  cover?: string;
-  lyric?: string;
-  vip?: boolean;
-}
-
-export type PlayMode = 'sequence' | 'loop' | 'shuffle';
+export type { Song, PlaySource } from './song';
+export type { Account, Membership } from './account';
+export type { PlayPermission } from './permission';
+export type { PlayEvent, PlayEventListener } from './playEvent';
 
 export { PermissionReason } from './permission';
 export { SourceReason } from './playSource';
 export { PlayEventType } from './playEvent';
-export type { PlayPermission } from './permission';
-export type { PlaySource } from './playSource';
-export type { PlayEvent, PlayEventListener } from './playEvent';
+export { checkPlayPermission } from './permission';
+export type { AudioQuality } from './playSource';
 
-/** 当前显示的页面视图 */
+export type PlayMode = 'sequence' | 'loop' | 'shuffle';
 export type ViewType = 'home' | 'search' | 'playlist' | 'favorite';
 
 export interface PlayerState {
