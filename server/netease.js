@@ -36,6 +36,18 @@ async function neteaseSearch(keyword, limit = 30, offset = 0) {
   const body = res.body || {};
   const songs = body.result?.songs || [];
 
+  // 批量获取真实封面 URL（search 接口不返回 picUrl，需要 song_detail）
+  let coverMap = new Map<string, string>();
+  if (songs.length > 0) {
+    try {
+      const ids = songs.map(s => s.id).join(',');
+      const detail = await api.song_detail({ ids, cookie: getCookie() });
+      detail.body?.songs?.forEach(s => {
+        if (s.id && s.al?.picUrl) coverMap.set(String(s.id), s.al.picUrl);
+      });
+    } catch { /* 忽略封面获取失败 */ }
+  }
+
   return {
     code: songs.length > 0 ? 200 : 0,
     data: songs.map(s => ({
@@ -46,9 +58,7 @@ async function neteaseSearch(keyword, limit = 30, offset = 0) {
       duration: s.duration,
       source: 'netease',
       vip: s.fee === 1 || s.fee === 4,
-      cover: s.album?.picId
-        ? `https://p1.music.126.net/${s.album.picId}.jpg?param=300y300`
-        : '',
+      cover: coverMap.get(String(s.id)) || '',
     })),
     total: body.result?.songCount || songs.length,
   };
