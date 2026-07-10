@@ -37,7 +37,7 @@ async function neteaseSearch(keyword, limit = 30, offset = 0) {
   const songs = body.result?.songs || [];
 
   // 批量获取真实封面 URL（search 接口不返回 picUrl，需要 song_detail）
-  let coverMap = new Map<string, string>();
+  const coverMap = new Map();
   if (songs.length > 0) {
     try {
       const ids = songs.map(s => s.id).join(',');
