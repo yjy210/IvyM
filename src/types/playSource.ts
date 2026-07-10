@@ -5,8 +5,16 @@ export enum SourceReason {
   UNKNOWN = 'UNKNOWN',
 }
 
+export type AudioQuality = 'standard' | 'higher' | 'lossless' | 'exhigh';
+
 export interface PlaySource {
   url: string;
   expire?: number;
-  quality?: string;
+  quality?: AudioQuality;
+  bitrate?: number;
+  format?: string;
+}
+
+export interface PlayOptions {
+  quality?: AudioQuality;
 }

@@ -3,7 +3,7 @@ import { usePlayerStore } from '../../stores/playerStore';
 import GlassSurface from './GlassSurface';
 import VolumeSlider from './VolumeSlider';
 import Toast from './Toast';
-import { playSong } from '../../services/playController';
+import { playSong, setPlayOptions } from '../../services/playController';
 import { onPlayEvent } from '../../events/playEvents';
 import { getPlayEventMessage } from '../../utils/playEventMessage';
 import './player.css';
@@ -136,6 +136,11 @@ export default function Player() {
       play(currentSong, result.source.url);
     }
   }, [currentSong, play]);
+
+  // 同步音质偏好到 PlayController
+  useEffect(() => {
+    setPlayOptions({ quality: currentQuality as any });
+  }, [currentQuality]);
 
   // 监听播放事件（权限失败 / 资源失败 Toast）
   useEffect(() => {

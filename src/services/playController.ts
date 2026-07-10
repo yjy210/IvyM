@@ -1,6 +1,6 @@
 import type { Song } from '../types/song';
 import type { Account } from '../types/account';
-import type { PlaySource } from '../types/playSource';
+import type { PlaySource, PlayOptions } from '../types/playSource';
 import type { PlayPermission } from '../types/permission';
 import { checkPlayPermission } from '../types/permission';
 import { getPlayUrl } from './playUrlService';
@@ -14,9 +14,14 @@ export interface PlayResult {
 }
 
 let currentAccount: Account | null = null;
+let currentOptions: PlayOptions = {};
 
 export function setCurrentAccount(account: Account | null): void {
   currentAccount = account;
+}
+
+export function setPlayOptions(options: PlayOptions): void {
+  currentOptions = options;
 }
 
 export async function playSong(song: Song): Promise<PlayResult> {
@@ -33,7 +38,7 @@ export async function playSong(song: Song): Promise<PlayResult> {
     return { permission, source: null, started: false };
   }
 
-  const source = await getPlayUrl(song);
+  const source = await getPlayUrl(song, currentOptions);
   if (!source) {
     emitPlayEvent({
       type: PlayEventType.SOURCE_FAILED,
