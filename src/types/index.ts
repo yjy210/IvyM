@@ -1,12 +1,10 @@
 export type { Song } from './song';
 export type { Account, Membership } from './account';
-export type { PlayPermission } from './permission';
+export type { PlaySource, PlayResult, PlayOptions } from './playSource';
 export type { PlayEvent, PlayEventListener } from './playEvent';
-export type { PlaySource } from './playSource';
-export type { AudioQuality } from './playSource';
 
-export { PlayEventType, PermissionReason, SourceReason } from './playEvent';
-export { checkPlayPermission } from './permission';
+export { PlayEventType } from './playEvent';
+export type { AudioQuality } from './playSource';
 
 export type PlayMode = 'sequence' | 'loop' | 'shuffle';
 export type ViewType = 'home' | 'search' | 'playlist' | 'favorite';
@@ -21,9 +19,8 @@ export interface PlayerState {
   playMode: PlayMode;
   playlist: Song[];
   currentView: ViewType;
-  currentQuality: import('./playSource').AudioQuality;
+  currentQuality: string;
 
-  // actions
   play: (song: Song, url?: string) => void;
   pause: () => void;
   resume: () => void;
@@ -35,5 +32,5 @@ export interface PlayerState {
   playPrev: () => void;
   setCurrentView: (view: ViewType) => void;
   setCurrentUrl: (url: string | null) => void;
-  setCurrentQuality: (q: import('./playSource').AudioQuality) => void;
+  setCurrentQuality: (q: string) => void;
 }

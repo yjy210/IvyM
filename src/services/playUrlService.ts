@@ -1,10 +1,14 @@
 import type { Song } from '../types/song';
-import type { PlaySourceResult, PlayOptions, SourceReason } from '../types/playSource';
+import type { PlayResult, PlayOptions } from '../types/playSource';
 
 const API_BASE = 'http://localhost:3001';
 
-export async function getPlayUrl(song: Song, options?: PlayOptions): Promise<PlaySourceResult> {
-  if (!song) return { success: false, error: SourceReason.UNKNOWN };
+/**
+ * 获取播放 URL — 仅负责请求，不判断权限
+ * 播放权限由后端返回的 playMode 决定
+ */
+export async function getPlayUrl(song: Song, options?: PlayOptions): Promise<PlayResult> {
+  if (!song) return { success: false, error: 'no_song' };
 
   const path = song.platform === 'netease' ? 'netease' : song.platform === 'qq' ? 'qq' : 'kugou';
   const idParam =
@@ -21,30 +25,18 @@ export async function getPlayUrl(song: Song, options?: PlayOptions): Promise<Pla
     const data = await res.json();
 
     if (!data.data?.url) {
-      if (data.code === 403 && data.reason === 'vip_required') {
-        return { success: false, error: SourceReason.LOGIN_REQUIRED };
-      }
-      return { success: false, error: SourceReason.UNKNOWN };
+      return { success: false, error: data.reason || 'no_url' };
     }
-
-    // 根据后端返回的实际播放源类型决定限制
-    // trial_url 开头 = 试听，其他 = 完整
-    const url: string = data.data.url;
-    const isTrial = url.includes('trial') || data.data.trial;
 
     return {
       success: true,
       source: {
-        url,
-        quality: options?.quality,
-        bitrate: data.data.bitrate,
-        format: data.data.format,
-        restriction: isTrial
-          ? { type: 'trial', duration: data.data.trialDuration || 30 }
-          : { type: 'full' },
+        url: data.data.url,
+        playMode: data.data.playMode || 'full',
+        trialDuration: data.data.trialDuration || null,
       },
     };
   } catch {
-    return { success: false, error: SourceReason.NETWORK_ERROR };
+    return { success: false, error: 'network_error' };
   }
 }

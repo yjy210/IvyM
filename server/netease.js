@@ -79,20 +79,18 @@ async function neteaseSongUrl(id) {
   const songData = body.data?.[0];
 
   if (!songData?.url) {
-    // 区分 VIP 限制和真正错误
-    return {
-      code: 403,
-      reason: 'vip_required',
-      platform: 'netease',
-      message: '当前歌曲为网易云音乐会员专属，请充值会员或登录网易云账号',
-    };
+    return { code: 403, reason: 'unavailable', message: '无法获取播放链接' };
   }
+
+  // freeTrialInfo 存在 = 试听，否则 = 完整
+  const isTrial = !!songData.freeTrialInfo;
 
   return {
     code: 200,
     data: {
       url: songData.url,
-      br: songData.br,
+      playMode: isTrial ? 'trial' : 'full',
+      trialDuration: isTrial ? 30 : null,
     },
   };
 }

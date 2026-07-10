@@ -143,7 +143,8 @@ async function qqSongUrl(mid, quality = 'm4a') {
             resolve({ code: 403, reason: 'vip_required', msg: '该歌曲需要VIP或不可播放' });
             return;
           }
-          resolve({ code: 200, data: { url: sip + purl } });
+          // QQ音乐：后端始终返回完整URL，非会员也能播放
+          resolve({ code: 200, data: { url: sip + purl, playMode: 'full', trialDuration: null } });
         } catch {
           resolve({ code: -1, data: null, msg: '解析播放链接失败' });
         }

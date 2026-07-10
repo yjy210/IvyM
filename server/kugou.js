@@ -132,7 +132,8 @@ async function kugouSongUrl(hash, quality = '128') {
   if (!res?.data?.url) {
     return { code: -1, data: null, msg: '获取播放链接失败' };
   }
-  return { code: 200, data: { url: res.data.url } };
+  // 酷狗返回完整URL，非会员也能播放
+  return { code: 200, data: { url: res.data.url, playMode: 'full', trialDuration: null } };
 }
 
 // 获取用户信息

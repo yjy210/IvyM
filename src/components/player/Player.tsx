@@ -42,7 +42,7 @@ export default function Player() {
   const volumeBtnRef = useRef<HTMLButtonElement>(null);
   const prevVolumeRef = useRef(70);
   const [trialEndTime, setTrialEndTime] = useState<number | null>(null);
-  const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [toastMsg, setToastMsg] = useState<{ id: string; message: string } | null>(null);
   const toastTimerRef = useRef<number | null>(null);
   const currentUrl = usePlayerStore(s => s.currentUrl);
 
@@ -119,14 +119,27 @@ export default function Player() {
     }
   }, [currentSong, play, currentQuality]);
 
-  // 监听播放事件（权限失败 / 资源失败 Toast）
+  // 监听播放事件 — Toast 带 ID，避免旧定时器清掉新 Toast
   useEffect(() => {
     const unsub = onPlayEvent(e => {
-      if (e.type === 'PLAY_STARTED') return;
-      setToastMsg(getPlayEventMessage(e.reason, e.message));
-      // 清除旧定时器，避免多个 setTimeout 冲突
+      // PLAY_STARTED 且带 trial 信息 → 试听提示
+      if (e.type === 'PLAY_STARTED') {
+        if (e.message?.startsWith('trial:')) {
+          const duration = e.message.split(':')[1];
+          setToastMsg({ id: e.id, message: `正在试听 ${duration} 秒` });
+          if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+          toastTimerRef.current = window.setTimeout(() => {
+            setToastMsg(cur => (cur?.id === e.id ? null : cur));
+          }, 3000);
+        }
+        return;
+      }
+      // 其他事件 → 直接显示
+      setToastMsg({ id: e.id, message: e.message });
       if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-      toastTimerRef.current = window.setTimeout(() => setToastMsg(null), 3000);
+      toastTimerRef.current = window.setTimeout(() => {
+        setToastMsg(cur => (cur?.id === e.id ? null : cur));
+      }, 3000);
     });
     return () => {
       unsub();
@@ -423,7 +436,7 @@ export default function Player() {
       </div>
 
       {/* 播放权限 Toast（试听/VIP/失败） */}
-      {toastMsg && <Toast message={toastMsg} duration={3000} />}
+      {toastMsg && <Toast message={toastMsg.message} duration={3000} />}
     </>
   );
 }
