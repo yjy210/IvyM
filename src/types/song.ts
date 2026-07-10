@@ -10,5 +10,9 @@ export interface Song {
   vip?: boolean;
   mid?: string;
   hash?: string;
-  url?: string;  // 播放 URL（运行时附加，不持久化）
+}
+
+export interface PlaySource {
+  url: string;
+  expire?: number;
 }

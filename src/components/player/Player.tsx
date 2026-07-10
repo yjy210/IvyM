@@ -35,7 +35,6 @@ export default function Player() {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(70);
-  const [songUrl, setSongUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [userVip, setUserVip] = useState(false);
   const [vipWarning, setVipWarning] = useState<{ platform: string; message: string } | null>(null);
@@ -44,6 +43,7 @@ export default function Player() {
   const prevVolumeRef = useRef(70);
   const [trialEndTime, setTrialEndTime] = useState<number | null>(null);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const currentUrl = usePlayerStore(s => s.currentUrl);
 
   // 喜欢的歌曲
   const [likes, setLikes] = useState<string[]>(() => {
@@ -58,64 +58,6 @@ export default function Player() {
   });
 
   const API_BASE = 'http://localhost:3001';
-
-  const fetchSongUrl = useCallback(async (song: typeof currentSong) => {
-    if (!song) return;
-    setLoading(true);
-    try {
-      let url: string | null = null;
-      let vipError: { platform: string; message: string } | null = null;
-
-      // 统一 VIP 检测：任何平台返回 code:403 + reason:vip_required 都触发
-      const checkVip = (data: any, platform: string) => {
-        if (data.code === 403 && data.reason === 'vip_required') {
-          vipError = { platform, message: data.msg || data.message || '该歌曲需要VIP' };
-          return true;
-        }
-        return false;
-      };
-
-      if (song.source === 'netease') {
-        const res = await fetch(`${API_BASE}/api/netease/url?id=${song.id}`);
-        const data = await res.json();
-        if (!checkVip(data, 'netease')) url = data.data?.url || null;
-      } else if (song.source === 'qq') {
-        const res = await fetch(`${API_BASE}/api/qq/url?mid=${song.mid || song.id}`);
-        const data = await res.json();
-        if (!checkVip(data, 'qq')) url = data.data?.url || null;
-      } else if (song.source === 'kugou') {
-        const res = await fetch(`${API_BASE}/api/kugou/url?hash=${song.hash || song.id}`);
-        const data = await res.json();
-        if (!checkVip(data, 'kugou')) url = data.data?.url || null;
-      }
-
-      setSongUrl(url);
-
-      // VIP 歌曲提示
-      if (vipError) {
-        setVipWarning(vipError);
-      } else {
-        setVipWarning(null);
-      }
-    } catch {
-      setSongUrl(null);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!currentSong) {
-      setSongUrl(null);
-      return;
-    }
-    // 如果歌曲已携带 URL（PlayController 预取），直接使用
-    if (currentSong.url) {
-      setSongUrl(currentSong.url);
-      return;
-    }
-    fetchSongUrl(currentSong);
-  }, [currentSong, fetchSongUrl]);
 
   // DEBUG: 测量播放器文字区域实际宽度
   useEffect(() => {
@@ -143,12 +85,12 @@ export default function Player() {
 
   useEffect(() => {
     if (!audioRef.current) return;
-    if (isPlaying && songUrl) {
+    if (isPlaying && currentUrl) {
       audioRef.current.play().catch(() => {});
     } else {
       audioRef.current.pause();
     }
-  }, [isPlaying, songUrl]);
+  }, [isPlaying, currentUrl]);
 
   useEffect(() => {
     if (audioRef.current) {
@@ -183,21 +125,20 @@ export default function Player() {
     }
   };
 
-  // 点击播放按钮：先检查权限
+  // 点击播放按钮：先检查权限 → 预取 URL → 播放
   const handlePlay = useCallback(async () => {
     if (!currentSong) return;
     const result = await playSong(currentSong);
-    if (result.url) {
-      setSongUrl(result.url);
+    if (result.started && result.url) {
       setTrialEndTime(result.permission.type === 'trial' && result.permission.duration ? result.permission.duration : null);
-      play(currentSong);
+      play(currentSong, result.url);
     }
   }, [currentSong, play]);
 
   // 监听播放事件（Toast）
   useEffect(() => {
     const unsub = onPlayEvent(e => {
-      if (e.type === 'VIP_REQUIRED' || e.type === 'TRIAL_END' || e.type === 'PLAY_FAILED') {
+      if (e.type !== 'PLAY_STARTED') {
         setToastMsg(e.message);
         setTimeout(() => setToastMsg(null), 3000);
       }
@@ -296,7 +237,7 @@ export default function Player() {
     <>
       <audio
         ref={audioRef}
-        src={songUrl || undefined}
+        src={currentUrl || undefined}
         onTimeUpdate={onTimeUpdate}
         onLoadedMetadata={onLoadedMetadata}
         onEnded={onEnded}

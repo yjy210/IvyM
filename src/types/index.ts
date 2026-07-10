@@ -7,7 +7,6 @@ export interface Song {
   album?: string;
   duration?: number;
   source: 'netease' | 'qq' | 'kugou';
-  url?: string;
   cover?: string;
   lyric?: string;
   vip?: boolean;
@@ -20,6 +19,7 @@ export type ViewType = 'home' | 'search' | 'playlist' | 'favorite';
 
 export interface PlayerState {
   currentSong: Song | null;
+  currentUrl: string | null;
   isPlaying: boolean;
   currentTime: number;
   duration: number;
@@ -29,7 +29,7 @@ export interface PlayerState {
   currentView: ViewType;
 
   // actions
-  play: (song: Song) => void;
+  play: (song: Song, url?: string) => void;
   pause: () => void;
   resume: () => void;
   seek: (time: number) => void;
@@ -39,4 +39,5 @@ export interface PlayerState {
   playNext: () => void;
   playPrev: () => void;
   setCurrentView: (view: ViewType) => void;
+  setCurrentUrl: (url: string | null) => void;
 }

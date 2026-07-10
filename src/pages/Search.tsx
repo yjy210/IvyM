@@ -65,11 +65,11 @@ export default function Search() {
     return () => observer.disconnect();
   }, [handleLoadMore]);
 
-  // 点击歌曲：通过 PlayController 检查权限
+  // 点击歌曲：通过 PlayController 检查权限 → 预取 URL → 播放
   const handlePlay = useCallback(async (song: Song) => {
     const result = await playSong(song);
     if (result.started && result.url) {
-      play({ ...song, url: result.url } as Song);
+      play(song, result.url);
     }
   }, [play]);
 

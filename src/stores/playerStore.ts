@@ -5,6 +5,7 @@ export type { ViewType } from '../types';
 
 export const usePlayerStore = create<PlayerState>((set, get) => ({
   currentSong: null,
+  currentUrl: null,
   isPlaying: false,
   currentTime: 0,
   duration: 0,
@@ -13,8 +14,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   playlist: [],
   currentView: 'home',
 
-  play: (song) => set({ currentSong: song, isPlaying: true, currentTime: 0 }),
-  setSongUrl: (url: string | null) => set({ currentSong: get().currentSong ? { ...get().currentSong, url } as any : null }),
+  play: (song, url) => set({ currentSong: song, isPlaying: true, currentTime: 0, currentUrl: url ?? null }),
   pause: () => set({ isPlaying: false }),
   resume: () => set({ isPlaying: true }),
   seek: (time) => set({ currentTime: time }),
@@ -22,6 +22,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   setPlayMode: (mode) => set({ playMode: mode }),
   setPlaylist: (songs) => set({ playlist: songs }),
   setCurrentView: (view) => set({ currentView: view }),
+  setCurrentUrl: (url) => set({ currentUrl: url }),
 
   playNext: () => {
     const { playlist, currentSong, playMode } = get();

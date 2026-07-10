@@ -1,9 +1,10 @@
 import type { Song } from '../types/song';
 import type { Account } from '../types/account';
 import type { PlayPermission } from '../types/permission';
-import { checkPlayPermission, REASON } from './playPermission';
+import { checkPlayPermission } from './playPermission';
 import { getPlayUrl } from './playUrlService';
 import { emitPlayEvent } from '../events/playEvents';
+import { PlayEventType, PermissionReason, SourceReason } from '../types/events';
 
 export interface PlayResult {
   permission: PlayPermission;
@@ -17,34 +18,34 @@ export function setCurrentAccount(account: Account | null): void {
   currentAccount = account;
 }
 
-/**
- * 根据 forbidden 原因类型触发不同事件
- */
-function emitForbiddenEvent(song: Song, reason: string): void {
-  if (reason === REASON.VIP_ONLY) {
-    emitPlayEvent({ type: 'VIP_REQUIRED', songId: song.id, platform: song.platform, message: reason });
-  } else {
-    // REGION_BLOCKED / COPYRIGHT_RESTRICTED / SONG_UNAVAILABLE
-    emitPlayEvent({ type: 'PLAY_FAILED', songId: song.id, platform: song.platform, message: reason });
-  }
-}
-
 export async function playSong(song: Song): Promise<PlayResult> {
   const permission = checkPlayPermission(song, currentAccount ?? undefined);
 
   if (permission.type === 'forbidden') {
-    emitForbiddenEvent(song, permission.reason ?? REASON.SONG_UNAVAILABLE);
+    emitPlayEvent({
+      type: PlayEventType.PERMISSION_DENIED,
+      songId: song.id,
+      platform: song.platform,
+      reason: permission.reason,
+      message: permission.reason ?? PermissionReason.SONG_UNAVAILABLE,
+    });
     return { permission, url: null, started: false };
   }
 
   const url = await getPlayUrl(song);
   if (!url) {
-    emitForbiddenEvent(song, REASON.VIP_ONLY);
+    emitPlayEvent({
+      type: PlayEventType.SOURCE_FAILED,
+      songId: song.id,
+      platform: song.platform,
+      reason: SourceReason.UNKNOWN,
+      message: '无法获取播放链接',
+    });
     return { permission, url: null, started: false };
   }
 
   emitPlayEvent({
-    type: 'PLAY_STARTED',
+    type: PlayEventType.PLAY_STARTED,
     songId: song.id,
     platform: song.platform,
     message: permission.type === 'trial' ? `trial:${permission.duration}` : '',
