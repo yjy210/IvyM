@@ -20,7 +20,7 @@ export async function playSong(song: Song, options?: PlayOptions): PlayResult {
       songId: song.id,
       platform: song.platform,
       reason: result.error || 'unknown',
-      message: getErrorMessage(result.error),
+      message: getErrorMessage(result.error, song.platform),
     });
     return { source: null, started: false };
   }
@@ -41,12 +41,12 @@ function makeEventId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function getErrorMessage(error?: string): string {
+function getErrorMessage(error?: string, platform?: string): string {
   const messages: Record<string, string> = {
     no_url: '无法获取播放链接',
     network_error: '网络错误，请检查连接',
     unavailable: '歌曲暂不可用',
-    vip_required: '请先登录',
+    vip_required: platform === 'qq' ? '请先登录QQ音乐' : '请先登录',
   };
   return messages[error || ''] || '播放失败';
 }

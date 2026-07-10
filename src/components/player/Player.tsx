@@ -102,19 +102,24 @@ export default function Player() {
   const onTimeUpdate = () => {
     if (!audioRef.current) return;
     setCurrentTime(audioRef.current.currentTime);
-    // 试听结束自动暂停
+    // 试听结束 → 暂停 + Toast + 自动下一首
     if (trialEndTime && audioRef.current.currentTime >= trialEndTime) {
       audioRef.current.pause();
       setTrialEndTime(null);
+      setToastMsg({ id: `trial-end-${Date.now()}`, message: '试听结束' });
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = window.setTimeout(() => setToastMsg(null), 3000);
+      // 自动播放下一首
+      setTimeout(() => playNext(), 500);
     }
   };
 
-  // 点击播放按钮：先检查权限 → 预取 URL → 播放
+  // 点击播放按钮 → 预取 URL → 播放
   const handlePlay = useCallback(async () => {
     if (!currentSong) return;
     const result = await playSong(currentSong, { quality: currentQuality });
     if (result.started && result.source) {
-      setTrialEndTime(result.permission.type === 'trial' && result.permission.duration ? result.permission.duration : null);
+      setTrialEndTime(result.source.playMode === 'trial' ? result.source.trialDuration : null);
       play(currentSong, result.source.url);
     }
   }, [currentSong, play, currentQuality]);
@@ -122,11 +127,10 @@ export default function Player() {
   // 监听播放事件 — Toast 带 ID，避免旧定时器清掉新 Toast
   useEffect(() => {
     const unsub = onPlayEvent(e => {
-      // PLAY_STARTED 且带 trial 信息 → 试听提示
       if (e.type === 'PLAY_STARTED') {
         if (e.message?.startsWith('trial:')) {
           const duration = e.message.split(':')[1];
-          setToastMsg({ id: e.id, message: `正在试听 ${duration} 秒` });
+          setToastMsg({ id: e.id, message: '会员可畅听完整版' });
           if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
           toastTimerRef.current = window.setTimeout(() => {
             setToastMsg(cur => (cur?.id === e.id ? null : cur));
