@@ -10,6 +10,7 @@ export function onPlayEvent(listener: PlayEventListener): () => void {
 }
 
 export function emitPlayEvent(event: PlayEvent): void {
+  console.log('[PLAY_TRACE] emitPlayEvent:', event.type, 'message:', event.message, 'listeners:', listeners.length);
   listeners.forEach(l => l(event));
 }
 

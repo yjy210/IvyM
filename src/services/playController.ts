@@ -21,8 +21,10 @@ export function setCurrentAccount(account: Account | null): void {
 
 export async function playSong(song: Song, options?: PlayOptions): Promise<PlayResult> {
   const permission = checkPlayPermission(song, currentAccount ?? undefined);
+  console.log('[PLAY_TRACE] permission:', permission.type, 'reason:', permission.reason);
 
   if (permission.type === 'forbidden') {
+    console.log('[PLAY_TRACE] emitting PERMISSION_DENIED');
     emitPlayEvent({
       type: PlayEventType.PERMISSION_DENIED,
       songId: song.id,
@@ -34,7 +36,9 @@ export async function playSong(song: Song, options?: PlayOptions): Promise<PlayR
   }
 
   const result = await getPlayUrl(song, options);
+  console.log('[PLAY_TRACE] getPlayUrl result:', result.success, 'error:', result.error);
   if (!result.success) {
+    console.log('[PLAY_TRACE] emitting SOURCE_FAILED');
     emitPlayEvent({
       type: PlayEventType.SOURCE_FAILED,
       songId: song.id,
@@ -45,6 +49,7 @@ export async function playSong(song: Song, options?: PlayOptions): Promise<PlayR
     return { permission, source: null, started: false };
   }
 
+  console.log('[PLAY_TRACE] emitting PLAY_STARTED');
   emitPlayEvent({
     type: PlayEventType.PLAY_STARTED,
     songId: song.id,
