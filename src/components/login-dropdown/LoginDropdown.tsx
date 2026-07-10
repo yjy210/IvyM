@@ -43,18 +43,6 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
     setAccounts(prev => prev.filter(a => a.platform !== platform));
   }, []);
 
-  // 切换账号：清 session → 清账号 → 重新打开登录窗口
-  const handleSwitchAccount = useCallback((platform: 'netease' | 'qq' | 'kugou') => {
-    window.electronAPI?.switchAccount(platform);
-  }, []);
-
-  // 监听主进程账号移除事件（切换账号后刷新菜单）
-  useEffect(() => {
-    const cleanup = window.electronAPI?.onAccountRemoved((data: { platform: string }) => {
-      setAccounts(prev => prev.filter(a => a.platform !== data.platform));
-    });
-    return cleanup;
-  }, []);
 
   // Phase 2: QR 登录状态
   const [qrModal, setQrModal] = useState<{ visible: boolean; qrImg: string | null; unikey: string | null; status: string }>({
@@ -317,14 +305,9 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
                       )}
                     </div>
                     <div className="platform-userid">ID：{account.userId}</div>
-                    <div className="platform-account-actions">
-                      <button className="platform-switch-btn" onClick={() => handleSwitchAccount(activeTab)}>
-                        切换账号
-                      </button>
-                      <button className="platform-unbind-btn" onClick={() => handleUnbind(activeTab)}>
-                        解绑
-                      </button>
-                    </div>
+                    <button className="platform-unbind-btn" onClick={() => handleUnbind(activeTab)}>
+                      解绑账号
+                    </button>
                   </div>
                 );
               })()}
