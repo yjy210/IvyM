@@ -46,7 +46,8 @@ function getErrorMessage(error?: string, platform?: string): string {
     no_url: '无法获取播放链接',
     network_error: '网络错误，请检查连接',
     unavailable: '歌曲暂不可用',
-    vip_required: platform === 'qq' ? '请先登录QQ音乐' : '请先登录',
+    vip_required: '该歌曲需要VIP会员',
+    login_required: '请先登录',
   };
   return messages[error || ''] || '播放失败';
 }
