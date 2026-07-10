@@ -2,13 +2,12 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import './login-dropdown.css';
 
 interface PlatformAccount {
-  platform: 'netease' | 'qq';
+  platform: 'netease' | 'qq' | 'kugou';
   nickname: string;
   avatar: string;
   vip?: boolean;
   vipName?: string;
   userId: string;
-  cookie: string;
   bindTime: number;
 }
 
@@ -19,34 +18,43 @@ interface LoginDropdownProps {
 const PLATFORMS = [
   { id: 'netease' as const, name: '网易云音乐', icon: '/platform-icons/wyy.svg', color: '#ec4141' },
   { id: 'qq' as const, name: 'QQ音乐', icon: '/platform-icons/qq.svg', color: '#31c27c' },
+  { id: 'kugou' as const, name: '酷狗音乐', icon: '/platform-icons/kg.svg', color: '#1a7dc9' },
 ];
 
 export default function LoginDropdown({ onClose }: LoginDropdownProps) {
-  const [activeTab, setActiveTab] = useState<'bound' | 'netease' | 'qq'>('bound');
+  const [activeTab, setActiveTab] = useState<'bound' | 'netease' | 'qq' | 'kugou'>('bound');
   const [accounts, setAccounts] = useState<PlatformAccount[]>([]);
   const [hoveredPlatform, setHoveredPlatform] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // 从 localStorage 加载已绑定账号
+  // 启动时：通过 account:get 主动读取已保存账号
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem('ivym_accounts');
-      if (saved) setAccounts(JSON.parse(saved));
-    } catch {}
+    window.electronAPI?.getAccounts().then((stored: PlatformAccount[]) => {
+      if (stored && stored.length > 0) {
+        setAccounts(stored);
+      }
+    }).catch(() => {});
   }, []);
 
-  // 保存账号到 localStorage
-  const saveAccounts = useCallback((accs: PlatformAccount[]) => {
-    setAccounts(accs);
-    localStorage.setItem('ivym_accounts', JSON.stringify(accs));
-  }, []);
-
-  // 解绑账号（同时清除该平台 partition 的 cookie）
-  const handleUnbind = useCallback((platform: 'netease' | 'qq') => {
+  // 解绑账号（清除 cookie + 通知主进程移除）
+  const handleUnbind = useCallback((platform: 'netease' | 'qq' | 'kugou') => {
     window.electronAPI?.clearPlatformSession(platform);
-    const filtered = accounts.filter(a => a.platform !== platform);
-    saveAccounts(filtered);
-  }, [accounts, saveAccounts]);
+    window.electronAPI?.removeAccount(platform);
+    setAccounts(prev => prev.filter(a => a.platform !== platform));
+  }, []);
+
+  // 切换账号：清 session → 清账号 → 重新打开登录窗口
+  const handleSwitchAccount = useCallback((platform: 'netease' | 'qq' | 'kugou') => {
+    window.electronAPI?.switchAccount(platform);
+  }, []);
+
+  // 监听主进程账号移除事件（切换账号后刷新菜单）
+  useEffect(() => {
+    const cleanup = window.electronAPI?.onAccountRemoved((data: { platform: string }) => {
+      setAccounts(prev => prev.filter(a => a.platform !== data.platform));
+    });
+    return cleanup;
+  }, []);
 
   // Phase 2: QR 登录状态
   const [qrModal, setQrModal] = useState<{ visible: boolean; qrImg: string | null; unikey: string | null; status: string }>({
@@ -56,10 +64,9 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
     status: '',
   });
 
-  // 打开平台登录（网易云用 QR，QQ 暂用旧方式）
-  const handleBind = useCallback(async (platform: 'netease' | 'qq') => {
+  // 打开平台登录（网易云/酷狗用 QR，QQ 用网页）
+  const handleBind = useCallback(async (platform: 'netease' | 'qq' | 'kugou') => {
     if (platform === 'netease') {
-      // 网易云：QR 码登录
       const result = await window.electronAPI?.getQRKey();
       if (result?.code === 200) {
         setQrModal({ visible: true, qrImg: result.data.qrimg, unikey: result.data.unikey, status: '请使用APP扫码' });
@@ -67,22 +74,27 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
       } else {
         setQrModal({ visible: true, qrImg: null, unikey: null, status: result?.msg || '获取二维码失败' });
       }
+    } else if (platform === 'kugou') {
+      const result = await window.electronAPI?.getKuGouQRKey();
+      if (result?.code === 200) {
+        setQrModal({ visible: true, qrImg: result.data.qrimg, unikey: result.data.sigx, status: '请使用APP扫码' });
+        startKuGouQRPolling(result.data.sigx);
+      } else {
+        setQrModal({ visible: true, qrImg: null, unikey: null, status: result?.msg || '获取二维码失败' });
+      }
     } else if (platform === 'qq') {
-      // QQ音乐：打开网页登录窗口
       window.electronAPI?.openQQLogin();
     }
   }, []);
 
-  // QR 轮询
+  // 网易云 QR 轮询
   const startQRPolling = useCallback((unikey: string) => {
     const timer = setInterval(async () => {
       try {
         const res = await window.electronAPI?.checkQRStatus(unikey);
         if (res?.code === 803) {
-          // 成功
           clearInterval(timer);
           setQrModal(prev => ({ ...prev, status: '登录成功！' }));
-          // 获取用户信息
           const userRes = await window.electronAPI?.getQRUserInfo();
           if (userRes?.code === 200 && userRes.data) {
             const info = userRes.data;
@@ -93,15 +105,10 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
               vip: info.vip || false,
               vipName: info.vipName || '',
               userId: String(info.userId || ''),
-              cookie: '',
               bindTime: Date.now(),
             };
-            setAccounts(prev => {
-              const filtered = prev.filter(a => a.platform !== 'netease');
-              const updated = [...filtered, newAccount];
-              localStorage.setItem('ivym_accounts', JSON.stringify(updated));
-              return updated;
-            });
+            window.electronAPI?.upsertAccount(newAccount);
+            setAccounts(prev => [...prev.filter(a => a.platform !== 'netease'), newAccount]);
             setActiveTab('bound');
           }
           setTimeout(() => setQrModal({ visible: false, qrImg: null, unikey: null, status: '' }), 1000);
@@ -115,7 +122,38 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
     }, 2000);
   }, []);
 
-  // 主进程返回登录结果后直接绑定
+  // 酷狗 QR 轮询
+  const startKuGouQRPolling = useCallback((sigx: string) => {
+    const timer = setInterval(async () => {
+      try {
+        const res = await window.electronAPI?.checkKuGouQRStatus(sigx);
+        if (res?.code === 0) {
+          clearInterval(timer);
+          setQrModal(prev => ({ ...prev, status: '登录成功！' }));
+          const newAccount: PlatformAccount = {
+            platform: 'kugou',
+            nickname: '酷狗用户',
+            avatar: '',
+            vip: false,
+            vipName: '',
+            userId: String(res.userid || ''),
+            bindTime: Date.now(),
+          };
+          window.electronAPI?.upsertAccount(newAccount);
+          setAccounts(prev => [...prev.filter(a => a.platform !== 'kugou'), newAccount]);
+          setActiveTab('bound');
+          setTimeout(() => setQrModal({ visible: false, qrImg: null, unikey: null, status: '' }), 1000);
+        } else if (res?.code === 2) {
+          setQrModal(prev => ({ ...prev, status: '已扫码，请在手机上确认' }));
+        } else if (res?.code === -1) {
+          setQrModal(prev => ({ ...prev, status: '二维码已过期' }));
+          clearInterval(timer);
+        }
+      } catch { /* ignore */ }
+    }, 2000);
+  }, []);
+
+  // 主进程返回登录结果后直接绑定（使用 setAccounts(prev) 避免闭包问题）
   const handleLoginResult = useCallback((result: {
     platform: string;
     success: boolean;
@@ -128,39 +166,36 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
       return;
     }
     const newAccount: PlatformAccount = {
-      platform: result.user.platform as 'netease' | 'qq',
+      platform: result.user.platform as 'netease' | 'qq' | 'kugou',
       nickname: result.user.nickname,
       avatar: result.user.avatar || '',
       vip: result.user.vip || false,
       vipName: result.user.vipName || '',
       userId: result.user.userId || '',
-      cookie: result.cookie || '',
       bindTime: Date.now(),
     };
-    setAccounts(prev => {
-      const filtered = prev.filter(a => a.platform !== result.user!.platform);
-      const updated = [...filtered, newAccount];
-      localStorage.setItem('ivym_accounts', JSON.stringify(updated));
-      return updated;
-    });
+    window.electronAPI?.upsertAccount(newAccount);
+    setAccounts(prev => [...prev.filter(a => a.platform !== result.user!.platform), newAccount]);
     setActiveTab('bound');
   }, []);
 
-  // 监听主进程登录结果
+  // 监听主进程登录结果 + 启动恢复（自动清理旧监听器）
   useEffect(() => {
-    window.electronAPI?.onLoginResult(handleLoginResult);
+    const cleanup = window.electronAPI?.onLoginResult(handleLoginResult);
+    return cleanup;
   }, [handleLoginResult]);
 
-  // 点击外部关闭
+  // 点击外部关闭（QR 弹窗可见时不关闭）
   useEffect(() => {
     const handler = (e: MouseEvent) => {
+      if (qrModal.visible) return; // QR 弹窗打开时禁止 outside-close
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         onClose();
       }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, [onClose]);
+  }, [onClose, qrModal.visible]);
 
   // 获取会员显示文本
   const getVipLabel = (platform: 'netease' | 'qq', vip?: boolean, vipName?: string) => {
@@ -219,9 +254,11 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
                         <div className="bound-name-row">
                           <span className="bound-nickname">{acc.nickname || '用户' + acc.userId}</span>
                           {acc.vip && (
-                            <span className="bound-vip-inline">
-                              {acc.platform === 'qq' ? '豪华绿钻' : '黑胶VIP'}
-                            </span>
+                            <img
+                              src={acc.platform === 'qq' ? '/icons/vip-qq.svg' : '/icons/vip-netease.svg'}
+                              alt={acc.platform === 'qq' ? '豪华绿钻' : '黑胶VIP'}
+                              className="bound-vip-icon"
+                            />
                           )}
                         </div>
                         <div className="bound-platform" style={{ color: platform.color }}>
@@ -268,21 +305,26 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
                       <span className="platform-nickname">{account.nickname || '用户' + account.userId}</span>
                     </div>
                     <div className="platform-vip-row">
-                      <span className="platform-vip-label">
-                        {account.platform === 'netease' ? '黑胶会员：' : '豪华绿钻：'}
-                      </span>
+                      <span className="platform-vip-label">会员：</span>
                       {account.vip ? (
-                        <span className={`platform-vip-value ${account.platform === 'netease' ? 'is-gold' : 'is-green'}`}>
-                          {account.platform === 'netease' ? '黑胶VIP' : '豪华绿钻'}
-                        </span>
+                        <img
+                          src={account.platform === 'qq' ? '/icons/vip-qq.svg' : '/icons/vip-netease.svg'}
+                          alt={account.platform === 'qq' ? '豪华绿钻' : '黑胶VIP'}
+                          className="platform-vip-svg"
+                        />
                       ) : (
                         <span className="platform-vip-value">无</span>
                       )}
                     </div>
                     <div className="platform-userid">ID：{account.userId}</div>
-                    <button className="platform-unbind-btn" onClick={() => handleUnbind(activeTab)}>
-                      解绑账号
-                    </button>
+                    <div className="platform-account-actions">
+                      <button className="platform-switch-btn" onClick={() => handleSwitchAccount(activeTab)}>
+                        切换账号
+                      </button>
+                      <button className="platform-unbind-btn" onClick={() => handleUnbind(activeTab)}>
+                        解绑
+                      </button>
+                    </div>
                   </div>
                 );
               })()}
@@ -296,7 +338,10 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
         <div className="qr-overlay" onClick={() => setQrModal({ visible: false, qrImg: null, unikey: null, status: '' })}>
           <div className="qr-modal" onClick={e => e.stopPropagation()}>
             <div className="qr-header">
-              <h3>网易云音乐登录</h3>
+              <h3>
+                <img src="/platform-icons/wyy.svg" alt="" className="qr-platform-icon" />
+                扫码登录
+              </h3>
               <button className="qr-close" onClick={() => setQrModal({ visible: false, qrImg: null, unikey: null, status: '' })}>✕</button>
             </div>
             <div className="qr-body">
@@ -304,9 +349,29 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
                 <>
                   <img src={qrModal.qrImg} alt="QR Code" className="qr-img" />
                   <p className="qr-status">{qrModal.status}</p>
+                  <button
+                    className="qr-browser-login-btn is-netease"
+                    onClick={() => {
+                      setQrModal({ visible: false, qrImg: null, unikey: null, status: '' });
+                      window.electronAPI?.openPlatformLogin('netease');
+                    }}
+                  >
+                    网页登录（扫码失败点此）
+                  </button>
                 </>
               ) : (
-                <p className="qr-error">{qrModal.status || '加载中...'}</p>
+                <>
+                  <p className="qr-error">{qrModal.status || '加载中...'}</p>
+                  <button
+                    className="qr-browser-login-btn is-netease"
+                    onClick={() => {
+                      setQrModal({ visible: false, qrImg: null, unikey: null, status: '' });
+                      window.electronAPI?.openPlatformLogin('netease');
+                    }}
+                  >
+                    网页登录
+                  </button>
+                </>
               )}
             </div>
           </div>

@@ -103,8 +103,19 @@
   font-weight: 700;
   padding: 1px 5px;
   border-radius: 3px;
-  background: linear-gradient(135deg, #ffd700, #ff8c00);
   color: white;
+}
+.bound-vip-inline.is-qq {
+  background: #31c27c;
+}
+.bound-vip-inline.is-netease {
+  background: linear-gradient(135deg, #ffd700, #ff8c00);
+}
+
+.bound-vip-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
 }
 
 .bound-platform { font-size: 11px; margin-top: 2px; display: flex; align-items: center; gap: 6px; color: #1a1a1a; }
@@ -184,11 +195,36 @@
   font-weight: 700;
 }
 
+.platform-vip-svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
 .platform-userid {
   font-size: 12px;
   color: #666;
   margin-bottom: 16px;
 }
+
+.platform-account-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.platform-switch-btn {
+  padding: 6px 16px;
+  border: 1px solid #4a90d9;
+  border-radius: 6px;
+  background: white;
+  color: #4a90d9;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.platform-switch-btn:hover { background: #4a90d9; color: white; }
 
 .platform-unbind-btn {
   padding: 6px 16px;
@@ -234,6 +270,16 @@
   font-size: 16px;
   font-weight: 700;
   color: #1a1a2e;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.qr-platform-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  object-fit: cover;
 }
 
 .qr-close {
@@ -268,3 +314,22 @@
 
 .qr-status { font-size: 13px; color: #666; text-align: center; }
 .qr-error { font-size: 13px; color: #ef4444; text-align: center; }
+
+.qr-browser-login-btn {
+  margin-top: 12px;
+  padding: 8px 20px;
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+  border: 1px solid currentColor;
+  background: white;
+}
+
+/* 网易云 = 红色 */
+.qr-browser-login-btn.is-netease { color: #ec4141; border-color: #ec4141; }
+.qr-browser-login-btn.is-netease:hover { background: #ec4141; color: white; }
+
+/* QQ音乐 = 绿色 */
+.qr-browser-login-btn.is-qq { color: #31c27c; border-color: #31c27c; }
+.qr-browser-login-btn.is-qq:hover { background: #31c27c; color: white; }

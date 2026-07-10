@@ -34,6 +34,9 @@ const COOKIE_URLS = {
 
 let mainWin = null;
 
+// 账号持久化（只存账号信息，不存 cookie）
+const AccountManager = require('./account-manager');
+
 function createWindow() {
   mainWin = new BrowserWindow({
     width: 1200,
@@ -257,74 +260,25 @@ async function getUserInfo(platform, cookieStr) {
         headers: { 'Cookie': cookieStr, 'Referer': 'https://y.qq.com' },
       });
       const raw = safeJsonParse(text);
+      const data = raw?.data || {};
+      const creator = data.creator || {};
+      const nickname = creator.nick || cookieNick || (userId ? 'QQ ' + userId : 'QQ 音乐');
+      const avatar = creator.headpic || cookieAvatar || qqAvatarUrl(userId);
 
-      // DEBUG
-      console.log('[IvyM DEBUG] QQ userId from cookie:', userId);
-      console.log('[IvyM DEBUG] QQ API raw (first 800):', JSON.stringify(raw)?.slice(0, 800));
-
-      const data = raw?.data || raw?.profile || raw?.creator || raw?.result || {};
-      const creator = data.creator || data.user || data.profile || data || {};
-      const vipInfo = data.vipInfo || data.vipinfo || data.vip || {};
-
-      const profileNick = creator.nick || creator.nickname || creator.name || creator.hostname || creator.title || '';
-      const profileAvatar = creator.headpic || creator.avatar || creator.avatarUrl || creator.logo || '';
-
-      console.log('[IvyM DEBUG] QQ profileNick:', profileNick, 'cookieNick:', cookieNick);
-
-      const nickname = profileNick || cookieNick || (userId ? 'QQ ' + userId : 'QQ 音乐');
-      const avatar = profileAvatar || cookieAvatar || qqAvatarUrl(userId);
-
-      // DEBUG: 检查 cookie 里是否有 VIP 信息
-      console.log('[IvyM DEBUG] QQ cookie keys with vip:', Object.keys(cookieObj).filter(k => /vip/i.test(k)));
-      console.log('[IvyM DEBUG] QQ cookie vipmusic_pay_type:', cookieObj['vipmusic_pay_type'], 'vip_sub_type:', cookieObj['vip_sub_type']);
-
-      // QQ VIP 检测：先从 cookie 判断
-      let isVip = false;
-      const cookieVipType = Number(cookieObj.vip_type || cookieObj.vipType || cookieObj.vipmusic_pay_type || cookieObj.vip_sub_type || 0);
-      if (cookieVipType > 0) isVip = true;
-
-      // 再尝试 VIP 接口（多个端点）
-      if (!isVip) {
-        const vipEndpoints = [
-          'https://c.y.qq.com/rsc/fcgi-bin/fcg_getmemberrule.fcg',
-          'https://c.y.qq.com/rsc/fcgi-bin/fcg_get_vip_info.fcg',
-          'https://c.y.qq.com/v6/rsc/fcgi-bin/fcg_get_vip_info.fcg',
-        ];
-        for (const vipUrl of vipEndpoints) {
-          try {
-            const vipRes = await httpsRequest(vipUrl, {
-              params: { _: Date.now(), format: 'json' },
-              headers: { 'Cookie': cookieStr, 'Referer': 'https://y.qq.com' }
-            });
-            const vipRaw = safeJsonParse(vipRes);
-            console.log(`[IvyM DEBUG] QQ VIP (${vipUrl.split('/').pop()}):`, JSON.stringify(vipRaw)?.slice(0, 400));
-            const vipData = vipRaw?.data || vipRaw;
-            isVip = !!vipData.vip || !!vipData.is_vip || !!vipData.isVip ||
-                    Number(vipData.vip_level || 0) > 0 || Number(vipData.vipType || 0) > 0 ||
-                    !!vipData.green_diamond || !!vipData.vip_role || Number(vipData.role || 0) > 0;
-            if (isVip) break;
-          } catch (vipErr) {
-            console.warn(`[IvyM] QQ VIP (${vipUrl.split('/').pop()}) failed:`, vipErr.message);
-          }
+      // VIP 检测：使用 userInfoUI.iconlist
+      const iconlist = creator.userInfoUI?.iconlist;
+      const isVip = Array.isArray(iconlist) && iconlist.length > 0;
+      let vipName = '';
+      if (isVip) {
+        const iconText = iconlist.map(i => (i.srcUrl || '') + ' ' + (i.ext || '')).join(' ').toLowerCase();
+        if (iconText.includes('svip') || iconText.includes('super') || iconText.includes('diamond')) {
+          vipName = '豪华绿钻';
+        } else if (iconText.includes('vip')) {
+          vipName = '绿钻';
         }
       }
 
-      if (!isVip) {
-        const vipType = Number(
-          cookieObj.vipType || cookieObj.vip_type || data.vipType || data.vip_type ||
-          creator.vipType || creator.vip_type || vipInfo.vipType || 0
-        ) || 0;
-        isVip = vipType > 0 || data.isVip || creator.isVip || vipInfo.isVip;
-      }
-
-      return {
-        platform,
-        nickname,
-        avatar,
-        userId,
-        vip: !!isVip,
-        vipName: isVip ? '绿钻会员' : '',
-      };
+      return { platform, nickname, avatar, userId, vip: isVip, vipName };
     } catch (e) {
       console.warn('[IvyM] QQ profile API failed:', e.message);
     }
@@ -344,8 +298,10 @@ async function getUserInfo(platform, cookieStr) {
 
 // ==================== 登录入口 ====================
 ipcMain.handle('login:open', async (event, platform) => {
+  console.log(`[IvyM] login:open called for platform: ${platform}`);
   const url = PLATFORM_LOGIN_URLS[platform];
   const partition = PLATFORM_PARTITIONS[platform];
+  console.log(`[IvyM] loading URL: ${url}, partition: ${partition}`);
 
   return new Promise((resolve) => {
     let settled = false;
@@ -372,6 +328,18 @@ ipcMain.handle('login:open', async (event, platform) => {
       settled = true;
       if (pollTimer) clearInterval(pollTimer);
       pollTimer = null;
+      // 登录成功 → 保存 cookie 到文件（供 server 使用）
+      if (result?.success && result.cookie) {
+        try {
+          if (platform === 'netease') {
+            const { saveCookie } = require('../server/netease');
+            saveCookie(result.cookie);
+          } else if (platform === 'qq') {
+            const { saveQQCookie } = require('../server/qq');
+            saveQQCookie(result.cookie);
+          }
+        } catch { /* ignore */ }
+      }
       if (!loginWin.isDestroyed()) loginWin.close();
       mainWin?.webContents.send('login:result', result);
       resolve(result);
@@ -396,9 +364,26 @@ ipcMain.handle('login:open', async (event, platform) => {
       finish({ platform, success: false, msg: '已取消登录' });
     });
 
-    loginWin.loadURL(url);
+    loginWin.loadURL(url).then(() => {
+      console.log('[IvyM] login window URL loaded successfully');
+    }).catch((err) => {
+      console.error('[IvyM] login window URL load failed:', err.message);
+    });
+
+    console.log('[IvyM] login window created and shown');
   });
 });
+
+// ==================== 账号管理 IPC（React 禁止直接 saveAccounts）====================
+
+// 读取所有已绑定账号
+ipcMain.handle('account:get', () => AccountManager.loadAccounts());
+
+// 添加或更新单个账号（自动清洗字段、合并旧值、更新 bindTime）
+ipcMain.handle('account:upsert', (event, account) => AccountManager.upsertAccount(account));
+
+// 移除指定平台账号
+ipcMain.handle('account:remove', (event, platform) => AccountManager.removeAccount(platform));
 
 // ==================== Phase 2: 网易云 QR 登录 ====================
 
@@ -435,7 +420,31 @@ ipcMain.handle('login:qr-user', async () => {
   }
 });
 
-// ==================== QQ音乐：网页登录（BrowserWindow 方式）====================
+// ==================== 酷狗音乐 QR 登录 ====================
+
+// 获取二维码
+ipcMain.handle('login:kugou-qr-key', async () => {
+  try {
+    const { kugouQrLogin } = require('../server/kugou');
+    const result = await kugouQrLogin();
+    return result;
+  } catch (e) {
+    return { code: -1, msg: e.message };
+  }
+});
+
+// 轮询扫码状态
+ipcMain.handle('login:kugou-qr-check', async (event, sigx) => {
+  try {
+    const { kugouQrCheck } = require('../server/kugou');
+    const result = await kugouQrCheck(sigx);
+    return result;
+  } catch (e) {
+    return { code: -1, msg: e.message };
+  }
+});
+
+// QQ音乐：网页登录（BrowserWindow 方式）
 
 // 打开 QQ 音乐官网登录窗口
 ipcMain.handle('login:qq-open', async () => {
@@ -482,8 +491,16 @@ ipcMain.handle('login:qq-open', async () => {
       if (settled) return;
       settled = true;
       const cookie = await saveQQCookies();
+      // 获取 QQ 用户信息（头像、昵称）
+      let user = null;
+      try {
+        user = await getUserInfo('qq', cookie);
+        console.log('[IvyM] QQ user info:', JSON.stringify(user));
+      } catch (e) {
+        console.warn('[IvyM] QQ user info fetch failed:', e.message);
+      }
       if (!loginWin.isDestroyed()) loginWin.close();
-      mainWin?.webContents.send('login:result', { ...result, cookie });
+      mainWin?.webContents.send('login:result', { ...result, cookie, user });
       resolve(result);
     };
 
@@ -510,19 +527,8 @@ ipcMain.handle('login:qq-open', async () => {
   });
 });
 
-// ==================== 解绑 ====================
-ipcMain.handle('login:clear', async (event, platform) => {
-  // 1) 清除 cookie 文件
-  if (platform === 'netease') {
-    try { fs.unlinkSync(path.join(__dirname, '../server/.netease-cookie.json')); } catch {}
-    return { ok: true };
-  }
-  if (platform === 'qq') {
-    try { fs.unlinkSync(path.join(__dirname, '../server/.qq-cookie.json')); } catch {}
-    return { ok: true };
-  }
-
-  // 2) 其他分区走旧逻辑
+// ==================== 清除 partition session（内部共用）====================
+async function clearPlatformSession(platform) {
   const partition = PLATFORM_PARTITIONS[platform];
   if (!partition) return;
   const ses = session.fromPartition(partition);
@@ -539,20 +545,125 @@ ipcMain.handle('login:clear', async (event, platform) => {
     try { await ses.cookies.remove(`${protocol}${domain}${c.path || '/'}`, c.name); } catch {}
   }
 
-  // 3) 关闭所有网络连接（断开 service worker / websocket）
   await ses.closeAllConnections?.();
-
-  // 4) 清除网络缓存和认证
   await ses.clearCache();
   await ses.clearHostResolverCache();
   await ses.clearAuthCache();
 
   console.log(`[IvyM] ${platform} session cleared (${remaining.length} cookies)`);
+}
+
+// ==================== 解绑 ====================
+ipcMain.handle('login:clear', async (event, platform) => {
+  // 1) 清除 cookie 文件
+  if (platform === 'netease') {
+    try { fs.unlinkSync(path.join(__dirname, '../server/.netease-cookie.json')); } catch {}
+  } else if (platform === 'qq') {
+    try { fs.unlinkSync(path.join(__dirname, '../server/.qq-cookie.json')); } catch {}
+  }
+
+  // 2) 清除 Electron partition session
+  await clearPlatformSession(platform);
+
+  return { ok: true };
 });
 
+// ==================== 切换账号 ====================
+ipcMain.handle('login:switch-account', async (event, platform) => {
+  // 1) 清 cookie 文件 + partition session
+  if (platform === 'netease') {
+    try { fs.unlinkSync(path.join(__dirname, '../server/.netease-cookie.json')); } catch {}
+  } else if (platform === 'qq') {
+    try { fs.unlinkSync(path.join(__dirname, '../server/.qq-cookie.json')); } catch {}
+  }
+  await clearPlatformSession(platform);
+
+  // 2) 移除本地持久化账号（头像菜单不显示旧账号）
+  AccountManager.removeAccount(platform);
+
+  // 3) 通知前端更新菜单
+  mainWin?.webContents.send('login:account-removed', { platform });
+
+  // 4) 重新打开官方登录窗口（仅 BrowserWindow 方式平台）
+  if (PLATFORM_LOGIN_URLS[platform]) {
+    ipcEmitLoginWindow(platform);
+  }
+
+  return { ok: true };
+});
+
+// ==================== 打开登录窗口（供 switch-account 复用）====================
+function ipcEmitLoginWindow(platform) {
+  const url = PLATFORM_LOGIN_URLS[platform];
+  const partition = PLATFORM_PARTITIONS[platform];
+
+  const loginWin = new BrowserWindow({
+    width: 900,
+    height: 680,
+    minWidth: 700,
+    minHeight: 500,
+    title: `绑定${platform === 'netease' ? '网易云音乐' : 'QQ音乐'}账号`,
+    autoHideMenuBar: true,
+    icon: path.join(__dirname, '../build/logo.png'),
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: false,
+      partition,
+    },
+  });
+
+  let settled = false;
+  let pollTimer = null;
+
+  const finish = async (result) => {
+    if (settled) return;
+    settled = true;
+    if (pollTimer) clearInterval(pollTimer);
+    if (result?.success && result.cookie) {
+      try {
+        if (platform === 'netease') {
+          const { saveCookie } = require('../server/netease');
+          saveCookie(result.cookie);
+        } else if (platform === 'qq') {
+          const { saveQQCookie } = require('../server/qq');
+          saveQQCookie(result.cookie);
+        }
+      } catch { /* ignore */ }
+    }
+    if (!loginWin.isDestroyed()) loginWin.close();
+    mainWin?.webContents.send('login:result', result);
+  };
+
+  pollTimer = setInterval(async () => {
+    try {
+      if (loginWin.isDestroyed()) return;
+      const cookies = await getPlatformCookies(platform);
+      if (hasLoginCookies(platform, cookies)) {
+        const cookieStr = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+        const userInfo = await getUserInfo(platform, cookieStr);
+        if (userInfo && (userInfo.nickname || userInfo.userId)) {
+          finish({ platform, success: true, cookie: cookieStr, user: userInfo });
+        }
+      }
+    } catch { /* ignore */ }
+  }, 1000);
+
+  loginWin.on('closed', async () => {
+    if (settled) return;
+    finish({ platform, success: false, msg: '已取消登录' });
+  });
+
+  loginWin.loadURL(url).catch(console.error);
+}
+
 app.whenReady().then(async () => {
+  // 初始化 AccountManager（必须在 app.whenReady 之后调用）
+  AccountManager.init(app);
+
   await initServer();
   createWindow();
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
