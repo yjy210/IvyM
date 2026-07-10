@@ -339,6 +339,18 @@ ipcMain.handle('login:open', async (event, platform) => {
             saveQQCookie(result.cookie);
           }
         } catch { /* ignore */ }
+        // 直接持久化账号，不依赖前端监听器
+        if (result.user?.userId) {
+          AccountManager.upsertAccount({
+            platform: result.user.platform || platform,
+            nickname: result.user.nickname || '',
+            avatar: result.user.avatar || '',
+            userId: result.user.userId,
+            vip: result.user.vip || false,
+            vipName: result.user.vipName || '',
+            bindTime: Date.now(),
+          });
+        }
       }
       if (!loginWin.isDestroyed()) loginWin.close();
       mainWin?.webContents.send('login:result', result);
@@ -630,6 +642,18 @@ function ipcEmitLoginWindow(platform) {
           saveQQCookie(result.cookie);
         }
       } catch { /* ignore */ }
+      // 直接持久化账号，不依赖前端监听器
+      if (result.user?.userId) {
+        AccountManager.upsertAccount({
+          platform: result.user.platform || platform,
+          nickname: result.user.nickname || '',
+          avatar: result.user.avatar || '',
+          userId: result.user.userId,
+          vip: result.user.vip || false,
+          vipName: result.user.vipName || '',
+          bindTime: Date.now(),
+        });
+      }
     }
     if (!loginWin.isDestroyed()) loginWin.close();
     mainWin?.webContents.send('login:result', result);
