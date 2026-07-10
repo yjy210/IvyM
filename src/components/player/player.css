@@ -105,12 +105,13 @@
 /* ── 主内容区 ── */
 .player-main {
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   flex: 1;
   padding: 0 20px;
   gap: 16px;
   box-sizing: border-box;
+  min-width: 0;
 }
 
 /* ── 歌曲信息：左侧 ── */
@@ -442,7 +443,7 @@
   border: none;
 }
 
-/* ── 弹出面板 ── */
+/* ── 弹出面板（始终渲染，CSS 控制显隐） ── */
 .player-popup {
   position: fixed;
   bottom: 80px;
@@ -461,6 +462,16 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.18s, visibility 0.18s;
+}
+
+.player-popup.active {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
 }
 
 .player-popup-header {

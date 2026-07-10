@@ -35,9 +35,7 @@ export default function Player() {
   const [volume, setVolume] = useState(70);
   const [songUrl, setSongUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [showPlaylist, setShowPlaylist] = useState(false);
-  const [showLyrics, setShowLyrics] = useState(false);
-  const [showSaveToPlaylist, setShowSaveToPlaylist] = useState(false);
+  const [popup, setPopup] = useState<'lyrics' | 'playlist' | 'save' | null>(null);
   const volumeBtnRef = useRef<HTMLButtonElement>(null);
   const prevVolumeRef = useRef(70);
 
@@ -313,7 +311,7 @@ export default function Player() {
               <button className={`player-btn${isLiked ? ' liked' : ''}`} onClick={toggleLike} title="喜欢">
                 <i className="iconfont icon-xihuan" />
               </button>
-              <button className={`player-btn${showLyrics ? ' active' : ''}`} data-popup-btn onClick={() => setShowLyrics(!showLyrics)} title="歌词">
+              <button className={`player-btn${popup === 'lyrics' ? ' active' : ''}`} data-popup-btn onClick={() => setPopup(p => p === 'lyrics' ? null : 'lyrics')} title="歌词">
                 <i className="iconfont icon-bold icon-geci32" />
               </button>
             </div>
@@ -338,14 +336,14 @@ export default function Player() {
               <button className="player-btn" onClick={playNext} title="下一首">
                 <svg viewBox="0 0 24 24"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg>
               </button>
-              <button className="player-btn playlist-btn" data-popup-btn onClick={() => setShowPlaylist(!showPlaylist)} title="播放列表">
+              <button className="player-btn playlist-btn" data-popup-btn onClick={() => setPopup(p => p === 'playlist' ? null : 'playlist')} title="播放列表">
                 <svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
               </button>
             </div>
 
             {/* 右侧：收藏 + 音量 */}
             <div className="player-right-tools">
-              <button className="player-btn player-btn-save" data-popup-btn onClick={() => setShowSaveToPlaylist(!showSaveToPlaylist)} title="收藏到歌单">
+              <button className="player-btn player-btn-save" data-popup-btn onClick={() => setPopup(p => p === 'save' ? null : 'save')} title="收藏到歌单">
                 <img src="/icons/jiahaojilu.svg" alt="收藏" className="player-save-icon" />
               </button>
               <div className="player-volume-wrapper">
@@ -383,95 +381,79 @@ export default function Player() {
         </div>{/* end player-content */}
       </div>
 
-      {/* ── 弹出面板 ── */}
+      {/* ── 弹出面板（始终渲染，CSS 控制显隐） ── */}
 
-      {/* 歌词 */}
-      {showLyrics && (
-        <div className="player-popup">
-          <div className="player-popup-header">
-            <span className="player-popup-title">歌词</span>
-            <button className="player-popup-close" onClick={() => setShowLyrics(false)}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#666" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
-          </div>
-          <div className="player-popup-body player-lyrics">
-            <p>暂无歌词</p>
-          </div>
+      <div className={`player-popup${popup === 'lyrics' ? ' active' : ''}`} data-popup="lyrics">
+        <div className="player-popup-header">
+          <span className="player-popup-title">歌词</span>
+          <button className="player-popup-close" onClick={() => setPopup(null)}>×</button>
         </div>
-      )}
+        <div className="player-popup-body player-lyrics">
+          <p>暂无歌词</p>
+        </div>
+      </div>
 
-      {/* 播放列表 */}
-      {showPlaylist && (
-        <div className="player-popup">
-          <div className="player-popup-header">
-            <span className="player-popup-title">当前播放 ({playlist.length})</span>
-            <button className="player-popup-close" onClick={() => setShowPlaylist(false)}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#666" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
-          </div>
-          <div className="player-popup-body">
-            {playlist.length === 0 ? (
-              <div className="comment-empty">播放列表为空</div>
-            ) : (
-              playlist.map((song, i) => (
-                <div
-                  key={`${song.source}-${song.id}-${i}`}
-                  className={`playlist-item${currentSong?.id === song.id && currentSong?.source === song.source ? ' current' : ''}`}
-                  onClick={() => play(song)}
-                >
-                  {song.cover ? (
-                    <img src={song.cover} alt="" className="playlist-item-cover" />
-                  ) : (
-                    <img src="/logo.png" alt="IvyM" className="playlist-item-cover" />
-                  )}
-                  <div className="playlist-item-info">
-                    <div className="playlist-item-name">{song.name}</div>
-                    <div className="playlist-item-artist">{song.artists}</div>
+      <div className={`player-popup${popup === 'playlist' ? ' active' : ''}`} data-popup="playlist">
+        <div className="player-popup-header">
+          <span className="player-popup-title">当前播放 ({playlist.length})</span>
+          <button className="player-popup-close" onClick={() => setPopup(null)}>×</button>
+        </div>
+        <div className="player-popup-body">
+          {playlist.length === 0 ? (
+            <div className="comment-empty">播放列表为空</div>
+          ) : (
+            playlist.map((song, i) => (
+              <div
+                key={`${song.source}-${song.id}-${i}`}
+                className={`playlist-item${currentSong?.id === song.id && currentSong?.source === song.source ? ' current' : ''}`}
+                onClick={() => play(song)}
+              >
+                {song.cover ? (
+                  <img src={song.cover} alt="" className="playlist-item-cover" />
+                ) : (
+                  <img src="/logo.png" alt="IvyM" className="playlist-item-cover" />
+                )}
+                <div className="playlist-item-info">
+                  <div className="playlist-item-name">{song.name}</div>
+                  <div className="playlist-item-artist">{song.artists}</div>
+                </div>
+                <span className={`playlist-item-source ${song.source || 'netease'}`}>
+                  {song.source === 'qq' ? 'QQ' : '网易云'}
+                </span>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      <div className={`player-popup${popup === 'save' ? ' active' : ''}`} data-popup="save">
+        <div className="player-popup-header">
+          <span className="player-popup-title">收藏到歌单</span>
+          <button className="player-popup-close" onClick={() => setPopup(null)}>×</button>
+        </div>
+        <div className="player-popup-body">
+          <div className="save-playlist-list">
+            {playlists.map((pl, i) => {
+              const key = currentSong ? `${currentSong.source}-${currentSong.id || currentSong.mid}` : '';
+              const hasSong = pl.songs.find(s => `${s.source}-${s.id || s.mid}` === key);
+              return (
+                <div key={i} className="save-playlist-item" onClick={() => saveToPlaylist(i)}>
+                  <div className="save-playlist-icon">
+                    <svg viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
                   </div>
-                  <span className={`playlist-item-source ${song.source || 'netease'}`}>
-                    {song.source === 'qq' ? 'QQ' : '网易云'}
+                  <div className="save-playlist-info">
+                    <div className="save-playlist-name">{pl.name}</div>
+                    <div className="save-playlist-count">{pl.songs.length} 首</div>
+                  </div>
+                  <span className={`save-playlist-hint${hasSong ? ' has' : ''}`}>
+                    {hasSong ? '已添加' : '点击添加'}
                   </span>
                 </div>
-              ))
-            )}
+              );
+            })}
           </div>
         </div>
-      )}
-
-
-      {/* 收藏到歌单 */}
-      {showSaveToPlaylist && (
-        <div className="player-popup">
-          <div className="player-popup-header">
-            <span className="player-popup-title">收藏到歌单</span>
-            <button className="player-popup-close" onClick={() => setShowSaveToPlaylist(false)}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#666" strokeWidth="2" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
-          </div>
-          <div className="player-popup-body">
-            <div className="save-playlist-list">
-              {playlists.map((pl, i) => {
-                const key = currentSong ? `${currentSong.source}-${currentSong.id || currentSong.mid}` : '';
-                const hasSong = pl.songs.find(s => `${s.source}-${s.id || s.mid}` === key);
-                return (
-                  <div key={i} className="save-playlist-item" onClick={() => saveToPlaylist(i)}>
-                    <div className="save-playlist-icon">
-                      <svg viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
-                    </div>
-                    <div className="save-playlist-info">
-                      <div className="save-playlist-name">{pl.name}</div>
-                      <div className="save-playlist-count">{pl.songs.length} 首</div>
-                    </div>
-                    <span className={`save-playlist-hint${hasSong ? ' has' : ''}`}>
-                      {hasSong ? '已添加' : '点击添加'}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
+      </div>
 
       {/* VIP 歌曲 Toast 提示（黑底白字，自动消失） */}
       <Toast message={vipWarning?.message || null} duration={4000} />
