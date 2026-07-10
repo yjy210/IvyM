@@ -673,6 +673,15 @@ function ipcEmitLoginWindow(platform) {
 }
 
 app.whenReady().then(async () => {
+  // 网易云图片防盗链：添加 Referer 头
+  session.defaultSession.webRequest.onBeforeSendHeaders(
+    { urls: ['*://*.music.126.net/*', '*://*.music.163.com/*'] },
+    (details, callback) => {
+      details.requestHeaders['Referer'] = 'https://music.163.com/';
+      callback({ requestHeaders: details.requestHeaders });
+    },
+  );
+
   // 初始化 AccountManager（必须在 app.whenReady 之后调用）
   AccountManager.init(app);
 
