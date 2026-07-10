@@ -62,22 +62,27 @@ export default function Player() {
       let url: string | null = null;
       let vipError: { platform: string; message: string } | null = null;
 
+      // 统一 VIP 检测：任何平台返回 code:403 + reason:vip_required 都触发
+      const checkVip = (data: any, platform: string) => {
+        if (data.code === 403 && data.reason === 'vip_required') {
+          vipError = { platform, message: data.msg || data.message || '该歌曲需要VIP' };
+          return true;
+        }
+        return false;
+      };
+
       if (song.source === 'netease') {
         const res = await fetch(`${API_BASE}/api/netease/url?id=${song.id}`);
         const data = await res.json();
-        if (data.code === 403 && data.reason === 'vip_required') {
-          vipError = { platform: data.platform || 'netease', message: data.message };
-        } else {
-          url = data.data?.url || null;
-        }
+        if (!checkVip(data, 'netease')) url = data.data?.url || null;
       } else if (song.source === 'qq') {
         const res = await fetch(`${API_BASE}/api/qq/url?mid=${song.mid || song.id}`);
         const data = await res.json();
-        url = data.data?.url || null;
+        if (!checkVip(data, 'qq')) url = data.data?.url || null;
       } else if (song.source === 'kugou') {
         const res = await fetch(`${API_BASE}/api/kugou/url?hash=${song.hash || song.id}`);
         const data = await res.json();
-        url = data.data?.url || null;
+        if (!checkVip(data, 'kugou')) url = data.data?.url || null;
       }
 
       setSongUrl(url);

@@ -137,9 +137,8 @@ async function qqSongUrl(mid, quality = 'm4a') {
           const sip = json.req_0?.data?.sip?.[0] || 'http://isure.stream.qqmusic.qq.com/';
           const purl = info?.purl || '';
           if (!purl) {
-            // purl 为空 → VIP 或不可用
-            const msg = json.req_0?.data?.sip?.length ? '该歌曲需要VIP或不可播放' : '获取播放链接失败';
-            resolve({ code: -1, data: null, msg });
+            // purl 为空 → VIP 或不可用，统一返回 403 与网易云一致
+            resolve({ code: 403, reason: 'vip_required', msg: '该歌曲需要VIP或不可播放' });
             return;
           }
           resolve({ code: 200, data: { url: sip + purl } });
