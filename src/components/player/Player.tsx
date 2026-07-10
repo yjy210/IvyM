@@ -38,8 +38,6 @@ export default function Player() {
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(70);
   const [loading, setLoading] = useState(false);
-  const [userVip, setUserVip] = useState(false);
-  const [vipWarning, setVipWarning] = useState<{ platform: string; message: string } | null>(null);
   const [popup, setPopup] = useState<'lyrics' | 'playlist' | 'save' | null>(null);
   const volumeBtnRef = useRef<HTMLButtonElement>(null);
   const prevVolumeRef = useRef(70);
@@ -101,23 +99,6 @@ export default function Player() {
     }
   }, [volume]);
 
-  // 检查用户登录/VIP 状态
-  useEffect(() => {
-    fetch(`${API_BASE}/api/netease/login/status`)
-      .then(r => r.json())
-      .then(data => setUserVip(data.vip || false))
-      .catch(() => setUserVip(false));
-  }, []);
-
-  // VIP 歌曲开始时提示（4秒后自动清除状态）
-  useEffect(() => {
-    if (currentSong?.vip && !userVip) {
-      setVipWarning({ platform: 'netease', message: '开通会员畅听完整版' });
-      const timer = setTimeout(() => setVipWarning(null), 4000);
-      return () => clearTimeout(timer);
-    }
-  }, [currentSong, userVip]);
-
   const onTimeUpdate = () => {
     if (!audioRef.current) return;
     setCurrentTime(audioRef.current.currentTime);
@@ -169,12 +150,6 @@ export default function Player() {
         audioRef.current.play();
       }
       return;
-    }
-
-    // 检测是否为试听截断（实际播放时长 < 歌曲总时长 50%）
-    if (duration > 0 && currentTime < duration * 0.5) {
-      setVipWarning({ platform: 'netease', message: '试听结束，开通会员畅听完整版' });
-      setTimeout(() => setVipWarning(null), 4000);
     }
 
     playNext();
@@ -447,8 +422,6 @@ export default function Player() {
         </div>
       </div>
 
-      {/* VIP 歌曲 Toast 提示（黑底白字，自动消失） */}
-      <Toast message={vipWarning?.message || null} duration={4000} />
       {/* 播放权限 Toast（试听/VIP/失败） */}
       {toastMsg && <Toast message={toastMsg} duration={3000} />}
     </>

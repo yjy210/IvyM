@@ -13,9 +13,7 @@ export function usePlaySong() {
 
   const handlePlay = useCallback(
     async (song: Song) => {
-      console.log('[PLAY_TRACE] click song:', song.name, 'vip:', song.vip, 'platform:', song.platform);
       const result = await playSong(song, { quality: currentQuality });
-      console.log('[PLAY_TRACE] result:', JSON.stringify(result));
       if (result.started && result.source) {
         play(song, result.source.url);
       }

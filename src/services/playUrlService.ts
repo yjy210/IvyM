@@ -1,5 +1,6 @@
 import type { Song } from '../types/song';
-import type { PlaySourceResult, PlayOptions, SourceReason } from '../types/playSource';
+import type { PlaySourceResult, PlayOptions } from '../types/playSource';
+import { SourceReason } from '../types/playSource';
 
 const API_BASE = 'http://localhost:3001';
 
