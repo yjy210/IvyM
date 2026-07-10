@@ -19,6 +19,7 @@ export async function getPlayUrl(song: Song, options?: PlayOptions): Promise<Pla
   try {
     const res = await fetch(`${API_BASE}/api/${path}/url?${qs}`);
     const data = await res.json();
+    console.log('[PLAY_URL_DEBUG]', path, 'response:', JSON.stringify(data).slice(0, 300));
 
     if (!data.data?.url) {
       if (data.code === 403 && data.reason === 'vip_required') {
