@@ -265,18 +265,9 @@ async function getUserInfo(platform, cookieStr) {
       const nickname = creator.nick || cookieNick || (userId ? 'QQ ' + userId : 'QQ 音乐');
       const avatar = creator.headpic || cookieAvatar || qqAvatarUrl(userId);
 
-      // VIP 检测：使用 userInfoUI.iconlist
-      const iconlist = creator.userInfoUI?.iconlist;
-      const isVip = Array.isArray(iconlist) && iconlist.length > 0;
-      let vipName = '';
-      if (isVip) {
-        const iconText = iconlist.map(i => (i.srcUrl || '') + ' ' + (i.ext || '')).join(' ').toLowerCase();
-        if (iconText.includes('svip') || iconText.includes('super') || iconText.includes('diamond')) {
-          vipName = '豪华绿钻';
-        } else if (iconText.includes('vip')) {
-          vipName = '绿钻';
-        }
-      }
+      // VIP 状态：iconlist 含推广图不可靠，不再用于 VIP 判断
+      const isVip = false;
+      const vipName = '';
 
       return { platform, nickname, avatar, userId, vip: isVip, vipName };
     } catch (e) {
