@@ -15,9 +15,8 @@ export interface PlayPermission {
 }
 
 export function checkPlayPermission(song: Song, account?: Account): PlayPermission {
-  if (!account || account.platform !== song.platform) {
-    return { type: 'forbidden', reason: PermissionReason.SONG_UNAVAILABLE };
-  }
+  // 未登录用户允许播放（由后端返回 403 时再提示登录）
+  if (!account) return { type: 'full' };
 
   const { membership } = account;
 
