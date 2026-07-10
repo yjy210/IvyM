@@ -3,6 +3,8 @@ import { usePlayerStore } from '../../stores/playerStore';
 import GlassSurface from './GlassSurface';
 import VolumeSlider from './VolumeSlider';
 import Toast from './Toast';
+import { playSong } from '../../services/playController';
+import { onPlayEvent } from '../../events/playEvents';
 import './player.css';
 import './GlassSurface.css';
 import './VolumeSlider.css';
@@ -40,6 +42,8 @@ export default function Player() {
   const [popup, setPopup] = useState<'lyrics' | 'playlist' | 'save' | null>(null);
   const volumeBtnRef = useRef<HTMLButtonElement>(null);
   const prevVolumeRef = useRef(70);
+  const [trialEndTime, setTrialEndTime] = useState<number | null>(null);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   // 喜欢的歌曲
   const [likes, setLikes] = useState<string[]>(() => {
@@ -101,11 +105,16 @@ export default function Player() {
   }, []);
 
   useEffect(() => {
-    if (currentSong) {
-      fetchSongUrl(currentSong);
-    } else {
+    if (!currentSong) {
       setSongUrl(null);
+      return;
     }
+    // 如果歌曲已携带 URL（PlayController 预取），直接使用
+    if ((currentSong as any).url) {
+      setSongUrl((currentSong as any).url);
+      return;
+    }
+    fetchSongUrl(currentSong);
   }, [currentSong, fetchSongUrl]);
 
   // DEBUG: 测量播放器文字区域实际宽度
@@ -165,8 +174,36 @@ export default function Player() {
   }, [currentSong, userVip]);
 
   const onTimeUpdate = () => {
-    if (audioRef.current) setCurrentTime(audioRef.current.currentTime);
+    if (!audioRef.current) return;
+    setCurrentTime(audioRef.current.currentTime);
+    // 试听结束自动暂停
+    if (trialEndTime && audioRef.current.currentTime >= trialEndTime) {
+      audioRef.current.pause();
+      setTrialEndTime(null);
+    }
   };
+
+  // 点击播放按钮：先检查权限
+  const handlePlay = useCallback(async () => {
+    if (!currentSong) return;
+    const result = await playSong(currentSong);
+    if (result.url) {
+      setSongUrl(result.url);
+      setTrialEndTime(result.permission.type === 'trial' && result.permission.duration ? result.permission.duration : null);
+      play(currentSong);
+    }
+  }, [currentSong, play]);
+
+  // 监听播放事件（Toast）
+  useEffect(() => {
+    const unsub = onPlayEvent(e => {
+      if (e.type === 'VIP_REQUIRED' || e.type === 'TRIAL_END' || e.type === 'PLAY_FAILED') {
+        setToastMsg(e.message);
+        setTimeout(() => setToastMsg(null), 3000);
+      }
+    });
+    return unsub;
+  }, []);
 
   const onLoadedMetadata = () => {
     // 优先使用搜索结果中的真实duration（毫秒转秒），fallback到audio元数据
@@ -333,7 +370,7 @@ export default function Player() {
               <button className="player-btn" onClick={playPrev} title="上一首">
                 <svg viewBox="0 0 24 24"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5"/></svg>
               </button>
-              <button className="player-btn player-btn-play" onClick={() => isPlaying ? pause() : (currentSong ? play(currentSong) : null)} title={isPlaying ? '暂停' : '播放'}>
+              <button className="player-btn player-btn-play" onClick={() => isPlaying ? pause() : handlePlay()} title={isPlaying ? '暂停' : '播放'}>
                 {isPlaying ? (
                   <svg viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
                 ) : (
@@ -464,6 +501,8 @@ export default function Player() {
 
       {/* VIP 歌曲 Toast 提示（黑底白字，自动消失） */}
       <Toast message={vipWarning?.message || null} duration={4000} />
+      {/* 播放权限 Toast（试听/VIP/失败） */}
+      {toastMsg && <Toast message={toastMsg} duration={3000} />}
     </>
   );
 }

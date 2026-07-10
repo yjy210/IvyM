@@ -14,6 +14,7 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   currentView: 'home',
 
   play: (song) => set({ currentSong: song, isPlaying: true, currentTime: 0 }),
+  setSongUrl: (url: string | null) => set({ currentSong: get().currentSong ? { ...get().currentSong, url } as any : null }),
   pause: () => set({ isPlaying: false }),
   resume: () => set({ isPlaying: true }),
   seek: (time) => set({ currentTime: time }),

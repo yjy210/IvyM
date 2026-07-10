@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { usePlayerStore } from '../stores/playerStore';
 import { useSearchStore } from '../stores/searchStore';
-import type { Song } from '../types';
+import { playSong } from '../services/playController';
+import type { Song } from '../types/song';
 import './search-page.css';
 
 type Platform = 'all' | 'netease' | 'qq' | 'kugou';
@@ -64,6 +65,14 @@ export default function Search() {
     return () => observer.disconnect();
   }, [handleLoadMore]);
 
+  // 点击歌曲：通过 PlayController 检查权限
+  const handlePlay = useCallback(async (song: Song) => {
+    const result = await playSong(song);
+    if (result.started && result.url) {
+      play({ ...song, url: result.url } as any);
+    }
+  }, [play]);
+
   if (!results) return null;
   const sourceLabel = (p: string) => p === 'netease' ? '网易云' : p === 'qq' ? 'QQ' : '酷狗';
 
@@ -92,7 +101,7 @@ export default function Search() {
           <div
             key={`${entry.platform}-${entry.song.id}-${i}`}
             className="song-card"
-            onClick={() => play(entry.song)}
+            onClick={() => handlePlay(entry.song)}
           >
             <img src={entry.song.cover || '/logo.png'} alt="" className="song-cover" loading="lazy" referrerPolicy="no-referrer" onError={(e) => { (e.target as HTMLImageElement).src = '/logo.png'; }} />
             <div className="song-info">
