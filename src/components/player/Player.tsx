@@ -5,10 +5,23 @@ import VolumeSlider from './VolumeSlider';
 import Toast from './Toast';
 import { playSong } from '../../services/playController';
 import { onPlayEvent } from '../../events/playEvents';
+import type { PlayEvent } from '../../types/playEvent';
+import { PermissionReason, SourceReason } from '../../types';
 import './player.css';
 import './GlassSurface.css';
 import './VolumeSlider.css';
 import './toast.css';
+
+function getToastMessage(e: PlayEvent): string {
+  if (e.reason === PermissionReason.VIP_ONLY) return '该歌曲需要VIP会员';
+  if (e.reason === PermissionReason.REGION_BLOCKED) return '该歌曲在当前地区不可用';
+  if (e.reason === PermissionReason.COPYRIGHT_RESTRICTED) return '版权限制，暂不可播放';
+  if (e.reason === PermissionReason.SONG_UNAVAILABLE) return '歌曲暂不可播放';
+  if (e.reason === SourceReason.NETWORK_ERROR) return '网络错误，请检查网络连接';
+  if (e.reason === SourceReason.SONG_REMOVED) return '歌曲已下架';
+  if (e.reason === SourceReason.COOKIE_EXPIRED) return '登录已过期，请重新登录';
+  return e.message || '播放失败';
+}
 
 interface Song {
   id: string;
@@ -135,13 +148,12 @@ export default function Player() {
     }
   }, [currentSong, play]);
 
-  // 监听播放事件（Toast）
+  // 监听播放事件（权限失败 / 资源失败 Toast）
   useEffect(() => {
     const unsub = onPlayEvent(e => {
-      if (e.type !== 'PLAY_STARTED') {
-        setToastMsg(e.message);
-        setTimeout(() => setToastMsg(null), 3000);
-      }
+      if (e.type === 'PLAY_STARTED') return;
+      setToastMsg(getToastMessage(e));
+      setTimeout(() => setToastMsg(null), 3000);
     });
     return unsub;
   }, []);
