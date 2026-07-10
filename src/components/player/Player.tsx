@@ -35,6 +35,8 @@ export default function Player() {
   const [volume, setVolume] = useState(70);
   const [songUrl, setSongUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [userVip, setUserVip] = useState(false);
+  const [vipWarning, setVipWarning] = useState<{ platform: string; message: string } | null>(null);
   const [popup, setPopup] = useState<'lyrics' | 'playlist' | 'save' | null>(null);
   const volumeBtnRef = useRef<HTMLButtonElement>(null);
   const prevVolumeRef = useRef(70);
