@@ -348,6 +348,17 @@
   flex-shrink: 0;
 }
 
+/* Hover Bridge — 填补按钮和滑块之间的 Dead Zone */
+.player-volume-wrapper::before {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  height: 14px;
+  pointer-events: auto;
+}
+
 /* 音量弹窗 — 始终在 DOM，hover 控制显隐 */
 .volume-popover {
   position: absolute;
