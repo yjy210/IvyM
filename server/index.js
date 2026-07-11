@@ -167,16 +167,16 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/api/qq/login/qr') {
       try {
         const qqApiRes = await fetch('http://localhost:3200/getQQLoginQr');
-        const text = await qqApiRes.text();
-        console.log('[QQ_QR] qq-music-api 返回:', text.slice(0, 200));
-        try {
-          const json = JSON.parse(text);
-          // qq-music-api 返回 {img: "data:image/png;base64,..."}
+        const json = await qqApiRes.json();
+        console.log('[QQ_QR] qq-music-api 返回:', JSON.stringify(json).slice(0, 300));
+        // qq-music-api 返回 {img: "data:image/png;base64,..."}
+        const img = json.img || json.data?.img || json.data?.qrcode || '';
+        if (img) {
           res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ code: 200, data: { img: json.img, qrsig: json.qrsig, ptqrtoken: json.ptqrtoken } }));
-        } catch {
+          res.end(JSON.stringify({ code: 200, data: { img } }));
+        } else {
           res.writeHead(500, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ code: -1, msg: '解析失败', raw: text.slice(0, 200) }));
+          res.end(JSON.stringify({ code: -1, msg: '二维码为空', raw: JSON.stringify(json).slice(0, 200) }));
         }
       } catch (e) {
         console.error('[QQ_QR] 请求失败:', e.message);
