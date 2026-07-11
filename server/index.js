@@ -1,6 +1,6 @@
 const http = require('http');
 const { neteaseSearch, neteaseSongUrl, neteaseLyric, neteaseQrLogin, neteaseQrCheck, neteaseUserInfo } = require('./netease');
-const { qqSearch, qqQrLogin, qqQrCheck, qqUserInfo } = require('./qq'); // 搜索/登录/用户信息保留
+const { qqSearch, qqUserInfo } = require('./qq'); // 搜索/用户信息（登录已改用qq-music-api）
 const { kugouSearch, kugouSongUrl, kugouUserInfo, kugouQrLogin, kugouQrCheck } = require('./kugou');
 const { getSongUrl: getQQSongUrl } = require('./qqApi');
 
@@ -54,7 +54,7 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === '/api/qq/url') {
       const mid = url.searchParams.get('mid') || '';
       const result = await getQQSongUrl(mid);
-      res.writeHead(result.success ? 200 : 403, { 'Content-Type: 'application/json' });
+      res.writeHead(result.success ? 200 : 403, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({
         code: result.success ? 200 : 403,
         data: result.success ? { url: result.url, playMode: 'full' } : null,
@@ -163,24 +163,56 @@ const server = http.createServer(async (req, res) => {
       res.end(JSON.stringify(data));
       return;
     }
-    // QQ音乐 QR 码登录状态检查
-    if (url.pathname === '/api/qq/login/check') {
-      const key = url.searchParams.get('key') || '';
-      const data = await qqQrCheck(key);
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(data));
+    // ===== QQ音乐扫码登录（通过 qq-music-api）=====
+    if (url.pathname === '/api/qq/login/qr') {
+      try {
+        const qqApiRes = await fetch('http://localhost:3200/getQQLoginQr');
+        const text = await qqApiRes.text();
+        console.log('[QQ_QR] qq-music-api 返回:', text.slice(0, 200));
+        try {
+          const json = JSON.parse(text);
+          // qq-music-api 返回 {img: "data:image/png;base64,..."}
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ code: 200, data: { img: json.img, qrsig: json.qrsig, ptqrtoken: json.ptqrtoken } }));
+        } catch {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ code: -1, msg: '解析失败', raw: text.slice(0, 200) }));
+        }
+      } catch (e) {
+        console.error('[QQ_QR] 请求失败:', e.message);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ code: -1, msg: 'qq-music-api 未启动', error: e.message }));
+      }
       return;
     }
+
+    if (url.pathname === '/api/qq/login/check') {
+      const qrsig = url.searchParams.get('qrsig') || '';
+      const ptqrtoken = url.searchParams.get('ptqrtoken') || '';
+      try {
+        const qqApiRes = await fetch('http://localhost:3200/checkQQLoginQr', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ qrsig, ptqrtoken }),
+        });
+        const json = await qqApiRes.json();
+        console.log('[QQ_CHECK] qq-music-api 返回:', JSON.stringify(json).slice(0, 300));
+        // 登录成功 → 保存 cookie
+        if (json.code === 0 && json.session?.cookie) {
+          saveQQCookie(json.session.cookie);
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(json));
+      } catch (e) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ code: -1, msg: 'qq-music-api 未启动' }));
+      }
+      return;
+    }
+
     // 网易云 QR 码登录
     if (url.pathname === '/api/netease/login/qr') {
       const qr = await neteaseQrLogin();
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(qr));
-      return;
-    }
-    // QQ音乐 QR 码登录
-    if (url.pathname === '/api/qq/login/qr') {
-      const qr = await qqQrLogin();
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(qr));
       return;
