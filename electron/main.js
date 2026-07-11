@@ -532,14 +532,19 @@ ipcMain.handle('login:qq-open', async () => {
 
 // ==================== QQ音乐扫码登录（qq-music-api 方式）====================
 
-// 获取二维码
+// 获取二维码（qq-music-api 返回 {img: "data:image/png;base64,..."}）
 ipcMain.handle('login:qq-qr-key', async () => {
   try {
-    const res = await fetch('http://localhost:3001/api/qq/login/qr');
-    const json = await res.json();
-    return json;
+    const res = await fetch('http://localhost:3200/getQQLoginQr');
+    const text = await res.text();
+    try {
+      const json = JSON.parse(text);
+      return { code: json.code === 0 ? 200 : -1, data: { img: json.img, qrsig: json.qrsig, ptqrtoken: json.ptqrtoken } };
+    } catch {
+      return { code: -1, msg: '解析二维码响应失败', raw: text.slice(0, 200) };
+    }
   } catch (e) {
-    return { code: -1, msg: '无法连接到本地服务器' };
+    return { code: -1, msg: '无法连接到 qq-music-api (http://localhost:3200)' };
   }
 });
 
