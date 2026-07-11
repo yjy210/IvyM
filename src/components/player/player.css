@@ -104,24 +104,25 @@
 
 /* ── 主内容区 ── */
 .player-main {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  display: flex;
   align-items: center;
   flex: 1;
   padding: 0 20px;
   gap: 16px;
   box-sizing: border-box;
   min-width: 0;
+  overflow: hidden;
 }
 
-/* ── 歌曲信息：左侧 ── */
+/* ── 歌曲信息：左侧可伸缩区域 ── */
 .player-song-info {
-  justify-self: start;
+  flex: 1;
+  min-width: 0;
+  max-width: 35%;
+  overflow: hidden;
   display: flex;
   align-items: center;
   gap: 12px;
-  min-width: 0;
-  overflow: hidden;
 }
 
 .player-cover {
@@ -158,6 +159,7 @@
   overflow: hidden;
   white-space: nowrap;
   width: 100%;
+  min-width: 0;
 }
 
 .marquee-text {
@@ -185,15 +187,14 @@
   100% { transform: translateX(calc(-100% - 40px)); }
 }
 
-/* ── 控制区：中间栏，永远居中 ── */
+/* ── 控制区：中间永远可见 ── */
 .player-layout {
-  justify-self: center;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: clamp(3px, 0.5vw, 8px);
   height: 100%;
-  flex-shrink: 0;
 }
 
 /* 左工具组 */
@@ -201,8 +202,8 @@
   display: flex;
   align-items: center;
   gap: clamp(3px, 0.5vw, 8px);
-  justify-self: start;
   height: 100%;
+  flex-shrink: 0;
 }
 
 /* 右工具组 */
@@ -210,11 +211,11 @@
   display: flex;
   align-items: center;
   gap: clamp(3px, 0.5vw, 8px);
-  justify-self: end;
   height: 100%;
+  flex-shrink: 0;
 }
 
-/* 播放控制组：水平居中（跟随 layout） */
+/* 播放控制组：水平居中 */
 .player-play-group {
   display: flex;
   align-items: center;
@@ -224,28 +225,19 @@
   pointer-events: auto;
 }
 
-.player-song-info {
-  flex-shrink: 1;
-  min-width: 0;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
 /* 响应式：缩小时间距缩小，最小 3px */
 @media (max-width: 1000px) {
   .player-main {
     gap: 8px;
+  }
+  .player-song-info {
+    max-width: 30%;
   }
 }
 
 @media (max-width: 800px) {
   .player-left-tools {
     display: none;
-  }
-  .player-main {
-    grid-template-columns: 1fr auto 1fr;
   }
 }
 
@@ -257,7 +249,7 @@
     display: none;
   }
   .player-song-info {
-    max-width: 40%;
+    max-width: 25%;
   }
 }
 

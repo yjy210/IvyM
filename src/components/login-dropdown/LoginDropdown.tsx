@@ -14,6 +14,19 @@ interface PlatformAccount {
   };
 }
 
+/** 兼容旧格式：{vip, vipName} → {membership: {status, type}} */
+function normalizeAccount(acc: any): PlatformAccount {
+  if (acc.membership) return acc as PlatformAccount;
+  return {
+    platform: acc.platform,
+    nickname: acc.nickname || '',
+    avatar: acc.avatar || '',
+    userId: acc.userId || '',
+    bindTime: acc.bindTime || Date.now(),
+    membership: { status: acc.vip ? 'vip' : 'unknown', type: acc.vipName || null },
+  };
+}
+
 interface LoginDropdownProps {
   onClose: () => void;
 }
@@ -34,7 +47,7 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
   useEffect(() => {
     window.electronAPI?.getAccounts().then((stored: PlatformAccount[]) => {
       if (stored && stored.length > 0) {
-        setAccounts(stored);
+        setAccounts(stored.map(normalizeAccount));
       }
     }).catch(() => {});
   }, []);
