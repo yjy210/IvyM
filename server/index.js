@@ -1,6 +1,7 @@
 const http = require('http');
 const { neteaseSearch, neteaseSongUrl, neteaseLyric, neteaseQrLogin, neteaseQrCheck, neteaseUserInfo } = require('./netease');
-const { qqSearch, qqSongUrl, qqQrLogin, qqQrCheck, qqUserInfo } = require('./qq');
+const { qqSearch, qqQrLogin, qqQrCheck, qqUserInfo } = require('./qq');
+const { playQQ } = require('./providers/qq');
 const { kugouSearch, kugouSongUrl, kugouUserInfo, kugouQrLogin, kugouQrCheck } = require('./kugou');
 
 const PORT = 3001;
@@ -52,9 +53,15 @@ const server = http.createServer(async (req, res) => {
     }
     if (url.pathname === '/api/qq/url') {
       const mid = url.searchParams.get('mid') || '';
-      const data = await qqSongUrl(mid);
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(data));
+      const quality = url.searchParams.get('quality') || 'm4a';
+      const result = await playQQ(mid, quality);
+      res.writeHead(result.success ? 200 : 403, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        code: result.success ? 200 : (result.error === 'login_required' ? 401 : 403),
+        data: result.success ? { url: result.url, playMode: result.playMode, trialDuration: result.trialDuration } : null,
+        reason: result.error,
+        msg: result.success ? 'ok' : getErrorMessage(result.error),
+      }));
       return;
     }
 
@@ -194,6 +201,18 @@ const server = http.createServer(async (req, res) => {
     res.end(JSON.stringify({ error: err.message }));
   }
 });
+
+// QQ播放错误码 → 中文提示
+function getErrorMessage(error) {
+  const messages = {
+    login_required: '请先登录QQ音乐',
+    vip_required: '该歌曲需要VIP会员',
+    network_error: '网络错误',
+    parse_error: '播放链接解析失败',
+    timeout: '请求超时',
+  };
+  return messages[error] || '无法获取播放链接';
+}
 
 function startApiServer(port = PORT) {
   return new Promise((resolve, reject) => {
