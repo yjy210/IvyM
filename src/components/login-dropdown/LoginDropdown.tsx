@@ -89,11 +89,13 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
     } else if (platform === 'qq') {
       // QQ扫码登录（qq-music-api）
       const result = await window.electronAPI?.getQQQRKey();
+      console.log('[QQ] getQQQRKey result:', JSON.stringify(result).slice(0, 200));
       if (result?.code === 200 && result.data?.img) {
         setQrModal({ visible: true, qrImg: result.data.img, unikey: result.data.qrsig || '', status: '请使用QQ音乐APP扫码' });
         startQQQRPolling(result.data.qrsig, result.data.ptqrtoken);
       } else {
-        setQrModal({ visible: true, qrImg: null, unikey: null, status: result?.msg || result?.raw || '获取二维码失败' });
+        console.error('[QQ] getQQQRKey failed:', JSON.stringify(result));
+        setQrModal({ visible: true, qrImg: null, unikey: null, status: result?.msg || result?.error || '获取二维码失败' });
       }
     }
   }, []);

@@ -533,22 +533,24 @@ ipcMain.handle('login:qq-open', async () => {
 // ==================== QQ音乐扫码登录（qq-music-api 方式）====================
 
 // 获取二维码（qq-music-api 返回 {img: "data:image/png;base64,..."}）
+// 获取二维码（通过后端 3001 代理，避免跨域）
 ipcMain.handle('login:qq-qr-key', async () => {
   try {
-    const res = await fetch('http://localhost:3200/getQQLoginQr');
-    const text = await res.text();
-    try {
-      const json = JSON.parse(text);
-      return { code: json.code === 0 ? 200 : -1, data: { img: json.img, qrsig: json.qrsig, ptqrtoken: json.ptqrtoken } };
-    } catch {
-      return { code: -1, msg: '解析二维码响应失败', raw: text.slice(0, 200) };
+    const res = await fetch('http://localhost:3001/api/qq/login/qr');
+    if (!res.ok) {
+      console.error('[QQ_QR] 后端返回 HTTP', res.status);
+      return { code: -1, msg: '后端返回错误: ' + res.status };
     }
+    const json = await res.json();
+    console.log('[QQ_QR] 返回 code=' + json.code + ', hasImg=' + !!json.data?.img);
+    return json;
   } catch (e) {
-    return { code: -1, msg: '无法连接到 qq-music-api (http://localhost:3200)' };
+    console.error('[QQ_QR] 请求失败:', e.message);
+    return { code: -1, msg: '无法连接到本地服务器 (3001)', error: e.message };
   }
 });
 
-// 检查扫码状态
+// 检查扫码状态（通过后端 3001 代理）
 ipcMain.handle('login:qq-qr-check', async (e, { qrsig, ptqrtoken }) => {
   try {
     const res = await fetch('http://localhost:3001/api/qq/login/check', {
@@ -557,9 +559,11 @@ ipcMain.handle('login:qq-qr-check', async (e, { qrsig, ptqrtoken }) => {
       body: JSON.stringify({ qrsig, ptqrtoken }),
     });
     const json = await res.json();
+    console.log('[QQ_CHECK] 返回 code=' + json.code + ', hasSession=' + !!json.session);
     return json;
   } catch (e) {
-    return { code: -1, msg: '无法连接到本地服务器' };
+    console.error('[QQ_CHECK] 请求失败:', e.message);
+    return { code: -1, msg: '无法连接到本地服务器', error: e.message };
   }
 });
 
