@@ -5,7 +5,7 @@ import VolumeSlider from './VolumeSlider';
 import Toast from './Toast';
 import { playSong } from '../../services/playController';
 import { onPlayEvent } from '../../events/playEvents';
-import { getPlayEventMessage } from '../../utils/playEventMessage';
+import MarqueeText from './MarqueeText';
 import './player.css';
 import './GlassSurface.css';
 import './VolumeSlider.css';
@@ -283,8 +283,12 @@ export default function Player() {
               <img src="/logo.png" alt="IvyM" className="player-cover" />
             )}
             <div className="player-text">
-              <div className="player-song-name">{currentSong?.name || '未选择歌曲'}</div>
-              <div className="player-song-artist">{currentSong?.artists || '搜索并选择歌曲播放'}</div>
+              <div className="player-song-name">
+                <MarqueeText text={currentSong?.name || '未选择歌曲'} />
+              </div>
+              <div className="player-song-artist">
+                <MarqueeText text={currentSong?.artists || '搜索并选择歌曲播放'} />
+              </div>
             </div>
           </div>
 
