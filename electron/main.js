@@ -530,6 +530,34 @@ ipcMain.handle('login:qq-open', async () => {
   });
 });
 
+// ==================== QQ音乐扫码登录（qq-music-api 方式）====================
+
+// 获取二维码
+ipcMain.handle('login:qq-qr-key', async () => {
+  try {
+    const res = await fetch('http://localhost:3001/api/qq/login/qr');
+    const json = await res.json();
+    return json;
+  } catch (e) {
+    return { code: -1, msg: '无法连接到本地服务器' };
+  }
+});
+
+// 检查扫码状态
+ipcMain.handle('login:qq-qr-check', async (e, { qrsig, ptqrtoken }) => {
+  try {
+    const res = await fetch('http://localhost:3001/api/qq/login/check', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ qrsig, ptqrtoken }),
+    });
+    const json = await res.json();
+    return json;
+  } catch (e) {
+    return { code: -1, msg: '无法连接到本地服务器' };
+  }
+});
+
 // ==================== 清除 partition session（内部共用）====================
 async function clearPlatformSession(platform) {
   const partition = PLATFORM_PARTITIONS[platform];

@@ -87,7 +87,14 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
         setQrModal({ visible: true, qrImg: null, unikey: null, status: result?.msg || '获取二维码失败' });
       }
     } else if (platform === 'qq') {
-      window.electronAPI?.openQQLogin();
+      // QQ扫码登录（qq-music-api）
+      const result = await window.electronAPI?.getQQQRKey();
+      if (result?.code === 200 && result.data?.img) {
+        setQrModal({ visible: true, qrImg: result.data.img, unikey: result.data.qrsig, status: '请使用QQ音乐APP扫码' });
+        startQQQRPolling(result.data.qrsig, result.data.ptqrtoken);
+      } else {
+        setQrModal({ visible: true, qrImg: null, unikey: null, status: result?.msg || '获取二维码失败' });
+      }
     }
   }, []);
 
@@ -149,6 +156,39 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
           setQrModal(prev => ({ ...prev, status: '已扫码，请在手机上确认' }));
         } else if (res?.code === -1) {
           setQrModal(prev => ({ ...prev, status: '二维码已过期' }));
+          clearInterval(timer);
+        }
+      } catch { /* ignore */ }
+    }, 2000);
+  }, []);
+
+  // QQ扫码轮询（qq-music-api）
+  const startQQQRPolling = useCallback((qrsig: string, ptqrtoken?: string) => {
+    const timer = setInterval(async () => {
+      try {
+        const res = await window.electronAPI?.checkQQQRStatus({ qrsig, ptqrtoken });
+        if (res?.code === 0 && res.session?.cookie) {
+          clearInterval(timer);
+          setQrModal(prev => ({ ...prev, status: '登录成功！' }));
+          const newAccount: PlatformAccount = {
+            platform: 'qq',
+            nickname: res.session.cookieObject?.nick || 'QQ用户',
+            avatar: '',
+            userId: res.session.cookieObject?.uin || '',
+            bindTime: Date.now(),
+            membership: { status: 'unknown', type: null },
+          };
+          window.electronAPI?.upsertAccount(newAccount);
+          setAccounts(prev => [...prev.filter(a => a.platform !== 'qq'), newAccount]);
+          setActiveTab('bound');
+          setTimeout(() => setQrModal({ visible: false, qrImg: null, unikey: null, status: '' }), 1000);
+        } else if (res?.code === 'wait') {
+          setQrModal(prev => ({ ...prev, status: '已扫码，请在手机上确认' }));
+        } else if (res?.code === 'expired' || res?.code === 'timeout') {
+          setQrModal(prev => ({ ...prev, status: '二维码已过期' }));
+          clearInterval(timer);
+        } else if (res?.code === 'invalid') {
+          setQrModal(prev => ({ ...prev, status: '扫码失败，请重试' }));
           clearInterval(timer);
         }
       } catch { /* ignore */ }

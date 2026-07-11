@@ -28,7 +28,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   checkQRStatus: (unikey) => ipcRenderer.invoke('login:qr-check', unikey),
   getQRUserInfo: () => ipcRenderer.invoke('login:qr-user'),
   // --- QQ音乐登录（网页方式）---
-  openQQLogin: () => ipcRenderer.invoke('login:qq-open'),
+  // --- QQ音乐扫码登录（qq-music-api 方式）---
+  getQQQRKey: () => ipcRenderer.invoke('login:qq-qr-key'),
+  checkQQQRStatus: (params) => ipcRenderer.invoke('login:qq-qr-check', params),
   // --- 酷狗音乐 QR 登录 ---
   getKuGouQRKey: () => ipcRenderer.invoke('login:kugou-qr-key'),
   checkKuGouQRStatus: (sigx) => ipcRenderer.invoke('login:kugou-qr-check', sigx),
