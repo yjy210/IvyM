@@ -246,4 +246,4 @@ async function qqUserInfo() {
   });
 }
 
-module.exports = { qqSearch, qqSongUrl, qqQrLogin, qqQrCheck, qqUserInfo, saveQQCookie };
+module.exports = { qqSearch, qqQrLogin, qqQrCheck, qqUserInfo, saveQQCookie };
