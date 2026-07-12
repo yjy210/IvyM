@@ -488,8 +488,9 @@ ipcMain.handle('login:kugou-qr-check', async (event, sigx) => {
     const { kugouQrCheck, saveKugouCookies: saveKgCookies, getKugouCookieString, parseKugouMembership } = require('../server/kugou');
     const result = await kugouQrCheck(sigx);
     console.log('[IvyM DEBUG] kugou-qr-check sigx=' + sigx + ' 返回:', JSON.stringify(result));
-    // 酷狗 QR check：code=2 或 cookie 非空 = 登录成功；code=0 等待，code=1 已扫待确认
-    if (result?.cookie || result?.code === 2) {
+    // 酷狗 QR 状态码（API 源码注释）：0=过期 / 1=等待扫码 / 2=已扫待确认 / 4=登录成功
+    // error_code=0 + cookie 非空 = 登录完成
+    if (result?.status === 4 || result?.error_code === 0) {
       try {
         // 解析 cookie 字符串，写入 .kg-cookie.json
         const cookieObj = {};

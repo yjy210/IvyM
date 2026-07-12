@@ -203,9 +203,9 @@ async function kugouQrLogin() {
 }
 
 async function kugouQrCheck(sigx) {
-  const res = await kugouRequest('/login/qr/check', { sigx });
+  const res = await kugouRequest('/login/qr/check', { key: sigx });
   console.log('[KUGOU RAW QR CHECK]', JSON.stringify(res));
-  return { code: res?.code, msg: res?.msg || '', cookie: res?.cookie || '', userid: res?.userid || 0 };
+  return { status: res?.status || res?.data?.status, error_code: res?.error_code, msg: res?.msg || '', cookie: res?.cookie || '', userid: res?.userid || 0 };
 }
 
 module.exports = {
