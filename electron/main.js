@@ -472,22 +472,25 @@ ipcMain.handle('login:open', async (event, platform) => {
                   const j = JSON.parse(raw);
                   const d = j?.data || j;
                   if (d && (d.nickname || d.username || d.userid)) {
-                    const vipT = d.vip_type || d.viptype || d.vip || 0;
-                    const isVip = Number(vipT) > 0;
-                    const level = Number(vipT) >= 2 ? 'svip' : 'vip';
+                    const vipT = Number(d.vip_type || d.viptype || d.vip || 0);
+                    const isVip = vipT > 0;
+                    const svipLevel = Number(d.svip_level || 0);
+                    // 酷狗会员: vip_type=1 VIP, svip_level>=1 SVIP
+                    const level = svipLevel >= 1 ? 'svip' : 'vip';
+                    const name = !isVip ? null : (level === 'svip' ? 'SVIP' : 'VIP');
                     _kugouCapturedUser = {
                       platform: 'kugou',
                       nickname: d.nickname || d.username || '',
                       avatar: d.avatar || d.pic || d.headpic || d.headurl || '',
                       userId: String(d.userid || d.uid || ''),
                       vip: isVip,
-                      vipName: isVip ? (level === 'svip' ? 'SVIP' : 'VIP') : '',
+                      vipName: name || '',
                       membership: {
                         status: isVip ? 'vip' : 'normal',
                         provider: 'kugou',
-                        level,
-                        name: isVip ? (level === 'svip' ? 'SVIP' : 'VIP') : null,
-                        icon: '/icons/vip-kugou.svg',
+                        level: isVip ? level : null,
+                        name,
+                        icon: isVip ? '/icons/vip-kugou.svg' : null,
                       },
                     };
                   }
