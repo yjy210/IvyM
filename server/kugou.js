@@ -204,7 +204,9 @@ async function kugouQrLogin() {
 
 async function kugouQrCheck(sigx) {
   const res = await kugouRequest('/login/qr/check', { sigx });
-  return { code: res?.errcode || res?.status, msg: res?.msg || '', cookie: res?.cookie || '', userid: res?.userid || 0 };
+  // KuGouMusicApi 返回格式：{code, msg, cookie, userid}
+  // code: 0=等待扫码, 1=已扫待确认, 2=登录成功（cookie 非空）
+  return { code: res?.code ?? res?.errcode, msg: res?.msg || '', cookie: res?.cookie || '', userid: res?.userid || 0 };
 }
 
 module.exports = {
