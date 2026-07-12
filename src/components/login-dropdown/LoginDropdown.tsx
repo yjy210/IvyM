@@ -144,13 +144,6 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
   // 酷狗 QR 轮询 timer ref（供 login:result 回调清理）
   const kugouQrTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // 刷新酷狗二维码（清理旧 timer + 重新启动 QR 流程）
-  const refreshQR = useCallback(async () => {
-    if (kugouQrTimerRef.current) { clearInterval(kugouQrTimerRef.current); kugouQrTimerRef.current = null; }
-    setQrModal({ visible: false, qrImg: null, unikey: null, ptqrtoken: null, status: 'idle', errorMsg: '' });
-    await startKugouQrLogin();
-  }, [startKugouQrLogin]);
-
   // ★ 酷狗 QR 登录：走 KuGouMusicApi（与 QQ/网易云 QR 统一）
   // 弹窗关闭由 Electron login:result 事件驱动（不依赖前端轮询判断）
   const startKugouQrLogin = useCallback(async () => {
@@ -179,6 +172,13 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
       setQrModal({ visible: true, qrImg: null, unikey: null, ptqrtoken: null, status: 'failed', errorMsg: e?.message || '登录失败' });
     }
   }, []);
+
+  // 刷新酷狗二维码（清理旧 timer + 重新启动 QR 流程）— 必须在 startKugouQrLogin 之后
+  const refreshQR = useCallback(async () => {
+    if (kugouQrTimerRef.current) { clearInterval(kugouQrTimerRef.current); kugouQrTimerRef.current = null; }
+    setQrModal({ visible: false, qrImg: null, unikey: null, ptqrtoken: null, status: 'idle', errorMsg: '' });
+    await startKugouQrLogin();
+  }, [startKugouQrLogin]);
 
   // 打开平台登录（网易云/QQ 用官网 BrowserWindow，酷狗用 QR）
   const handleBind = useCallback(async (platform: 'netease' | 'qq' | 'kugou') => {
