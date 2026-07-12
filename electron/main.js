@@ -10,7 +10,7 @@ const { startApiServer } = require('../server/index');
 const PLATFORM_LOGIN_URLS = {
   netease: 'https://music.163.com/#/login',
   qq: 'https://y.qq.com/n/ryqq/profile',
-  kugou: 'https://www.kugou.com/',
+  kugou: 'https://www.kugou.com/login/',
 };
 
 // 各平台 partition（隔离 session，避免污染主窗口）
@@ -432,6 +432,14 @@ ipcMain.handle('login:open', async (event, platform) => {
       },
     });
 
+    // ★ 酷狗：模拟 Chrome UA + 打开 DevTools 诊断加载失败原因
+    if (platform === 'kugou') {
+      loginWin.webContents.setUserAgent(
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      );
+      loginWin.webContents.openDevTools({ mode: 'detach' });
+    }
+
     const finish = async (result) => {
       if (settled) return;
       settled = true;
@@ -471,15 +479,15 @@ ipcMain.handle('login:open', async (event, platform) => {
     };
 
     if (platform === 'kugou') {
-      // ★ 监听酷狗网页自己的用户信息请求（抓真实 URL）
-      const kugouFilter = { urls: ['*://*.kugou.com/*', '*://*.kgimg.com/*'] };
-      // ★ 暴力抓包：所有 kugou.com + gateway 请求都打印
+      // ★ 暴力抓包：监听所有请求（找出酷狗真实使用的 API 域名）
+      const kugouFilter = { urls: ['<all_urls>'] };
       const kgSession = loginWin?.webContents?.session;
       if (kgSession) {
         const kugouReqListener = (details) => {
           const url = details.url;
-          if (/\.(js|css|png|jpg|gif|svg|woff|mp3|mp4)(\?|$)/i.test(url)) return;
-          if (/log\.kugou|stat\.kugou|track|beacon|report|cl\.dat|wMonitor/i.test(url)) return;
+          // 只过滤明显的静态资源
+          if (/\.(js|css|png|jpg|gif|svg|woff2?|mp3|mp4|webp|ico)(\?|$)/i.test(url)) return;
+          if (/log|stat|track|beacon|report|cl\.dat|wMonitor|ads|analytics/i.test(url)) return;
           console.log(`[KUGOU_REQ] ${details.method} ${url.slice(0, 200)}`);
         };
         kgSession.webRequest.onBeforeRequest(kugouFilter, kugouReqListener);
