@@ -175,7 +175,7 @@ function parseKugouMembership(userInfo) {
 async function kugouUserInfo() {
   const cookie = getKugouCookieString();
   if (!cookie) return null;
-  const res = await kugouRequest('/user/detail', {});
+  const res = await kugouRequest('/user/info', {});
   if (!res?.data) return null;
   const info = res.data;
   const membership = parseKugouMembership(info);
@@ -191,15 +191,19 @@ async function kugouUserInfo() {
 }
 
 // ======================== 二维码登录 ========================
+// kugou-api 路由规则：login_qr_key.js → /login/qr/key（下划线转斜杠）
 
 async function kugouQrLogin() {
-  const res = await kugouRequest('/login_qr_key', {});
-  if (!res?.data?.qrcode) return { code: -1, msg: '获取二维码失败' };
-  return { code: 200, data: { qrimg: res.data.qrcode, sigx: res.data.sigx || '' } };
+  const res = await kugouRequest('/login/qr/key', {});
+  // 二维码图片字段：qrcode_img 是 base64 图片，qrcode 是 token
+  const qrImg = res?.data?.qrcode_img;
+  const qrToken = res?.data?.qrcode || '';
+  if (!qrImg && !qrToken) return { code: -1, msg: '获取二维码失败' };
+  return { code: 200, data: { qrimg: qrImg, sigx: qrToken } };
 }
 
 async function kugouQrCheck(sigx) {
-  const res = await kugouRequest('/login_qr_check', { sigx });
+  const res = await kugouRequest('/login/qr/check', { sigx });
   return { code: res?.errcode || res?.status, msg: res?.msg || '', cookie: res?.cookie || '', userid: res?.userid || 0 };
 }
 
