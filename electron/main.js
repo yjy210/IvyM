@@ -268,18 +268,68 @@ async function getUserInfo(platform, cookieStr) {
   const userId = getUserIdFromCookies(platform, cookies);
 
   if (platform === 'kugou') {
-    // kugoo 登录成功：KugooID + UserName 必有；昵称/头像/VIP 暂时 fallback
+    // ★ 登录态已有 KugooID + UserName；深层探测 KgUser / getBaseInfo 取昵称头像
     const kugooId = cookies.find(c => c.name === 'KugooID')?.value || '';
-    // 最小 fallback：显示 KugooID 后缀（后续 CDP 抓到真实接口再补全）
-    const nick = kugooId ? `酷狗${kugooId.slice(-6)}` : '酷狗用户';
+    try {
+      const deep = await loginWin.webContents.executeJavaScript(`(function(){
+        const out = {};
+        try {
+          // 探 KgUser 对象结构
+          if (window.KgUser) {
+            out['KgUser.type'] = typeof window.KgUser;
+            out['KgUser.keys'] = JSON.stringify(Object.keys(window.KgUser).slice(0,30));
+            out['KgUser.proto'] = JSON.stringify(Object.getOwnPropertyNames(Object.getPrototypeOf(window.KgUser)).slice(0,30));
+            // 调用 KgUser 可能的方法
+            for (const m of ['getUserInfo','getInfo','getBaseInfo','userInfo','getNick','getAvatar']) {
+              try {
+                if (typeof window.KgUser[m] === 'function') {
+                  const r = window.KgUser[m]();
+                  out['KgUser.'+m] = JSON.stringify(r).slice(0,300);
+                }
+              } catch(e) { out['KgUser.'+m+'_err'] = e.message; }
+            }
+          }
+          // 探全局 getBaseInfo
+          if (typeof window.getBaseInfo === 'function') {
+            try {
+              const r = window.getBaseInfo();
+              out['getBaseInfo.fn_src'] = window.getBaseInfo.toString().slice(0,500);
+              out['getBaseInfo.result'] = JSON.stringify(r).slice(0,300);
+            } catch(e) { out['getBaseInfo_err'] = e.message; }
+          }
+          // 其他可能用户信息的全局
+          for (const k of ['__user__','__userInfo__','USER_INFO','__LOGIN_USER__']) {
+            try { if (window[k]) out[k] = JSON.stringify(window[k]).slice(0,300); } catch(e) { out[k] = e.message; }
+          }
+          // JSON.stringify KgUser 可能循环/undefined，改用节点扫描
+          try {
+            if (window.KgUser && typeof window.KgUser === 'object') {
+              const sample = {};
+              for (const k of Object.keys(window.KgUser)) {
+                try {
+                  const v = window.KgUser[k];
+                  if (typeof v !== 'function' && typeof v !== 'object') sample[k] = String(v).slice(0,100);
+                } catch(e) {}
+              }
+              out['KgUser.sample'] = JSON.stringify(sample).slice(0,500);
+            }
+          } catch(e) { out['KgUser.scan_err'] = e.message; }
+        } catch(e) { out['probe_err'] = e.message; }
+        return JSON.stringify(out);
+      })()`);
+      console.log('[KUGOU_KGUSER_PROBE]', deep);
+    } catch (e) {
+      console.warn('[KUGOU_PROBE_err]', e.message);
+    }
+    // fallback：KugooID 占位
     return {
       platform: 'kugou',
-      nickname: nick,
+      nickname: kugooId ? `酷狗${kugooId.slice(-6)}` : '酷狗用户',
       avatar: '',
       userId: kugooId || userId || '',
       vip: false,
       vipName: '',
-      membership: { status: 'unknown', provider: 'kugou', level: null, name: null, icon: null },
+      membership: { status: 'normal', provider: 'kugou', level: null, name: null, icon: null },
     };
   }
 
