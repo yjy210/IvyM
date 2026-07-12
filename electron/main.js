@@ -122,11 +122,10 @@ function hasLoginCookies(platform, cookies) {
   const names = cookies.map(c => c.name);
   if (platform === 'netease') return names.includes('MUSIC_U');
   if (platform === 'qq') return qqHasValidLogin(cookies);
-  // 酷狗：需要同时满足音乐客户端 cookie（kg_mid/KG_FID）与音乐授权 key（kgmusic_key/kg_dfid）
-  // 防误判：仅含全站 cookie（如 FDID）不算登录成功
-  const hasKgClient = names.includes('kg_mid') || names.includes('KG_FID');
-  const hasKgMusic = names.includes('kgmusic_key') || names.includes('kg_dfid');
-  if (platform === 'kugou') return hasKgClient && hasKgMusic;
+  // 酷狗：任意关键 cookie 存在即认为登录成功（兼容扫码/账号密码/移动授权多种方式）
+  if (platform === 'kugou') {
+    return names.some(n => n === 'kg_mid' || n === 'KG_FID' || n === 'kg_dfid' || n === 'kgmusic_key');
+  }
   return false;
 }
 

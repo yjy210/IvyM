@@ -134,8 +134,8 @@ export function Sidebar({ currentPage, onNavigate }: SidebarProps) {
                 <div className="flex-1 min-w-0">
                   <div className="text-xs font-medium text-text-primary truncate">{acc.nickname}</div>
                 </div>
-                {/* 会员图标：官方 CDN 用 img，否则用文字 badge；脏数据无 level/icon 时不显示 */}
-                {isRealVip(acc) && (
+                {/* 会员图标：有 icon（QQ）用 img，否则用文字 badge；VIP 必须有 level/icon 才显示 */}
+                {acc.membership?.status === 'vip' && (acc.membership.level || acc.membership.icon) && (
                   acc.membership.icon ? (
                     <img src={acc.membership.icon} alt={acc.membership.name || 'VIP'}
                       className="bound-vip-icon" referrerPolicy="no-referrer"
