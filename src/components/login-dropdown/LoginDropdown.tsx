@@ -319,7 +319,11 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
                             acc.membership.icon ? (
                               <img src={acc.membership.icon} alt={acc.membership.name || 'VIP'}
                                 className="bound-vip-icon" referrerPolicy="no-referrer"
-                                onError={(e) => { (e.target as HTMLImageElement).src = acc.platform === 'qq' ? '/icons/vip-qq.svg' : '/icons/vip-netease.svg'; }} />
+                                onError={(e) => {
+                                  // QQ 官方 CDN 失败时降级本地图标；网易云不降级（走文字 badge）
+                                  if (acc.platform === 'qq') (e.currentTarget as HTMLImageElement).src = '/icons/vip-qq.svg';
+                                  else (e.currentTarget as HTMLImageElement).style.display = 'none';
+                                }} />
                             ) : (
                               <span className={`bound-vip-inline is-${acc.platform}`}>
                                 <span className="vip-text-gradient">
