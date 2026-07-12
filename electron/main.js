@@ -272,7 +272,7 @@ async function getUserInfo(platform, cookieStr) {
       const kugouPort = process.env.KUGOU_API_PORT || '3201';
       const kugouUrl = `http://localhost:${kugouPort}/api/user/info`;
       console.log('[KUGOU_userInfo_url]', kugouUrl);
-      const text = await new Promise<string>((resolve, reject) => {
+      const text = await new Promise((resolve, reject) => {
         const req = http.get(kugouUrl, {
           headers: { 'Cookie': cookieStr, 'Referer': 'https://www.kugou.com' },
         }, (res) => {
