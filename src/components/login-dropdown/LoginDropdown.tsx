@@ -141,48 +141,9 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
     }
   }, []);
 
-  // ★ 酷狗 QR 登录：独立流程（不走官网 BrowserWindow）
-  const startKugouQrLogin = useCallback(async () => {
-    try {
-      setQrModal({ visible: true, qrImg: null, unikey: null, ptqrtoken: null, status: 'waiting', errorMsg: '' });
-      const keyRes = await window.electronAPI?.getKugouQrKey();
-      if (!keyRes?.data?.qrimg) {
-        setQrModal(prev => ({ ...prev, status: 'failed', errorMsg: keyRes?.msg || '获取二维码失败' }));
-        return;
-      }
-      setQrModal(prev => ({ ...prev, qrImg: keyRes.data.qrimg, unikey: keyRes.data.sigx || '', ptqrtoken: '' }));
-      // 轮询扫码
-      const timer = setInterval(async () => {
-        try {
-          const checkRes = await window.electronAPI?.checkKugouQr(keyRes.data.sigx || '');
-          if (checkRes?.code === 0 || checkRes?.status === 0) {
-            clearInterval(timer);
-            setQrModal({ visible: false, qrImg: null, unikey: null, ptqrtoken: null, status: 'idle', errorMsg: '' });
-          }
-        } catch { /* 继续轮询 */ }
-      }, 1500);
-      // 超时 120s
-      setTimeout(() => { clearInterval(timer); }, 120000);
-    } catch (e: any) {
-      setQrModal({ visible: true, qrImg: null, unikey: null, ptqrtoken: null, status: 'failed', errorMsg: e?.message || '登录失败' });
-    }
-  }, []);
-
-  // 刷新二维码（先清理旧状态 + 停止轮询，再启动新的 QR 流程）
-  const refreshQR = useCallback(async () => {
-    stopQRPoll();
-    setQrModal({ visible: false, qrImg: null, unikey: null, ptqrtoken: null, status: 'idle', errorMsg: '' });
-    await startKugouQrLogin();
-  }, [startKugouQrLogin]);
-
-  // 打开平台登录（仅网易云/QQ 用官网弹窗）
+  // 打开平台登录（网易云/酷狗/QQ 均用官网 BrowserWindow）
   const handleBind = useCallback(async (platform: 'netease' | 'qq' | 'kugou') => {
-    if (platform === 'kugou') {
-      // ★ 酷狗走独立 QR 路径（KuGouMusicApi），不走 BrowserWindow
-      await startKugouQrLogin();
-      return;
-    }
-    if (platform === 'netease') {
+    if (platform === 'netease' || platform === 'kugou') {
       try {
         const result = await window.electronAPI?.openPlatformLogin(platform);
         handleLoginResult({
@@ -519,9 +480,6 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
                 ) : qrModal.status === 'failed' ? (
                   <>
                     <p className="qr-error">{statusText}</p>
-                    <button className="qr-retry-btn" onClick={refreshQR}>
-                      {isQQ ? '重新扫码' : '重试'}
-                    </button>
                     <button
                       className="qr-browser-login-btn"
                       onClick={() => {
