@@ -122,9 +122,9 @@ function hasLoginCookies(platform, cookies) {
   const names = cookies.map(c => c.name);
   if (platform === 'netease') return names.includes('MUSIC_U');
   if (platform === 'qq') return qqHasValidLogin(cookies);
-  // 酷狗：任意关键 cookie 存在即认为登录成功（兼容扫码/账号密码/移动授权多种方式）
+  // 酷狗：仅 kg_mid / KG_FID 算登录凭证（kg_dfid 在打开网页时就会生成，不能作为登录依据）
   if (platform === 'kugou') {
-    return names.some(n => n === 'kg_mid' || n === 'KG_FID' || n === 'kg_dfid' || n === 'kgmusic_key');
+    return names.includes('kg_mid') || names.includes('KG_FID');
   }
   return false;
 }
@@ -267,6 +267,7 @@ async function getUserInfo(platform, cookieStr) {
   // 酷狗走官方 BrowserWindow 登录后，调 KuGouMusicApi 拉取用户信息
   if (platform === 'kugou') {
     try {
+      console.log('[KUGOU_userInfo_cookie]', cookieStr.split(';').map(s => s.trim().split('=')[0]).join(', '));
       const text = await httpsRequest('http://localhost:3200/api/user/info', {
         headers: { 'Cookie': cookieStr, 'Referer': 'https://www.kugou.com' },
       });
@@ -448,7 +449,17 @@ ipcMain.handle('login:open', async (event, platform) => {
       try {
         if (loginWin.isDestroyed()) return;
         const cookies = await getPlatformCookies(platform);
+        // ★ 调试：打印 kugou 每次轮询的 cookie（仅 kugou 平台）
+        if (platform === 'kugou') {
+          const dbg = cookies.map(c => `${c.name}=${c.value.slice(0, 16)}`).join('; ');
+          console.log('[KUGOU COOKIES]', dbg);
+        }
         if (hasLoginCookies(platform, cookies)) {
+          // ★ 首次命中时立刻打印完整 cookie 用于验证
+          if (platform === 'kugou' && !settled) {
+            const fullCookie = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+            console.log('[KUGOU COOKIE FULL]', fullCookie);
+          }
           const cookieStr = cookies.map(c => `${c.name}=${c.value}`).join('; ');
           const userInfo = await getUserInfo(platform, cookieStr);
           if (userInfo && (userInfo.nickname || userInfo.userId)) {
