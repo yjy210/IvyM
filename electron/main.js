@@ -396,7 +396,7 @@ ipcMain.handle('login:open', async (event, platform) => {
       height: 680,
       minWidth: 700,
       minHeight: 500,
-      title: `绑定${platform === 'netease' ? '网易云音乐' : 'QQ音乐'}账号`,
+      title: `绑定${platform === 'netease' ? '网易云音乐' : platform === 'kugou' ? '酷狗音乐' : 'QQ音乐'}账号`,
       autoHideMenuBar: true,
       icon: path.join(__dirname, '../build/logo.png'),
       webPreferences: {
@@ -721,7 +721,7 @@ function ipcEmitLoginWindow(platform) {
     height: 680,
     minWidth: 700,
     minHeight: 500,
-    title: `绑定${platform === 'netease' ? '网易云音乐' : 'QQ音乐'}账号`,
+    title: `绑定${platform === 'netease' ? '网易云音乐' : platform === 'kugou' ? '酷狗音乐' : 'QQ音乐'}账号`,
     autoHideMenuBar: true,
     icon: path.join(__dirname, '../build/logo.png'),
     webPreferences: {
