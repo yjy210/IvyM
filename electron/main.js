@@ -268,55 +268,18 @@ async function getUserInfo(platform, cookieStr) {
   const userId = getUserIdFromCookies(platform, cookies);
 
   if (platform === 'kugou') {
-    // ★ 酷狗登录成功后：cookie 里包含 KugooID（数字 uid）/ UserName（kgopen 前缀）/ a_id
+    // kugoo 登录成功：KugooID + UserName 必有；昵称/头像/VIP 暂时 fallback
     const kugooId = cookies.find(c => c.name === 'KugooID')?.value || '';
-    const userName = cookies.find(c => c.name === 'UserName')?.value || '';
-    const kugooLevel = cookies.find(c => c.name === 't')?.value || '';
-    // 解析 UserName：kgopen123456 → 用 KugooID 替代
-    const nick = kugooId ? `酷狗${kugooId.slice(-6)}` : (userName.startsWith('kgopen') ? userName.slice(6) : userName);
-    // 尝试 KakugouMusicApi /user/detail 获取头像和 VIP（可选，失败不影响）
-    try {
-      const kugouPort = process.env.KUGOU_API_PORT || '3201';
-      const kugouUrlObj = new URL(`http://localhost:${kugouPort}/user/detail`);
-      kugouUrlObj.searchParams.set('userid', kugooId);
-      kugouUrlObj.searchParams.set('token', kugooLevel);
-      const text = await new Promise((resolve, reject) => {
-        const req = http.get(kugouUrlObj.toString(), {
-          headers: { 'Cookie': cookieStr, 'Referer': 'https://www.kugou.com' },
-        }, (res) => {
-          let body = '';
-          res.on('data', c => body += c);
-          res.on('end', () => resolve(body));
-        });
-        req.on('error', reject);
-        req.setTimeout(8000, () => { req.destroy(); reject(new Error('timeout')); });
-      });
-      const raw = safeJsonParse(text);
-      const inner = raw?.body?.data || raw?.data;
-      if (inner && inner.nickname) {
-        const vipT = inner.vip_type || inner.viptype || 0;
-        return {
-          platform: 'kugou',
-          nickname: inner.nickname || nick,
-          avatar: inner.avatar || inner.headpic || inner.pic || '',
-          userId: String(inner.userid || inner.uid || kugooId),
-          vip: vipT > 0,
-          vipName: vipT > 0 ? (vipT >= 2 ? 'SVIP' : 'VIP') : '',
-          membership: { status: vipT > 0 ? 'vip' : 'normal', provider: 'kugou', level: vipT >= 2 ? 'svip' : 'vip', name: vipT >= 2 ? 'SVIP' : 'VIP', icon: '/icons/vip-kugou.svg' },
-        };
-      }
-    } catch (e) {
-      console.warn('[KUGOU_userInfo_api_warn]', e.message);
-    }
-    // KakugouMusicApi 失败 → 最小 fallback：只显示 KugooID
+    // 最小 fallback：显示 KugooID 后缀（后续 CDP 抓到真实接口再补全）
+    const nick = kugooId ? `酷狗${kugooId.slice(-6)}` : '酷狗用户';
     return {
       platform: 'kugou',
-      nickname: nick || '酷狗用户',
+      nickname: nick,
       avatar: '',
       userId: kugooId || userId || '',
       vip: false,
       vipName: '',
-      membership: { status: 'normal', provider: 'kugou', level: null, name: null, icon: null },
+      membership: { status: 'unknown', provider: 'kugou', level: null, name: null, icon: null },
     };
   }
 
