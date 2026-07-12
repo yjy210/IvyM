@@ -9,7 +9,7 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "kugou-api": "cd kugou-api && node app.js",
-    "electron:dev": "concurrently -k \"npm run dev\" \"set PORT=3200 && npm run kugou-api\" \"wait-on http://localhost:5174 http://localhost:3200 && electron .\"",
+    "electron:dev": "concurrently -k \"npm run dev\" \"set PORT=3201 && npm run kugou-api\" \"wait-on http://localhost:5174 http://localhost:3201 && electron .\"",
     "electron:build": "vite build && electron-builder"
   },
   "keywords": [],
