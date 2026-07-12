@@ -30,6 +30,8 @@ declare global {
       // 酷狗 QR 登录
       getKugouQrKey: () => Promise<{ code: number; msg?: string; data?: { qrimg: string; sigx: string } }>;
       checkKugouQr: (sigx: string) => Promise<{ code: number; status?: number; msg?: string; cookie?: string }>;
+      switchAccount: (platform: 'netease' | 'qq' | 'kugou') => Promise<void>;
+      onAccountRemoved: (callback: (data: { platform: string }) => void) => () => void;
       clearPlatformSession: (platform: 'netease' | 'qq' | 'kugou') => Promise<void>;
     };
   }

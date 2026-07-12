@@ -141,6 +141,12 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
     }
   }, []);
 
+  const refreshQR = useCallback(async () => {
+    stopQRPoll();
+    setQrModal({ visible: false, qrImg: null, unikey: null, ptqrtoken: null, status: 'idle', errorMsg: '' });
+    await startKugouQrLogin();
+  }, [startKugouQrLogin]);
+
   // ★ 酷狗 QR 登录：独立流程（不走官网 BrowserWindow）
   const startKugouQrLogin = useCallback(async () => {
     try {
