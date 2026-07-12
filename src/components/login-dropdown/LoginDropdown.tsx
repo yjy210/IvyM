@@ -144,6 +144,13 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
   // 酷狗 QR 轮询 timer ref（供 login:result 回调清理）
   const kugouQrTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // 刷新酷狗二维码（清理旧 timer + 重新启动 QR 流程）
+  const refreshQR = useCallback(async () => {
+    if (kugouQrTimerRef.current) { clearInterval(kugouQrTimerRef.current); kugouQrTimerRef.current = null; }
+    setQrModal({ visible: false, qrImg: null, unikey: null, ptqrtoken: null, status: 'idle', errorMsg: '' });
+    await startKugouQrLogin();
+  }, [startKugouQrLogin]);
+
   // ★ 酷狗 QR 登录：走 KuGouMusicApi（与 QQ/网易云 QR 统一）
   // 弹窗关闭由 Electron login:result 事件驱动（不依赖前端轮询判断）
   const startKugouQrLogin = useCallback(async () => {
@@ -521,12 +528,15 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
                 ) : qrModal.status === 'failed' ? (
                   <>
                     <p className="qr-error">{statusText}</p>
+                    <button className="qr-retry-btn" onClick={refreshQR}>
+                      刷新二维码
+                    </button>
                     <button
                       className="qr-browser-login-btn"
                       onClick={() => {
-                        stopQRPoll();
+                        if (kugouQrTimerRef.current) { clearInterval(kugouQrTimerRef.current); kugouQrTimerRef.current = null; }
                         setQrModal({ visible: false, qrImg: null, unikey: null, ptqrtoken: null, status: 'idle', errorMsg: '' });
-                        window.electronAPI?.openPlatformLogin(activeTab as 'netease' | 'qq' | 'kugou');
+                        window.electronAPI?.kugouLogin?.();
                       }}
                     >
                       网页登录
