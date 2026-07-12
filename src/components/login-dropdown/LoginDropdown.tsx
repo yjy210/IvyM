@@ -141,12 +141,6 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
     }
   }, []);
 
-  const refreshQR = useCallback(async () => {
-    stopQRPoll();
-    setQrModal({ visible: false, qrImg: null, unikey: null, ptqrtoken: null, status: 'idle', errorMsg: '' });
-    await startKugouQrLogin();
-  }, [startKugouQrLogin]);
-
   // ★ 酷狗 QR 登录：独立流程（不走官网 BrowserWindow）
   const startKugouQrLogin = useCallback(async () => {
     try {
@@ -161,8 +155,6 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
       const timer = setInterval(async () => {
         try {
           const checkRes = await window.electronAPI?.checkKugouQr(keyRes.data.sigx || '');
-          // Electron 已通过 login:result 通知主进程 → handleLoginResult 自动处理保存+刷新
-          // 这里只负责关闭弹窗
           if (checkRes?.code === 0 || checkRes?.status === 0) {
             clearInterval(timer);
             setQrModal({ visible: false, qrImg: null, unikey: null, ptqrtoken: null, status: 'idle', errorMsg: '' });
@@ -175,6 +167,13 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
       setQrModal({ visible: true, qrImg: null, unikey: null, ptqrtoken: null, status: 'failed', errorMsg: e?.message || '登录失败' });
     }
   }, []);
+
+  // 刷新二维码（先清理旧状态 + 停止轮询，再启动新的 QR 流程）
+  const refreshQR = useCallback(async () => {
+    stopQRPoll();
+    setQrModal({ visible: false, qrImg: null, unikey: null, ptqrtoken: null, status: 'idle', errorMsg: '' });
+    await startKugouQrLogin();
+  }, [startKugouQrLogin]);
 
   // 打开平台登录（仅网易云/QQ 用官网弹窗）
   const handleBind = useCallback(async (platform: 'netease' | 'qq' | 'kugou') => {
