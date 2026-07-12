@@ -9,7 +9,7 @@ const { startApiServer } = require('../server/index');
 const PLATFORM_LOGIN_URLS = {
   netease: 'https://music.163.com/#/login',
   qq: 'https://y.qq.com/n/ryqq/profile',
-  kugou: 'https://m.kugou.com/index.php',
+  kugou: 'https://www.kugou.com/',
 };
 
 // 各平台 partition（隔离 session，避免污染主窗口）
@@ -463,24 +463,29 @@ ipcMain.handle('login:open', async (event, platform) => {
       try {
         if (loginWin.isDestroyed()) return;
         const cookies = await getPlatformCookies(platform);
-        // ★ 调试：打印 kugou 每次轮询的 cookie（仅 kugou 平台）
-        if (platform === 'kugou') {
-          const dbg = cookies.map(c => `${c.name}=${c.value.slice(0, 16)}`).join('; ');
-          console.log('[KUGOU COOKIES]', dbg);
+        const allNames = cookies.map(c => c.name).join(',');
+        // ★ 调试：每次轮询都打印（仅 kugou）
+        if (platform === 'kugou' && allNames) {
+          console.log('[KUGOU_poll]', allNames);
         }
         if (hasLoginCookies(platform, cookies)) {
-          // ★ 首次命中时立刻打印完整 cookie 用于验证
-          if (platform === 'kugou' && !settled) {
-            const fullCookie = cookies.map(c => `${c.name}=${c.value}`).join('; ');
-            console.log('[KUGOU COOKIE FULL]', fullCookie);
-          }
-          const cookieStr = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+          const fullCookie = cookies.map(c => `${c.name}=${c.value}`).join('; ');
+          console.log('[KUGOU_SUCCESS]', fullCookie);
+          // 保存完整 cookie（含 musicwo17 等）
+          const fs = require('fs');
+          const path = require('path');
+          fs.writeFileSync(
+            path.join(__dirname, '../server/.kg-cookie.json'),
+            JSON.stringify({ cookie: fullCookie, time: Date.now() }, null, 2),
+          );
+          // 从完整 cookie 串里提取昵称头像
+          const cookieStr = fullCookie;
           const userInfo = await getUserInfo(platform, cookieStr);
           if (userInfo && (userInfo.nickname || userInfo.userId)) {
             finish({ platform, success: true, cookie: cookieStr, user: userInfo });
           }
         }
-      } catch { /* ignore */ }
+      } catch (e) { console.warn('[KUGOU_poll_err]', e.message); }
     }, 1000);
 
     loginWin.on('closed', async () => {
