@@ -10,6 +10,7 @@ interface PlatformAccount {
   bindTime: number;
   membership: {
     status: 'vip' | 'normal' | 'unknown';
+    provider?: 'qq' | 'netease' | 'kugou' | null;
     level: string | null;
     name: string | null;
     icon: string | null;
@@ -140,10 +141,43 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
     }
   }, []);
 
-  // 打开平台登录（网易云/酷狗用 QR，QQ 用网页）
+  // ★ 酷狗 QR 登录：独立流程（不走官网 BrowserWindow）
+  const startKugouQrLogin = useCallback(async () => {
+    try {
+      setQrModal({ visible: true, qrImg: null, unikey: null, ptqrtoken: null, status: 'waiting', errorMsg: '' });
+      const keyRes = await window.electronAPI?.getKugouQrKey();
+      if (!keyRes?.data?.qrimg) {
+        setQrModal(prev => ({ ...prev, status: 'failed', errorMsg: keyRes?.msg || '获取二维码失败' }));
+        return;
+      }
+      setQrModal(prev => ({ ...prev, qrImg: keyRes.data.qrimg, unikey: keyRes.data.sigx || '', ptqrtoken: '' }));
+      // 轮询扫码
+      const timer = setInterval(async () => {
+        try {
+          const checkRes = await window.electronAPI?.checkKugouQr(keyRes.data.sigx || '');
+          // Electron 已通过 login:result 通知主进程 → handleLoginResult 自动处理保存+刷新
+          // 这里只负责关闭弹窗
+          if (checkRes?.code === 0 || checkRes?.status === 0) {
+            clearInterval(timer);
+            setQrModal({ visible: false, qrImg: null, unikey: null, ptqrtoken: null, status: 'idle', errorMsg: '' });
+          }
+        } catch { /* 继续轮询 */ }
+      }, 1500);
+      // 超时 120s
+      setTimeout(() => { clearInterval(timer); }, 120000);
+    } catch (e: any) {
+      setQrModal({ visible: true, qrImg: null, unikey: null, ptqrtoken: null, status: 'failed', errorMsg: e?.message || '登录失败' });
+    }
+  }, []);
+
+  // 打开平台登录（仅网易云/QQ 用官网弹窗）
   const handleBind = useCallback(async (platform: 'netease' | 'qq' | 'kugou') => {
-    if (platform === 'netease' || platform === 'kugou') {
-      // Netease 和酷狗使用官方网页登录, 与 QQ 一致
+    if (platform === 'kugou') {
+      // ★ 酷狗走独立 QR 路径（KuGouMusicApi），不走 BrowserWindow
+      await startKugouQrLogin();
+      return;
+    }
+    if (platform === 'netease') {
       try {
         const result = await window.electronAPI?.openPlatformLogin(platform);
         handleLoginResult({
@@ -157,7 +191,8 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
         setQrModal({ visible: true, qrImg: null, unikey: null, ptqrtoken: null, status: 'failed', errorMsg: e?.message || '登录失败' });
       }
       return;
-    } else if (platform === 'qq') {
+    }
+    if (platform === 'qq') {
       // ★ 第一阶段：QQ 走网页登录（y.qq.com 官方页面）
       // 旧 QR 路径（qq-music-api）已保留，后续作为 fallback
       try {
