@@ -123,9 +123,10 @@ function hasLoginCookies(platform, cookies) {
   const names = cookies.map(c => c.name);
   if (platform === 'netease') return names.includes('MUSIC_U');
   if (platform === 'qq') return qqHasValidLogin(cookies);
-  // 酷狗：仅 kg_mid / KG_FID 算登录凭证（kg_dfid 在打开网页时就会生成，不能作为登录依据）
+  // 酷狗：kg_mid 是游客/设备 cookie（打开页面自动生成），不能作为登录依据
+  // 暂时禁用：请玩家在 BrowserWindow 酷狗登录后，根据 [KUGOU_COOKIE_CHANGED] 日志确认真正的登录 cookie 名
   if (platform === 'kugou') {
-    return names.includes('kg_mid') || names.includes('KG_FID');
+    return false;
   }
   return false;
 }
@@ -478,12 +479,19 @@ ipcMain.handle('login:open', async (event, platform) => {
     };
 
     if (platform === 'kugou') {
-      // ★ 诊断：打印页面加载各阶段事件（切分到底哪一步失败）
+      // ★ 诊断：打印页面加载各阶段事件
       loginWin.webContents.on('did-start-loading', () => console.log('[KUGOU_LOADING] start'));
       loginWin.webContents.on('did-finish-load', () => console.log('[KUGOU_LOADING] finish ✅'));
       loginWin.webContents.on('did-fail-load', (_, errorCode, errorDesc, validatedURL) => {
         console.error('[KUGOU_LOADING] FAIL', errorCode, errorDesc, validatedURL);
       });
+      // ★ 监听 cookie 变化：玩家手动登录后，新增的 cookie 就是真正的登录态
+      const kgSession = loginWin?.webContents?.session;
+      if (kgSession) {
+        kgSession.cookies.on('changed', (event, cookie, cause, removed) => {
+          console.log(`[KUGOU_COOKIE_CHANGED] ${cause} | ${cookie.name}=${cookie.value.slice(0,30)} | removed=${removed}`);
+        });
+      }
     }
 
     pollTimer = setInterval(async () => {
