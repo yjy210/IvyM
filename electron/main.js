@@ -32,6 +32,7 @@ function qqHasValidLogin(cookies) {
 const COOKIE_URLS = {
   netease: ['https://music.163.com', 'https://.music.163.com'],
   qq: ['https://y.qq.com', 'https://.y.qq.com', 'https://qq.com', 'https://.qq.com'],
+  kugou: ['https://www.kugou.com', 'https://.kugou.com', 'https://kugou.com', 'https://m.kugou.com'],
 };
 
 let mainWin = null;
@@ -116,11 +117,16 @@ async function getPlatformCookies(platform) {
 }
 
 // 判断是否已有关键 cookie
+// 注意：qqHasValidLogin 必须在此函数之前定义（已经在上方定义，可以安全调用）
 function hasLoginCookies(platform, cookies) {
   const names = cookies.map(c => c.name);
-  if (platform === 'netease') return names.includes('MUSIC_U'); // 网易云只认 MUSIC_U
+  if (platform === 'netease') return names.includes('MUSIC_U');
   if (platform === 'qq') return qqHasValidLogin(cookies);
-  if (platform === 'kugou') return names.some(n => n.includes('kg_mid') || n.includes('KG_FID') || n.includes('kg_dfid'));
+  // 酷狗：需要同时满足音乐客户端 cookie（kg_mid/KG_FID）与音乐授权 key（kgmusic_key/kg_dfid）
+  // 防误判：仅含全站 cookie（如 FDID）不算登录成功
+  const hasKgClient = names.includes('kg_mid') || names.includes('KG_FID');
+  const hasKgMusic = names.includes('kgmusic_key') || names.includes('kg_dfid');
+  if (platform === 'kugou') return hasKgClient && hasKgMusic;
   return false;
 }
 
@@ -258,6 +264,48 @@ async function getUserInfo(platform, cookieStr) {
   const cookies = await getPlatformCookies(platform);
   const userId = getUserIdFromCookies(platform, cookies);
 
+  // ===== 酷狗音乐 =====
+  // 酷狗走官方 BrowserWindow 登录后，调 KuGouMusicApi 拉取用户信息
+  if (platform === 'kugou') {
+    try {
+      const text = await httpsRequest('http://localhost:3200/api/user/info', {
+        headers: { 'Cookie': cookieStr, 'Referer': 'https://www.kugou.com' },
+      });
+      const raw = safeJsonParse(text);
+      if (raw?.data) {
+        const info = raw.data;
+        // 酷狗会员类型：vip_type 0=普通 1=VIP 2=SVIP
+        const vipType = info.vip_type || info.viptype || 0;
+        const membership = vipType >= 2
+          ? { status: 'vip', provider: 'kugou', level: 'svip', name: 'SVIP', icon: '/icons/vip-kugou.svg' }
+          : vipType >= 1
+            ? { status: 'vip', provider: 'kugou', level: 'vip', name: 'VIP', icon: '/icons/vip-kugou.svg' }
+            : { status: 'normal', provider: 'kugou', level: null, name: null, icon: null };
+        return {
+          platform: 'kugou',
+          nickname: info.nickname || info.username || '',
+          avatar: info.avatar || info.headpic || info.pic || '',
+          userId: String(info.userid || info.uid || ''),
+          vip: membership.status === 'vip',
+          vipName: membership.name || '',
+          membership,
+        };
+      }
+    } catch (e) {
+      console.warn('[IvyM] KuGou user info API failed:', e.message);
+    }
+    // KuGouMusicApi 失败 → 从 cookie 提取 userId 作为最小 fallback
+    return {
+      platform: 'kugou',
+      nickname: '酷狗用户',
+      avatar: '',
+      userId: userId || (cookies.find(c => c.name === 'kg_mid')?.value ?? ''),
+      vip: false,
+      vipName: '',
+      membership: { status: 'unknown', provider: 'kugou', level: null, name: null, icon: null },
+    };
+  }
+
   // ===== 网易云 =====
   if (platform === 'netease') {
     try {
@@ -373,6 +421,9 @@ ipcMain.handle('login:open', async (event, platform) => {
           } else if (platform === 'qq') {
             const { saveQQCookie } = require('../server/qq');
             saveQQCookie(result.cookie);
+          } else if (platform === 'kugou') {
+            const { saveKugouCookies } = require('../server/kugou');
+            saveKugouCookies(result.cookie);
           }
         } catch { /* ignore */ }
         // 直接持久化账号，不依赖前端监听器
@@ -469,71 +520,7 @@ ipcMain.handle('login:qr-user', async () => {
   }
 });
 
-// ==================== 酷狗音乐 QR 登录 ====================
-
-// 获取二维码
-ipcMain.handle('login:kugou-qr-key', async () => {
-  try {
-    const { kugouQrLogin } = require('../server/kugou');
-    const result = await kugouQrLogin();
-    return result;
-  } catch (e) {
-    return { code: -1, msg: e.message };
-  }
-});
-
-// 轮询扫码状态（酷狗扫码登录结果 → 保存 cookie + 用户信息 + 通知前端）
-ipcMain.handle('login:kugou-qr-check', async (event, sigx) => {
-  try {
-    const { kugouQrCheck, saveKugouCookies: saveKgCookies, getKugouCookieString, parseKugouMembership } = require('../server/kugou');
-    const result = await kugouQrCheck(sigx);
-    console.log('[IvyM DEBUG] kugou-qr-check sigx=' + sigx + ' 返回:', JSON.stringify(result));
-    // 酷狗 QR 状态码（API 源码注释）：0=过期 / 1=等待扫码 / 2=已扫待确认 / 4=登录成功
-    // 严格判断：status===4 AND cookie 非空（防误触发）
-    if (result?.status === 4 && result.cookie) {
-      try {
-        // 解析 cookie 字符串，写入 .kg-cookie.json
-        const cookieObj = {};
-        result.cookie.split(';').forEach(pair => {
-          const [k, ...v] = pair.trim().split('=');
-          if (k) cookieObj[k.trim()] = v.join('=');
-        });
-        const fs = require('fs');
-        const path = require('path');
-        fs.writeFileSync(
-          path.join(__dirname, '../server/.kg-cookie.json'),
-          JSON.stringify({ cookies: cookieObj, time: Date.now() }, null, 2),
-        );
-        // 拉取用户信息并持久化账号
-        const { kugouUserInfo } = require('../server/kugou');
-        const info = await kugouUserInfo();
-        if (info?.userId) {
-          AccountManager.upsertAccount({
-            platform: info.platform || 'kugou',
-            nickname: info.nickname || '',
-            avatar: info.avatar || '',
-            userId: info.userId,
-            vip: info.vip || false,
-            vipName: info.vipName || '',
-            membership: info.membership || parseKugouMembership(info.raw || info),
-            bindTime: Date.now(),
-          });
-          mainWin?.webContents.send('login:result', {
-            platform: 'kugou',
-            success: true,
-            user: info,
-            cookie: result.cookie,
-          });
-        }
-      } catch (innerErr) {
-        console.warn('[IvyM] kugou post-login save failed:', innerErr.message);
-      }
-    }
-    return result;
-  } catch (e) {
-    return { code: -1, msg: e.message };
-  }
-});
+// ★ 酷狗音乐：走官方 BrowserWindow 登录（与 QQ/网易云一致），不再走 KuGouMusicApi QR 轮询
 
 // QQ音乐：网页登录（BrowserWindow 方式）
 
