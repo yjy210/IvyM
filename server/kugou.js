@@ -3,7 +3,8 @@ const path = require('path');
 const fs = require('fs');
 
 // 酷狗 API 服务地址（本地 kugou-api 子项目）
-const KUGOU_API_BASE = process.env.KUGOU_API_BASE || 'http://localhost:3002';
+// 注意：酷狗默认端口 3000 常被占用，推荐用 3200：KUGOU_API_BASE=http://localhost:3200 npm start
+const KUGOU_API_BASE = process.env.KUGOU_API_BASE || 'http://localhost:3200';
 
 // 酷狗 cookie 文件
 const KG_COOKIE_FILE = path.join(__dirname, '.kg-cookie.json');
