@@ -269,55 +269,56 @@ async function getUserInfo(platform, cookieStr) {
 
   if (platform === 'kugou') {
     const kugooId = cookies.find(c => c.name === 'KugooID')?.value || '';
-    // ★ 只探 getBaseInfo + KgUser，不动业务逻辑
+    // ★ 只探 window 用户信息变量（注意：KgUser 是 SDK/tool，getBaseInfo 才是用户资料入口）
     try {
       const probe = await loginWin.webContents.executeJavaScript(`(function(){
         const out = {};
-        // 1. getBaseInfo 是用户基础信息入口
+        // ---- 1. window.getBaseInfo() 用户基础信息 ----
         try {
           out['getBaseInfo.type'] = typeof window.getBaseInfo;
           if (typeof window.getBaseInfo === 'function') {
+            out['getBaseInfo.fn_src'] = window.getBaseInfo.toString().slice(0,800);
             const r = window.getBaseInfo();
-            out['getBaseInfo.result.type'] = typeof r;
-            out['getBaseInfo.result.keys'] = r && typeof r === 'object' ? JSON.stringify(Object.keys(r).slice(0,30)) : null;
-            out['getBaseInfo.result.json'] = JSON.stringify(r).slice(0,600);
-            out['getBaseInfo.fn_src'] = window.getBaseInfo.toString().slice(0,300);
+            out['base_type'] = typeof r;
+            if (r === undefined) { out['base_value'] = 'undefined'; }
+            else if (r === null) { out['base_value'] = 'null'; }
+            else if (typeof r === 'object') {
+              out['base_keys'] = JSON.stringify(Object.keys(r).slice(0,40));
+              out['base_proto'] = JSON.stringify(Object.getOwnPropertyNames(Object.getPrototypeOf(r)).slice(0,40));
+              out['base_json'] = JSON.stringify(r).slice(0,800);
+              // 直接扫描字段
+              const scan = {};
+              for (const k of Object.keys(r)) {
+                const v = r[k];
+                if (v !== null && v !== undefined) {
+                  if (typeof v === 'string') scan[k] = v.slice(0,200);
+                  else if (typeof v === 'number' || typeof v === 'boolean') scan[k] = v;
+                  else if (typeof v === 'object') scan[k] = JSON.stringify(v).slice(0,200);
+                }
+              }
+              out['base_scan'] = JSON.stringify(scan).slice(0,800);
+            } else {
+              out['base_value'] = String(r).slice(0,300);
+            }
           }
         } catch(e) { out['getBaseInfo_err'] = e.message; }
-        // 2. KgUser 结构
+        // ---- 2. 扫描 window 含 user/account/member/nickname/avatar/vip/head 的全局 ----
         try {
-          if (window.KgUser) {
-            out['KgUser.type'] = typeof window.KgUser;
-            out['KgUser.proto'] = Object.prototype.toString.call(window.KgUser);
-            out['KgUser.keys'] = JSON.stringify(Object.keys(window.KgUser).slice(0,30));
-            out['KgUser.proto_names'] = JSON.stringify(Object.getOwnPropertyNames(Object.getPrototypeOf(window.KgUser)).slice(0,30));
-            for (const m of ['getUserInfo','getInfo','userInfo','getNick','getAvatar','getProfile','profile','account']) {
+          const scan = {};
+          for (const k of Object.keys(window)) {
+            if (/user|account|member|nick|avatar|vip|head|profile|info|login/i.test(k)) {
               try {
-                if (typeof window.KgUser[m] === 'function') {
-                  const r = window.KgUser[m]();
-                  out['KgUser.'+m+'.result'] = JSON.stringify(r).slice(0,400);
-                } else if (window.KgUser[m] !== undefined) {
-                  out['KgUser.'+m+'.value'] = JSON.stringify(window.KgUser[m]).slice(0,200);
-                }
-              } catch(e) { out['KgUser.'+m+'_err'] = e.message; }
+                const v = window[k];
+                if (v === undefined || v === null) { scan[k] = String(v); }
+                else if (typeof v === 'string') { scan[k] = v.slice(0,200); }
+                else if (typeof v === 'number' || typeof v === 'boolean') { scan[k] = v; }
+                else if (typeof v === 'object') { scan[k] = JSON.stringify(v).slice(0,300); }
+                else if (typeof v === 'function') { scan[k] = '[fn]'; }
+              } catch(e) { scan[k] = 'err:' + e.message; }
             }
-            // 非函数字段采样
-            try {
-              const sample = {};
-              for (const k of Object.keys(window.KgUser)) {
-                const v = window.KgUser[k];
-                if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') sample[k] = v;
-              }
-              out['KgUser.sample'] = JSON.stringify(sample).slice(0,500);
-            } catch(e) {}
           }
-        } catch(e) { out['KgUser_err'] = e.message; }
-        // 3. 常见全局用户信息变量
-        try {
-          for (const k of ['__user__','__userInfo__','USER_INFO','__LOGIN_USER__','loginUser','kgUser']) {
-            try { if (window[k] !== undefined) out[k] = JSON.stringify(window[k]).slice(0,300); } catch(e) { out[k] = e.message; }
-          }
-        } catch(e) {}
+          out['window_scan'] = JSON.stringify(scan).slice(0,1200);
+        } catch(e) { out['window_scan_err'] = e.message; }
         return JSON.stringify(out);
       })()`);
       console.log('[KUGOU_USER_PROBE]', probe);
