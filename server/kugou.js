@@ -74,7 +74,12 @@ function _rawRequest(urlPath, params = {}) {
 function kugouRequest(urlPath, params = {}) {
   return new Promise((resolve, reject) => {
     const url = new URL(`${KUGOU_API_BASE}${urlPath}`);
-    Object.entries(params).forEach(([k, v]) => {
+    // 所有酷狗接口都需要 dfid 参与签名，自动注入当前 dfid
+    const finalParams = { ...params };
+    if (finalParams.dfid == null && _kugouCookies.dfid) {
+      finalParams.dfid = _kugouCookies.dfid;
+    }
+    Object.entries(finalParams).forEach(([k, v]) => {
       if (v != null) url.searchParams.set(k, String(v));
     });
     const req = http.get(url.toString(), {
