@@ -430,16 +430,32 @@ ipcMain.handle('login:open', async (event, platform) => {
     };
 
     if (platform === 'kugou') {
-      // 打印页面加载事件
+      // 打印页面加载事件 + cookie 变化
       loginWin.webContents.on('did-start-loading', () => console.log('[KUGOU_LOADING] start'));
       loginWin.webContents.on('did-finish-load', () => console.log('[KUGOU_LOADING] finish'));
       loginWin.webContents.on('did-fail-load', (_, code, desc) => console.error('[KUGOU_LOADING] FAIL', code, desc));
-      // 监听 cookie 变化（玩家手动登录后的新增 cookie = 真正登录态）
-      const kgSession = loginWin?.webContents?.session;
-      if (kgSession) {
-        kgSession.cookies.on('changed', (_e, cookie, cause, removed) => {
-          console.log(`[KUGOU_COOKIE_CHANGED] ${cause} | ${cookie.name}=${cookie.value.slice(0,25)} | removed=${removed}`);
+      loginWin.webContents.session.cookies.on('changed', (_e, cookie, cause, removed) => {
+        console.log(`[KUGOU_COOKIE_CHANGED] ${cause} | ${cookie.name}=${cookie.value.slice(0,25)} | removed=${removed}`);
+      });
+      // ★ CDP 抓包：监听酷狗网页自身的用户信息接口（不修改请求、不阻塞）
+      try {
+        loginWin.webContents.debugger.attach('1.3');
+        loginWin.webContents.debugger.on('message', (_event, method, params) => {
+          if (method === 'Network.requestWillBeSent') {
+            const url = params?.request?.url || '';
+            if (/\.(js|css|png|jpg|jpeg|gif|svg|woff2?|mp3|webp|ico|avif)(\?|$)/i.test(url)) return;
+            if (/log|stat|track|beacon|report|cl\.dat| Monitor/i.test(url)) return;
+            if (/user|member|account|profile|vip|info|personal|mine|center|home/i.test(url)) {
+              console.log(`[KUGOU_CDP] ${params.request.method} ${url.slice(0, 250)}`);
+            }
+          }
         });
+        loginWin.webContents.debugger.sendCommand('Network.enable');
+        loginWin.once('closed', () => {
+          try { loginWin.webContents.debugger.detach(); } catch {}
+        });
+      } catch (e) {
+        console.warn('[KUGOU_CDP_attach_err]', e.message);
       }
     }
 
