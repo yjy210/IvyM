@@ -271,7 +271,15 @@ async function getUserInfo(platform, cookieStr) {
       console.log('[KUGOU_userInfo_cookie]', cookieStr.split(';').map(s => s.trim().split('=')[0]).join(', '));
       // kuGou-api 跑在 HTTP（不能用 httpsRequest），端口 3201
       const kugouPort = process.env.KUGOU_API_PORT || '3201';
-      const kugouUrl = `http://localhost:${kugouPort}/api/user/info`;
+      // KuGouMusicApi 路由规则: user_detail.js → /user/detail（下划线转斜杠）
+      // user_detail 需要 userid 和 token 参数（签名校验），从 cookie 提取
+      const kgMid = cookies.find(c => c.name === 'kg_mid')?.value || '';
+      const kgToken = cookies.find(c => c.name === 'kgmusic_key')?.value
+        || cookies.find(c => c.name === 'token')?.value || '';
+      const kugouUrlObj = new URL(`http://localhost:${kugouPort}/user/detail`);
+      if (kgMid) kugouUrlObj.searchParams.set('userid', kgMid);
+      if (kgToken) kugouUrlObj.searchParams.set('token', kgToken);
+      const kugouUrl = kugouUrlObj.toString();
       console.log('[KUGOU_userInfo_url]', kugouUrl);
       const text = await new Promise((resolve, reject) => {
         const req = http.get(kugouUrl, {
@@ -286,8 +294,10 @@ async function getUserInfo(platform, cookieStr) {
       });
       console.log('[KUGOU_userInfo_raw]', text.slice(0, 300));
       const raw = safeJsonParse(text);
-      if (raw?.data) {
-        const info = raw.data;
+      // KuGouMusicApi 返回 {body:{data:{nickname,...}}, cookie:[...]}
+      const data = raw?.body?.data || raw?.data || raw;
+      if (data && data.nickname !== undefined) {
+        const info = data;
         // 酷狗会员类型：vip_type 0=普通 1=VIP 2=SVIP
         const vipType = info.vip_type || info.viptype || 0;
         const membership = vipType >= 2
