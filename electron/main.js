@@ -487,8 +487,9 @@ ipcMain.handle('login:kugou-qr-check', async (event, sigx) => {
   try {
     const { kugouQrCheck, saveKugouCookies: saveKgCookies, getKugouCookieString, parseKugouMembership } = require('../server/kugou');
     const result = await kugouQrCheck(sigx);
-    // 登录成功（酷狗 API status=0 表示扫码成功，cookie 在 result.cookie 中）
-    if ((result.code === 0 || result.status === 0) && result.cookie) {
+    // 酷狗 QR check：error_code=0 且 result.cookie 非空才算登录成功
+    // status=0 + error_code=20010 = 等待扫码，status=1 = 已扫待确认
+    if (result?.error_code === 0 && result.cookie) {
       try {
         // 解析 cookie 字符串，写入 .kg-cookie.json
         const cookieObj = {};

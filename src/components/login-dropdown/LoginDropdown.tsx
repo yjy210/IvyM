@@ -155,11 +155,12 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
         return;
       }
       setQrModal(prev => ({ ...prev, qrImg: keyRes.data.qrimg, unikey: keyRes.data.sigx || '', ptqrtoken: '' }));
-      // 轮询扫码：只更新 UI 状态（已扫/等待），不关闭弹窗
+      // 轮询扫码：仅当 status=1（已扫但待确认）时更新 UI 为 scanned
+      // status=0 + error_code=20010 = 等待扫码，error_code=0 = 登录成功（Electron 处理）
       kugouQrTimerRef.current = setInterval(async () => {
         try {
           const checkRes = await window.electronAPI?.checkKugouQr(keyRes.data.sigx || '');
-          if (checkRes?.code === 0 || checkRes?.status === 0) {
+          if (checkRes?.status === 1) {
             setQrModal(prev => ({ ...prev, status: 'scanned' }));
           }
         } catch { /* 继续轮询 */ }
