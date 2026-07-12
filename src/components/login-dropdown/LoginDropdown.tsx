@@ -157,14 +157,17 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
       setQrModal(prev => ({ ...prev, qrImg: keyRes.data.qrimg, unikey: keyRes.data.sigx || '', ptqrtoken: '' }));
       // 轮询扫码：status=2 已扫待确认 → 显示 scanned；status=4 → Electron 驱动关闭
       // API 状态码：0=过期 / 1=等待扫码 / 2=已扫待确认 / 4=登录成功（cookie 非空）
+      let pollCount = 0;
       kugouQrTimerRef.current = setInterval(async () => {
         try {
+          pollCount++;
           const checkRes = await window.electronAPI?.checkKugouQr(keyRes.data.sigx || '');
+          console.log(`[KUGOU POLL #${pollCount}] 返回:`, JSON.stringify(checkRes));
           if (checkRes?.status === 2) {
             setQrModal(prev => ({ ...prev, status: 'scanned' }));
           }
-        } catch { /* 继续轮询 */ }
-      }, 1500);
+        } catch (e) { console.warn('[KUGOU POLL] 异常:', e); }
+      }, 800);
       setTimeout(() => {
         if (kugouQrTimerRef.current) { clearInterval(kugouQrTimerRef.current); kugouQrTimerRef.current = null; }
       }, 120000);
