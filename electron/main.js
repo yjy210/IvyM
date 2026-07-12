@@ -465,17 +465,30 @@ ipcMain.handle('login:open', async (event, platform) => {
     };
 
     if (platform === 'kugou') {
-      // ★ 诊断：打印页面加载各阶段事件
+      // ★ 打印页面加载事件 + cookie 变化
       loginWin.webContents.on('did-start-loading', () => console.log('[KUGOU_LOADING] start'));
-      loginWin.webContents.on('did-finish-load', () => console.log('[KUGOU_LOADING] finish ✅'));
-      loginWin.webContents.on('did-fail-load', (_, errorCode, errorDesc, validatedURL) => {
-        console.error('[KUGOU_LOADING] FAIL', errorCode, errorDesc, validatedURL);
-      });
-      // ★ 监听 cookie 变化：玩家手动登录后，新增的 cookie 就是真正的登录态
+      loginWin.webContents.on('did-finish-load', () => console.log('[KUGOU_LOADING] finish'));
+      loginWin.webContents.on('did-fail-load', (_, code, desc) => console.error('[KUGOU_LOADING] FAIL', code, desc));
       const kgSession = loginWin?.webContents?.session;
       if (kgSession) {
-        kgSession.cookies.on('changed', (event, cookie, cause, removed) => {
-          console.log(`[KUGOU_COOKIE_CHANGED] ${cause} | ${cookie.name}=${cookie.value.slice(0,30)} | removed=${removed}`);
+        kgSession.cookies.on('changed', (_e, cookie, cause, removed) => {
+          console.log(`[KUGOU_COOKIE_CHANGED] ${cause} | ${cookie.name}=${cookie.value.slice(0,25)} | removed=${removed}`);
+        });
+        // ★ 抓所有 kugou.com 请求：找用户信息 API
+        const filter = { urls: ['*://*.kugou.com/*', '*://*.kugimg.com/*', '*://*.kgou.com/*'] };
+        const listener = (details) => {
+          const u = details.url;
+          if (/\.(js|css|png|jpg|jpeg|gif|svg|woff2?|mp3|webp|ico|avif)(\?|$)/i.test(u)) return;
+          if (/log|stat|track|beacon|report|cl\.dat|wss\?|/i.test(u)) return;
+          // 打印所有非静态，或者包含用户关键字的
+          const isUserReq = /user|member|account|profile|mine|nick|avatar|vip|info|center/i.test(u);
+          if (isUserReq || details.method === 'POST') {
+            console.log(`[KUGOU_API] ${details.method} ${u.slice(0, 250)}`);
+          }
+        };
+        kgSession.webRequest.onBeforeRequest(filter, listener);
+        loginWin.once('closed', () => {
+          try { kgSession.webRequest.onBeforeRequest(filter, listener, null); } catch {}
         });
       }
     }
