@@ -141,9 +141,39 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
     }
   }, []);
 
-  // 打开平台登录（网易云/酷狗/QQ 均用官网 BrowserWindow）
+  // ★ 酷狗 QR 登录：走 KuGouMusicApi（与 QQ/网易云 QR 统一）
+  const startKugouQrLogin = useCallback(async () => {
+    try {
+      setQrModal({ visible: true, qrImg: null, unikey: null, ptqrtoken: null, status: 'waiting', errorMsg: '' });
+      const keyRes = await window.electronAPI?.getKugouQrKey();
+      if (!keyRes?.data?.qrimg) {
+        setQrModal(prev => ({ ...prev, status: 'failed', errorMsg: keyRes?.msg || '获取二维码失败' }));
+        return;
+      }
+      setQrModal(prev => ({ ...prev, qrImg: keyRes.data.qrimg, unikey: keyRes.data.sigx || '', ptqrtoken: '' }));
+      // 轮询扫码（Electron 收到成功后会发 login:result → handleLoginResult 自动保存）
+      const timer = setInterval(async () => {
+        try {
+          const checkRes = await window.electronAPI?.checkKugouQr(keyRes.data.sigx || '');
+          if (checkRes?.code === 0 || checkRes?.status === 0) {
+            clearInterval(timer);
+            setQrModal({ visible: false, qrImg: null, unikey: null, ptqrtoken: null, status: 'idle', errorMsg: '' });
+          }
+        } catch { /* 继续轮询 */ }
+      }, 1500);
+      setTimeout(() => { clearInterval(timer); }, 120000);
+    } catch (e: any) {
+      setQrModal({ visible: true, qrImg: null, unikey: null, ptqrtoken: null, status: 'failed', errorMsg: e?.message || '登录失败' });
+    }
+  }, []);
+
+  // 打开平台登录（网易云/QQ 用官网 BrowserWindow，酷狗用 QR）
   const handleBind = useCallback(async (platform: 'netease' | 'qq' | 'kugou') => {
-    if (platform === 'netease' || platform === 'kugou') {
+    if (platform === 'kugou') {
+      await startKugouQrLogin();
+      return;
+    }
+    if (platform === 'netease') {
       try {
         const result = await window.electronAPI?.openPlatformLogin(platform);
         handleLoginResult({
