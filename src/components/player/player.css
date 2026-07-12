@@ -153,7 +153,7 @@
   margin-top: 2px;
 }
 
-/* ── 自动滚动文本（Marquee） ── */
+/* ── 双向往返滚动文本(Marquee) ── */
 .marquee-container {
   position: relative;
   overflow: hidden;
@@ -165,26 +165,7 @@
 .marquee-text {
   display: inline-block;
   white-space: nowrap;
-}
-
-.marquee-text.animate {
-  animation: marquee-scroll 8s linear infinite;
-  animation-delay: 2s;
-}
-
-.marquee-text.clone {
-  margin-left: 40px;
-}
-
-.marquee-text.paused {
-  animation-play-state: paused;
-}
-
-@keyframes marquee-scroll {
-  0% { transform: translateX(0); }
-  10% { transform: translateX(0); }
-  90% { transform: translateX(calc(-100% - 40px)); }
-  100% { transform: translateX(calc(-100% - 40px)); }
+  will-change: transform;
 }
 
 /* ── 控制区：中间永远可见 ── */

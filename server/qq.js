@@ -191,9 +191,6 @@ async function qqQrCheck(sigx) {
     pt_no_auth: 0,
     pt_login_type: 3,
   });
-  // DEBUG: 查看 QR 登录返回的完整数据
-  console.log('[IvyM DEBUG] qqQrCheck full response:', JSON.stringify(res));
-  console.log('[IvyM DEBUG] qqQrCheck headers:', JSON.stringify(res.headers || {}));
   return { code: res.errcode, msg: res.msg || '', cookie: res.cookie || '', uin: res.uin || 0 };
 }
 
