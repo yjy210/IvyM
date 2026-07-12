@@ -141,7 +141,11 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
     }
   }, []);
 
+  // 酷狗 QR 轮询 timer ref（供 login:result 回调清理）
+  const kugouQrTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   // ★ 酷狗 QR 登录：走 KuGouMusicApi（与 QQ/网易云 QR 统一）
+  // 弹窗关闭由 Electron login:result 事件驱动（不依赖前端轮询判断）
   const startKugouQrLogin = useCallback(async () => {
     try {
       setQrModal({ visible: true, qrImg: null, unikey: null, ptqrtoken: null, status: 'waiting', errorMsg: '' });
@@ -151,17 +155,18 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
         return;
       }
       setQrModal(prev => ({ ...prev, qrImg: keyRes.data.qrimg, unikey: keyRes.data.sigx || '', ptqrtoken: '' }));
-      // 轮询扫码（Electron 收到成功后会发 login:result → handleLoginResult 自动保存）
-      const timer = setInterval(async () => {
+      // 轮询扫码：只更新 UI 状态（已扫/等待），不关闭弹窗
+      kugouQrTimerRef.current = setInterval(async () => {
         try {
           const checkRes = await window.electronAPI?.checkKugouQr(keyRes.data.sigx || '');
           if (checkRes?.code === 0 || checkRes?.status === 0) {
-            clearInterval(timer);
-            setQrModal({ visible: false, qrImg: null, unikey: null, ptqrtoken: null, status: 'idle', errorMsg: '' });
+            setQrModal(prev => ({ ...prev, status: 'scanned' }));
           }
         } catch { /* 继续轮询 */ }
       }, 1500);
-      setTimeout(() => { clearInterval(timer); }, 120000);
+      setTimeout(() => {
+        if (kugouQrTimerRef.current) { clearInterval(kugouQrTimerRef.current); kugouQrTimerRef.current = null; }
+      }, 120000);
     } catch (e: any) {
       setQrModal({ visible: true, qrImg: null, unikey: null, ptqrtoken: null, status: 'failed', errorMsg: e?.message || '登录失败' });
     }
@@ -276,6 +281,11 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
     window.electronAPI?.upsertAccount(newAccount);
     setAccounts(prev => [...prev.filter(a => a.platform !== result.user!.platform), newAccount]);
     setActiveTab('bound');
+    // ★ 酷狗 QR 登录成功后：清理轮询 + 关闭二维码弹窗
+    if (result.user.platform === 'kugou') {
+      if (kugouQrTimerRef.current) { clearInterval(kugouQrTimerRef.current); kugouQrTimerRef.current = null; }
+      setQrModal({ visible: false, qrImg: null, unikey: null, ptqrtoken: null, status: 'idle', errorMsg: '' });
+    }
     // ★ 通知 Sidebar 立即刷新
     window.dispatchEvent(new CustomEvent('login-success-{platform}'.replace('{platform}', result.user.platform)));
     window.dispatchEvent(new CustomEvent('login-success'));
