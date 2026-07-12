@@ -21,6 +21,11 @@ interface PlatformAccount {
 /** 兼容旧格式：{vip, vipName} → {membership: {status, level, name, icon}} */
 function normalizeAccount(acc: any): PlatformAccount {
   if (acc.membership && acc.membership.level !== undefined) return acc as PlatformAccount;
+  let status = acc.membership?.status || (acc.vip ? 'vip' : 'unknown');
+  const level = acc.membership?.level || null;
+  const icon = acc.membership?.icon || null;
+  // 脏数据降级：status=vip 但无 level 且无 icon → normal
+  if (status === 'vip' && !level && !icon) status = 'normal';
   return {
     platform: acc.platform,
     nickname: acc.nickname || '',
@@ -28,12 +33,22 @@ function normalizeAccount(acc: any): PlatformAccount {
     userId: acc.userId || '',
     bindTime: acc.bindTime || Date.now(),
     membership: {
-      status: acc.membership?.status || (acc.vip ? 'vip' : 'unknown'),
-      level: acc.membership?.level || null,
+      status,
+      provider: acc.membership?.provider || null,
+      level,
       name: acc.membership?.name || acc.vipName || null,
-      icon: acc.membership?.icon || null,
+      icon,
     },
   };
+}
+
+/**
+ * 脏数据防护：真正的 VIP 必须有 level 或 icon，否则降级为 normal。
+ * 部分旧代码曾写入 {status:'vip', level:null} 的脏数据。
+ */
+function isRealVip(acc: PlatformAccount): boolean {
+  if (acc.membership?.status !== 'vip') return false;
+  return !!(acc.membership.level || acc.membership.icon);
 }
 
 interface LoginDropdownProps {
@@ -315,7 +330,7 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
                       <div className="bound-info">
                         <div className="bound-name-row">
                           <span className="bound-nickname">{acc.nickname || '用户' + acc.userId}</span>
-                          {acc.membership?.status === 'vip' && (
+                          {isRealVip(acc) && (
                             acc.membership.icon ? (
                               <img src={acc.membership.icon} alt={acc.membership.name || 'VIP'}
                                 className="bound-vip-icon" referrerPolicy="no-referrer"
@@ -380,7 +395,7 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
                     </div>
                     <div className="platform-vip-row">
                       <span className="platform-vip-label">{account.platform === 'qq' ? '会员' : '会员'}：</span>
-                      {account.membership?.status === 'vip' ? (
+                      {isRealVip(account) ? (
                         account.membership.icon ? (
                           <img src={account.membership.icon} alt={account.membership.name || 'VIP'}
                             className="bound-vip-icon" referrerPolicy="no-referrer"

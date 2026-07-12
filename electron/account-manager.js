@@ -90,16 +90,14 @@ function sanitizeAccount(account) {
  */
 function sanitizeMembership(m) {
   if (!m || typeof m !== 'object') return null;
-  const status = ['vip', 'normal'].includes(m.status) ? m.status : 'normal';
+  let status = ['vip', 'normal'].includes(m.status) ? m.status : 'normal';
   const provider = VALID_PROVIDERS.includes(m.provider) ? m.provider : null;
   const level = VALID_LEVELS.includes(m.level) ? m.level : null;
-  return {
-    status,
-    provider,
-    level,
-    name: m.name != null && typeof m.name === 'string' ? m.name : null,
-    icon: m.icon != null && typeof m.icon === 'string' && m.icon ? m.icon : null,
-  };
+  const name = m.name != null && typeof m.name === 'string' ? m.name : null;
+  const icon = m.icon != null && typeof m.icon === 'string' && m.icon ? m.icon : null;
+  // 脏数据降级：status 声称 vip 但没有任何 vip 证据时自动降级为 normal
+  if (status === 'vip' && !level && !icon) status = 'normal';
+  return { status, provider, level, name, icon };
 }
 
 /**
