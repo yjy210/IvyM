@@ -470,19 +470,41 @@ ipcMain.handle('login:open', async (event, platform) => {
       resolve(result);
     };
 
+    if (platform === 'kugou') {
+      // ★ 监听酷狗网页自己的用户信息请求（抓真实 URL）
+      const kugouFilter = { urls: ['*://*.kugou.com/*', '*://*.kgimg.com/*'] };
+      const kugouListener = (details) => {
+        const url = details.url;
+        // 过滤静态资源和埋点 API
+        if (/\.(js|css|png|jpg|gif|svg|woff)\?/.test(url)) return;
+        if (/log|stat|track|beacon|report|cl\.dat/.test(url)) return;
+        if (details.method === 'GET' && /\?.*(nickname|avatar|user|member|vip|account)/i.test(url)) {
+          console.log('[KUGOU_WEB_REQ]', details.method, url.replace(/\?.*/, '?...'));
+        }
+      };
+      // 注册一次性监听（清理挂碍）
+      if (loginWin && loginWin.webContents && loginWin.webContents.session) {
+        loginWin.webContents.session.webRequest.onBeforeRequest(kugouFilter, kugouListener);
+      }
+      // 清理监听
+      loginWin.once('closed', () => {
+        try {
+          loginWin.webContents.session.webRequest.onBeforeRequest(kugouFilter, null);
+        } catch {}
+      });
+    }
+
     pollTimer = setInterval(async () => {
       try {
         if (loginWin.isDestroyed()) return;
         const cookies = await getPlatformCookies(platform);
-        const allNames = cookies.map(c => c.name).join(',');
-        // ★ 调试：每次轮询都打印（仅 kugou）
-        if (platform === 'kugou' && allNames) {
+        if (platform === 'kugou') {
+          const allNames = cookies.map(c => `${c.name}=${c.value.slice(0, 12)}`).join('; ');
           console.log('[KUGOU_poll]', allNames);
         }
         if (hasLoginCookies(platform, cookies)) {
           const fullCookie = cookies.map(c => `${c.name}=${c.value}`).join('; ');
-          console.log('[KUGOU_SUCCESS]', fullCookie);
-          // 保存完整 cookie（含 musicwo17 等）
+          console.log('[KUGOU_SUCCESS]', JSON.stringify(cookies.map(c => ({name:c.name, val:c.value.slice(0,20)}))));
           const fs = require('fs');
           const path = require('path');
           fs.writeFileSync(
