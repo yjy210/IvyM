@@ -522,6 +522,14 @@ ipcMain.handle('login:open', async (event, platform) => {
       finish({ platform, success: false, msg: '已取消登录' });
     });
 
+    // ★ 诊断：打印页面加载失败的原因（kugou.com 打不开的具体错误码）
+    loginWin.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+      console.error('[KUGOU_LOAD_FAIL]', errorCode, errorDescription);
+    });
+    loginWin.webContents.on('did-finish-load', () => {
+      console.log('[KUGOU_LOAD_OK] 页面加载完成');
+    });
+
     loginWin.loadURL(url).then(() => {
       console.log('[IvyM] login window URL loaded successfully');
     }).catch((err) => {
