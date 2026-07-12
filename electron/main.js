@@ -125,8 +125,10 @@ function hasLoginCookies(platform, cookies) {
   if (platform === 'qq') return qqHasValidLogin(cookies);
   // 酷狗：真正登录后会产生 KugooID / UserName / a_id 三个 cookie
   // kg_mid 是设备指纹（打开网页自动生成），不能作为登录依据
+  // 要求 KugooID 有非空值（防止误判空 cookie）
   if (platform === 'kugou') {
-    return names.includes('KugooID') && names.includes('UserName');
+    const kg = cookies.find(c => c.name === 'KugooID');
+    return !!(kg && kg.value && names.includes('UserName'));
   }
   return false;
 }
