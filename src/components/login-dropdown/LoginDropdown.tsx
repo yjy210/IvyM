@@ -272,6 +272,7 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
     user?: { platform: string; nickname: string; avatar: string; userId: string; vip: boolean; vipName: string; membership?: PlatformAccount['membership'] };
     cookie?: string;
   }) => {
+    console.log('[LOGIN RESULT RECEIVED]', JSON.stringify({ platform: result.platform, success: result.success, hasUser: !!result.user, user: result.user }));
     if (!result.success || !result.user) {
       console.warn('登录失败:', result.msg);
       return;
