@@ -473,25 +473,21 @@ ipcMain.handle('login:open', async (event, platform) => {
     if (platform === 'kugou') {
       // ★ 监听酷狗网页自己的用户信息请求（抓真实 URL）
       const kugouFilter = { urls: ['*://*.kugou.com/*', '*://*.kgimg.com/*'] };
-      const kugouListener = (details) => {
-        const url = details.url;
-        // 过滤静态资源和埋点 API
-        if (/\.(js|css|png|jpg|gif|svg|woff)\?/.test(url)) return;
-        if (/log|stat|track|beacon|report|cl\.dat/.test(url)) return;
-        if (details.method === 'GET' && /\?.*(nickname|avatar|user|member|vip|account)/i.test(url)) {
-          console.log('[KUGOU_WEB_REQ]', details.method, url.replace(/\?.*/, '?...'));
-        }
-      };
-      // 注册一次性监听（清理挂碍）
-      if (loginWin && loginWin.webContents && loginWin.webContents.session) {
-        loginWin.webContents.session.webRequest.onBeforeRequest(kugouFilter, kugouListener);
+      // ★ 暴力抓包：所有 kugou.com + gateway 请求都打印
+      const kgSession = loginWin?.webContents?.session;
+      if (kgSession) {
+        const kugouReqListener = (details) => {
+          const url = details.url;
+          if (/\.(js|css|png|jpg|gif|svg|woff|mp3|mp4)(\?|$)/i.test(url)) return;
+          if (/log\.kugou|stat\.kugou|track|beacon|report|cl\.dat|wMonitor/i.test(url)) return;
+          console.log(`[KUGOU_REQ] ${details.method} ${url.slice(0, 200)}`);
+        };
+        kgSession.webRequest.onBeforeRequest(kugouFilter, kugouReqListener);
+        // 清理监听（session ref 提前保存，防止窗口销毁后取不到）
+        loginWin.once('closed', () => {
+          try { kgSession.webRequest.onBeforeRequest(kugouFilter, kugouReqListener, null); } catch {}
+        });
       }
-      // 清理监听
-      loginWin.once('closed', () => {
-        try {
-          loginWin.webContents.session.webRequest.onBeforeRequest(kugouFilter, null);
-        } catch {}
-      });
     }
 
     pollTimer = setInterval(async () => {
