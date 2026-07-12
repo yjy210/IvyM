@@ -268,63 +268,8 @@ async function getUserInfo(platform, cookieStr) {
   const userId = getUserIdFromCookies(platform, cookies);
 
   if (platform === 'kugou') {
+    // ★ kugou fallback = 昵称用 KugooID 占位（真正的用户资料由 CDP 在 login_by_token_get 里捕获）
     const kugooId = cookies.find(c => c.name === 'KugooID')?.value || '';
-    // ★ 只探 window 用户信息变量（注意：KgUser 是 SDK/tool，getBaseInfo 才是用户资料入口）
-    try {
-      const probe = await loginWin.webContents.executeJavaScript(`(function(){
-        const out = {};
-        // ---- 1. window.getBaseInfo() 用户基础信息 ----
-        try {
-          out['getBaseInfo.type'] = typeof window.getBaseInfo;
-          if (typeof window.getBaseInfo === 'function') {
-            out['getBaseInfo.fn_src'] = window.getBaseInfo.toString().slice(0,800);
-            const r = window.getBaseInfo();
-            out['base_type'] = typeof r;
-            if (r === undefined) { out['base_value'] = 'undefined'; }
-            else if (r === null) { out['base_value'] = 'null'; }
-            else if (typeof r === 'object') {
-              out['base_keys'] = JSON.stringify(Object.keys(r).slice(0,40));
-              out['base_proto'] = JSON.stringify(Object.getOwnPropertyNames(Object.getPrototypeOf(r)).slice(0,40));
-              out['base_json'] = JSON.stringify(r).slice(0,800);
-              // 直接扫描字段
-              const scan = {};
-              for (const k of Object.keys(r)) {
-                const v = r[k];
-                if (v !== null && v !== undefined) {
-                  if (typeof v === 'string') scan[k] = v.slice(0,200);
-                  else if (typeof v === 'number' || typeof v === 'boolean') scan[k] = v;
-                  else if (typeof v === 'object') scan[k] = JSON.stringify(v).slice(0,200);
-                }
-              }
-              out['base_scan'] = JSON.stringify(scan).slice(0,800);
-            } else {
-              out['base_value'] = String(r).slice(0,300);
-            }
-          }
-        } catch(e) { out['getBaseInfo_err'] = e.message; }
-        // ---- 2. 扫描 window 含 user/account/member/nickname/avatar/vip/head 的全局 ----
-        try {
-          const scan = {};
-          for (const k of Object.keys(window)) {
-            if (/user|account|member|nick|avatar|vip|head|profile|info|login/i.test(k)) {
-              try {
-                const v = window[k];
-                if (v === undefined || v === null) { scan[k] = String(v); }
-                else if (typeof v === 'string') { scan[k] = v.slice(0,200); }
-                else if (typeof v === 'number' || typeof v === 'boolean') { scan[k] = v; }
-                else if (typeof v === 'object') { scan[k] = JSON.stringify(v).slice(0,300); }
-                else if (typeof v === 'function') { scan[k] = '[fn]'; }
-              } catch(e) { scan[k] = 'err:' + e.message; }
-            }
-          }
-          out['window_scan'] = JSON.stringify(scan).slice(0,1200);
-        } catch(e) { out['window_scan_err'] = e.message; }
-        return JSON.stringify(out);
-      })()`);
-      console.log('[KUGOU_USER_PROBE]', probe);
-    } catch (e) {
-      console.warn('[KUGOU_PROBE_err]', e.message);
-    }
     return {
       platform: 'kugou',
       nickname: kugooId ? `酷狗${kugooId.slice(-6)}` : '酷狗用户',
@@ -501,6 +446,33 @@ ipcMain.handle('login:open', async (event, platform) => {
     };
 
     if (platform === 'kugou') {
+      // ★ 监听 login_by_token_get 接口返回 = 真正用户信息
+      const kgSes = loginWin.webContents.session;
+      const kgUserUrl = 'https://loginservice.kugou.com/v1/login_by_token_get';
+      const kgFilter = { urls: ['*://loginservice.kugou.com/*'] };
+      // 用 devtools 的 debugger 读 responseBody
+      try {
+        loginWin.webContents.debugger.attach('1.3');
+        loginWin.webContents.debugger.on('message', async (_evt, method, params) => {
+          if (method === 'Network.responseReceived') {
+            const url = params?.response?.url || '';
+            if (url.includes(kgUserUrl)) {
+              try {
+                const body = await loginWin.webContents.debugger.sendCommand('Network.getResponseBody', { requestId: params.requestId });
+                console.log('[KUGOU_USER_RESPONSE]', (body?.body || '').slice(0, 800));
+              } catch (e) {
+                console.warn('[KUGOU_USER_RESPONSE_err]', e.message);
+              }
+            }
+          }
+        });
+        loginWin.webContents.debugger.sendCommand('Network.enable');
+        loginWin.once('closed', () => {
+          try { loginWin.webContents.debugger.detach(); } catch {}
+        });
+      } catch (e) {
+        console.warn('[KUGOU_USER_DEBUGGER_err]', e.message);
+      }
       loginWin.webContents.on('did-start-loading', () => console.log('[KUGOU_LOADING] start'));
       loginWin.webContents.on('did-finish-load', () => console.log('[KUGOU_LOADING] finish'));
       loginWin.webContents.on('did-fail-load', (_, code, desc, url) => console.error('[KUGOU_LOADING] FAIL', code, desc, url));
