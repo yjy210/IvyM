@@ -292,7 +292,8 @@ async function getUserInfo(platform, cookieStr) {
         };
       }
     } catch (e) {
-      console.warn('[IvyM] KuGou user info API failed:', e.message);
+      console.error('[KUGOU_userInfo_error]', e.message || e);
+      console.error('[KUGOU_userInfo_stack]', e.stack || '');
     }
     // KuGouMusicApi 失败 → 从 cookie 提取 userId 作为最小 fallback
     return {
