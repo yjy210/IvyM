@@ -214,6 +214,22 @@ function qqAvatarFromCookie(cookieObj) {
   return '';
 }
 
+// QQ 会员身份解析 —— userInfoUI.iconlist[0].srcUrl 主判断（3 样本已验证）
+//   svip1.png → 超级VIP    vip1.png → 豪华绿钻    其他 → 普通用户
+// 只取 [0] 严格文件名匹配：iconlist[1+] 含 d- 推广入口不参与判断
+function parseQQMembership(user) {
+  const icon = user?.userInfoUI?.iconlist?.[0]?.srcUrl ?? '';
+  const filename = icon.split('/').pop();
+  switch (filename) {
+    case 'svip1.png':
+      return { status: 'vip', provider: 'qq', level: 'super_vip', name: '超级会员', icon: icon || null };
+    case 'vip1.png':
+      return { status: 'vip', provider: 'qq', level: 'green_diamond', name: '豪华绿钻', icon: icon || null };
+    default:
+      return { status: 'normal', provider: 'qq', level: null, name: null, icon: null };
+  }
+}
+
 // 获取用户信息
 async function getUserInfo(platform, cookieStr) {
   const cookies = await getPlatformCookies(platform);
@@ -265,11 +281,14 @@ async function getUserInfo(platform, cookieStr) {
       const nickname = creator.nick || cookieNick || (userId ? 'QQ ' + userId : 'QQ 音乐');
       const avatar = creator.headpic || cookieAvatar || qqAvatarUrl(userId);
 
-      // VIP 状态：iconlist 含推广图不可靠，不再用于 VIP 判断
-      const isVip = false;
-      const vipName = '';
-
-      return { platform, nickname, avatar, userId, vip: isVip, vipName };
+      // QQ 会员（与 server/qq.js 同源：creator.userInfoUI.iconlist[0].srcUrl 主判断，3 样本已验证）
+      const membership = parseQQMembership(creator);
+      return {
+        platform, nickname, avatar, userId,
+        membership,
+        vip: membership.status === 'vip',
+        vipName: membership.name || '',
+      };
     } catch (e) {
       console.warn('[IvyM] QQ profile API failed:', e.message);
     }
@@ -279,6 +298,7 @@ async function getUserInfo(platform, cookieStr) {
       nickname: cookieNick || (userId ? 'QQ ' + userId : 'QQ 音乐'),
       avatar: cookieAvatar || qqAvatarUrl(userId),
       userId,
+      membership: { status: 'normal', provider: 'qq', level: null, name: null, icon: null },
       vip: false,
       vipName: '',
     };
@@ -339,6 +359,7 @@ ipcMain.handle('login:open', async (event, platform) => {
             userId: result.user.userId,
             vip: result.user.vip || false,
             vipName: result.user.vipName || '',
+            membership: result.user.membership || null,
             bindTime: Date.now(),
           });
         }
@@ -679,6 +700,7 @@ function ipcEmitLoginWindow(platform) {
           userId: result.user.userId,
           vip: result.user.vip || false,
           vipName: result.user.vipName || '',
+          membership: result.user.membership || null,
           bindTime: Date.now(),
         });
       }
