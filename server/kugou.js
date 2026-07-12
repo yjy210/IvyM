@@ -196,6 +196,7 @@ async function kugouUserInfo() {
 
 async function kugouQrLogin() {
   const res = await kugouRequest('/login/qr/key', {});
+  console.log('[KUGOU RAW QR KEY]', JSON.stringify({ hasData: !!res?.data, qrcode: res?.data?.qrcode?.slice(0, 20), hasImg: !!res?.data?.qrcode_img }));
   // 二维码图片字段：qrcode_img 是 base64 图片，qrcode 是 token
   const qrImg = res?.data?.qrcode_img;
   const qrToken = res?.data?.qrcode || '';
