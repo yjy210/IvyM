@@ -230,6 +230,26 @@ function parseQQMembership(user) {
   }
 }
 
+// 网易云会员身份解析 —— vipType 字段判断（已验证）
+//   11=黑胶VIP  110=黑胶SVIP  其他=普通
+// 网易云 API 不返回官方 icon URL（vip.iconUrl 始终 null）
+// 由前端按 level 加载本地 SVG：vip-netease.svg
+function parseNeteaseMembership(profile, account) {
+  const pv = profile?.vipType || 0;
+  const av = account?.vipType || 0;
+  const maxVip = Math.max(
+    [11, 110].includes(av) ? av : 0,
+    [11, 110].includes(pv) ? pv : 0,
+  );
+  if (maxVip === 110) {
+    return { status: 'vip', provider: 'netease', level: 'black_svip', name: '黑胶SVIP', icon: null };
+  }
+  if (maxVip === 11) {
+    return { status: 'vip', provider: 'netease', level: 'black_vip', name: '黑胶VIP', icon: null };
+  }
+  return { status: 'normal', provider: 'netease', level: null, name: null, icon: null };
+}
+
 // 获取用户信息
 async function getUserInfo(platform, cookieStr) {
   const cookies = await getPlatformCookies(platform);
@@ -243,13 +263,15 @@ async function getUserInfo(platform, cookieStr) {
       });
       const raw = safeJsonParse(text);
       if (raw?.profile) {
+        const membership = parseNeteaseMembership(raw.profile, raw.account);
         return {
           platform,
           nickname: raw.profile.nickname || '',
           avatar: raw.profile.avatarUrl || '',
           userId: String(raw.profile.userId || ''),
-          vip: (raw.profile.vipType || 0) > 0,
-          vipName: (raw.profile.vipType || 0) > 0 ? '黑胶VIP' : '',
+          vip: membership?.status === 'vip',
+          vipName: membership?.name || '',
+          membership,
         };
       }
     } catch (e) {

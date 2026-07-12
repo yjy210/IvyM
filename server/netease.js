@@ -157,18 +157,63 @@ async function neteaseUserInfo() {
   const profile = res.body?.profile;
   if (!profile && !account) return null;
 
-  // VIP 检测：11=黑胶VIP, 110=黑胶SVIP
+  // 网易云会员解析 — 与 QQ provider 返回同一结构 { status, provider, level, name, icon }
+  // 注意：网易云 API 不返回官方 icon URL（vip.iconUrl 始终 null），
+  // 因此 icon 字段置 null，由前端按 level 选择本地 SVG 资源
+  return parseNeteaseMembership(profile, account);
+}
+
+/**
+ * 网易云会员身份解析
+ * 输入：{ account, profile }（api.user_account 返回的原始 body）
+ * 输出：标准 NeteaseMembership { status, provider, level, name, icon, nickname, avatar, userId }
+ */
+function parseNeteaseMembership(profile, account) {
+  // VIP 检测：11=黑胶VIP, 110=黑胶SVIP（网易云不区分 SVIP/普通 VIP，统一返回固定值）
   const av = account?.vipType || 0;
   const pv = profile?.vipType || 0;
-  const isVip = av === 11 || av === 110 || pv === 11 || pv === 110;
-  const vipName = (av === 110 || pv === 110) ? '黑胶SVIP' : (isVip ? '黑胶VIP' : '');
+  const maxVip = Math.max(
+    [11, 110].includes(av) ? av : 0,
+    [11, 110].includes(pv) ? pv : 0,
+  );
+
+  // level 决定前端加载哪个本地 SVG
+  // black_vip  → /icons/vip-netease.svg       (红底 VIP)
+  // black_svip → /icons/vip-netease-svip.svg  (红底 SVIP) [可选：可复用同一张]
+  let membership;
+  if (maxVip === 110) {
+    membership = {
+      status: 'vip',
+      provider: 'netease',
+      level: 'black_svip',
+      name: '黑胶SVIP',
+      icon: null,
+    };
+  } else if (maxVip === 11) {
+    membership = {
+      status: 'vip',
+      provider: 'netease',
+      level: 'black_vip',
+      name: '黑胶VIP',
+      icon: null,
+    };
+  } else {
+    membership = {
+      status: 'normal',
+      provider: 'netease',
+      level: null,
+      name: null,
+      icon: null,
+    };
+  }
 
   return {
     nickname: profile?.nickname || account?.nickname || '',
     avatar: profile?.avatarUrl || '',
     userId: String(profile?.userId || account?.id || ''),
-    vip: isVip,
-    vipName,
+    vip: membership?.status === 'vip',
+    vipName: membership?.name || '',
+    membership,
   };
 }
 

@@ -109,13 +109,24 @@
   background: #31c27c;
 }
 .bound-vip-inline.is-netease {
-  background: linear-gradient(135deg, #ffd700, #ff8c00);
+  background: rgb(48, 41, 41);
+  background-clip: padding-box;
+  -webkit-background-clip: initial;
+}
+/* 会员等级文字渐变: 金色 → 米白色 */
+.vip-text-gradient {
+  background: linear-gradient(to right, #f0c75e 0%, #f0c75e 40%, #e8e0d0 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 700;
 }
 
 .bound-vip-icon {
-  width: 20px;
-  height: 20px;
+  width: auto;
+  height: 22px;
   flex-shrink: 0;
+  object-fit: contain;
 }
 
 .bound-platform { font-size: 11px; margin-top: 2px; display: flex; align-items: center; gap: 6px; color: #1a1a1a; }
@@ -196,9 +207,10 @@
 }
 
 .platform-vip-svg {
-  width: 20px;
-  height: 20px;
+  width: auto;
+  height: 22px;
   flex-shrink: 0;
+  object-fit: contain;
 }
 
 .platform-userid {
@@ -333,3 +345,81 @@
 /* QQ音乐 = 绿色 */
 .qr-browser-login-btn.is-qq { color: #31c27c; border-color: #31c27c; }
 .qr-browser-login-btn.is-qq:hover { background: #31c27c; color: white; }
+
+/* ===== QR 状态机样式 ===== */
+
+/* 二维码图片容器 */
+.qr-img-wrap { position: relative; line-height: 0; }
+
+/* 状态颜色 */
+.qr-status--waiting { color: #666; }
+.qr-status--success { color: #19c8b9; font-weight: 700; font-size: 15px; }
+.qr-status--failed { color: #ef4444; }
+.qr-retry-btn {
+  padding: 8px 20px;
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.15s;
+  border: 1px solid #31c27c;
+  background: white;
+  color: #31c27c;
+  min-width: 120px;
+}
+
+.qr-refresh-btn:hover,
+.qr-retry-btn:hover {
+  background: #31c27c;
+  color: white;
+}
+
+/* scanned: 二维码模糊 + 遮罩 */
+.qr-img-wrap--scanned .qr-img {
+  filter: blur(4px) brightness(0.7);
+  transition: filter 0.4s ease;
+}
+
+.qr-scanned-mask {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.55);
+  border-radius: 12px;
+}
+
+.qr-scanned-text {
+  font-size: 18px;
+  font-weight: 700;
+  color: #19c8b9;
+}
+
+.qr-status--scanned {
+  color: #19c8b9;
+  font-weight: 600;
+}
+
+.qr-modal--scanned {
+  /* 无动画，保持稳定显示扫码成功 mask */
+}
+
+.qr-modal--success {
+  animation: qr-success 0.4s ease;
+}
+
+@keyframes qr-success {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.03); }
+  100% { transform: scale(1); }
+}
+
+.qr-modal--failed {
+  animation: qr-shake 0.4s ease;
+}
+
+@keyframes qr-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-8px); }
+  75% { transform: translateX(8px); }
+}

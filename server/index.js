@@ -1,8 +1,7 @@
 const http = require('http');
 const { neteaseSearch, neteaseSongUrl, neteaseLyric, neteaseQrLogin, neteaseQrCheck, neteaseUserInfo } = require('./netease');
-const { qqSearch, qqUserInfo } = require('./qq'); // 搜索/用户信息（登录已改用qq-music-api）
+const { qqSearch, qqUserInfo, qqSongUrl } = require('./qq'); // 搜索/用户信息/播放链接(直连QQ官方接口)
 const { kugouSearch, kugouSongUrl, kugouUserInfo, kugouQrLogin, kugouQrCheck } = require('./kugou');
-const { getSongUrl: getQQSongUrl } = require('./qqApi');
 
 const PORT = 3001;
 
@@ -51,15 +50,24 @@ const server = http.createServer(async (req, res) => {
       res.end(JSON.stringify(data));
       return;
     }
+    if (url.pathname === '/api/qq/lyric') {
+      const mid = url.searchParams.get('mid') || '';
+      const data = await qqLyric(mid);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(data));
+      return;
+    }
     if (url.pathname === '/api/qq/url') {
       const mid = url.searchParams.get('mid') || '';
-      const result = await getQQSongUrl(mid);
-      res.writeHead(result.success ? 200 : 403, { 'Content-Type': 'application/json' });
+      const quality = url.searchParams.get('quality') || 'm4a';
+      const result = await qqSongUrl(mid, quality);
+      const httpStatus = [200, 401, 403].includes(result.code) ? result.code : 200;
+      res.writeHead(httpStatus, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({
-        code: result.success ? 200 : 403,
-        data: result.success ? { url: result.url, playMode: 'full' } : null,
-        error: result.error,
-        msg: result.success ? 'ok' : 'cannot_get_url',
+        code: result.code,
+        data: result.data,
+        reason: result.reason || null,
+        msg: result.msg || (result.code === 200 ? 'ok' : 'cannot_get_url'),
       }));
       return;
     }
@@ -123,23 +131,14 @@ const server = http.createServer(async (req, res) => {
 
     // ===== 用户信息 =====
     if (url.pathname === '/api/netease/user') {
-      const cookie = req.headers.cookie || '';
-      const res = await neteaseUserInfo(cookie);
-      if (res.profile) {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({
-          code: 200,
-          data: {
-            nickname: res.profile.nickname || '',
-            avatar: res.profile.avatarUrl || '',
-            userId: res.profile.userId || '',
-            vip: res.profile.vipType > 0,
-            vipName: res.profile.vipType > 0 ? '黑胶VIP' : '',
-          },
-        }));
-      } else {
+      const info = await neteaseUserInfo();
+      if (!info) {
         res.writeHead(401, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ code: 401, msg: '登录已失效' }));
+      } else {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        // 透传完整的 membership 结构（含 status / provider / level / name / icon）
+        res.end(JSON.stringify({ code: 200, data: info }));
       }
       return;
     }

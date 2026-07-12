@@ -36,6 +36,13 @@ const ALLOWED_FIELDS = ['platform', 'nickname', 'avatar', 'userId', 'vip', 'vipN
 // 合法的 provider 值（membership.provider）
 const VALID_PROVIDERS = ['qq', 'netease', 'kugou'];
 
+// 合法的 level 值（跨 provider）— 与 parseXXMembership 返回的 level 保持一致
+const VALID_LEVELS = [
+  'super_vip', 'green_diamond',                   // QQ（超级会员 / 豪华绿钻）
+  'black_vip', 'black_svip',                      // 网易云（黑胶VIP / 黑胶SVIP）
+  // 酷狗后续可扩展
+];
+
 // ============ 数据清洗 ============
 
 /**
@@ -85,10 +92,11 @@ function sanitizeMembership(m) {
   if (!m || typeof m !== 'object') return null;
   const status = ['vip', 'normal'].includes(m.status) ? m.status : 'normal';
   const provider = VALID_PROVIDERS.includes(m.provider) ? m.provider : null;
+  const level = VALID_LEVELS.includes(m.level) ? m.level : null;
   return {
     status,
     provider,
-    level: m.level != null && typeof m.level === 'string' ? m.level : null,
+    level,
     name: m.name != null && typeof m.name === 'string' ? m.name : null,
     icon: m.icon != null && typeof m.icon === 'string' && m.icon ? m.icon : null,
   };
@@ -173,20 +181,14 @@ function upsertAccount(account) {
 }
 
 /**
- * membership 递归合并：新值非 null 时写入，null 时保留旧值
- * - membership 本身为 null/undefined：保留旧值
- * - membership 成员为 null/undefined：保留旧成员值
+ * membership 实时状态覆盖：每次登录返回最新的会员状态，直接替换。
+ * 不做字段级 merge，否则 VIP 过期时会残留旧 icon。
+ * - newM 为有效对象：用 newM 整体替换（经 sanitize 清洗）
+ * - newM 为 null/undefined：保留旧值（通常是 upsert 请求根本没带 membership）
  */
 function deepMergeMembership(oldM, newM) {
   if (!newM || typeof newM !== 'object') return oldM ?? null;
-  if (!oldM || typeof oldM !== 'object') return newM;
-  return {
-    status: newM.status ?? oldM.status ?? null,
-    provider: newM.provider ?? oldM.provider ?? null,
-    level: newM.level ?? oldM.level ?? null,
-    name: newM.name ?? oldM.name ?? null,
-    icon: newM.icon ?? oldM.icon ?? null,
-  };
+  return sanitizeMembership(newM);
 }
 
 /**

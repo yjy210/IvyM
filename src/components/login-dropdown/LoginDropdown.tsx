@@ -316,13 +316,19 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
                         <div className="bound-name-row">
                           <span className="bound-nickname">{acc.nickname || '用户' + acc.userId}</span>
                           {acc.membership?.status === 'vip' && (
-                            <img
-                              src={acc.membership.icon || (acc.platform === 'qq' ? '/icons/vip-qq.svg' : '/icons/vip-netease.svg')}
-                              alt={acc.membership.name || 'VIP'}
-                              className="bound-vip-icon"
-                              referrerPolicy="no-referrer"
-                              onError={(e) => { (e.target as HTMLImageElement).src = acc.platform === 'qq' ? '/icons/vip-qq.svg' : '/icons/vip-netease.svg'; }}
-                            />
+                            acc.membership.icon ? (
+                              <img src={acc.membership.icon} alt={acc.membership.name || 'VIP'}
+                                className="bound-vip-icon" referrerPolicy="no-referrer"
+                                onError={(e) => { (e.target as HTMLImageElement).src = acc.platform === 'qq' ? '/icons/vip-qq.svg' : '/icons/vip-netease.svg'; }} />
+                            ) : (
+                              <span className={`bound-vip-inline is-${acc.platform}`}>
+                                <span className="vip-text-gradient">
+                                  {acc.platform === 'qq'
+                                    ? (acc.membership.level === 'super_vip' ? 'SVIP' : 'VIP')
+                                    : (acc.membership.level === 'black_svip' ? 'SVIP' : 'VIP')}
+                                </span>
+                              </span>
+                            )
                           )}
                         </div>
                         <div className="bound-platform" style={{ color: platform.color }}>
@@ -370,14 +376,20 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
                     </div>
                     <div className="platform-vip-row">
                       <span className="platform-vip-label">{account.platform === 'qq' ? '会员' : '会员'}：</span>
-                      {account.membership?.icon ? (
-                        <img
-                          src={account.membership.icon}
-                          alt={account.membership.name || 'VIP'}
-                          className="bound-vip-icon"
-                          referrerPolicy="no-referrer"
-                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                        />
+                      {account.membership?.status === 'vip' ? (
+                        account.membership.icon ? (
+                          <img src={account.membership.icon} alt={account.membership.name || 'VIP'}
+                            className="bound-vip-icon" referrerPolicy="no-referrer"
+                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                        ) : (
+                          <span className={`bound-vip-inline is-${account.platform}`}>
+                            <span className="vip-text-gradient">
+                              {account.platform === 'qq'
+                                ? (account.membership.level === 'super_vip' ? 'SVIP' : 'VIP')
+                                : (account.membership.level === 'black_svip' ? 'SVIP' : 'VIP')}
+                            </span>
+                          </span>
+                        )
                       ) : (
                         <span className="platform-vip-value">{account.membership?.status === 'unknown' ? '未知' : '无'}</span>
                       )}
