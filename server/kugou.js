@@ -2,7 +2,7 @@ const http = require('http');
 const path = require('path');
 const fs = require('fs');
 
-// 酷狗 API 服务地址
+// 酷狗 API 服务地址（本地 kugou-api 子项目）
 const KUGOU_API_BASE = process.env.KUGOU_API_BASE || 'http://localhost:3002';
 
 // 酷狗 cookie 文件
@@ -98,7 +98,8 @@ function kugouRequest(urlPath, params = {}) {
 loadKugouCookies();
 ensureDfid();
 
-// 搜索歌曲
+// ======================== 搜索 ========================
+
 async function kugouSearch(keyword, limit = 30, page = 1) {
   const res = await kugouRequest('/search', {
     keywords: keyword,
@@ -108,59 +109,95 @@ async function kugouSearch(keyword, limit = 30, page = 1) {
   });
   if (!res?.data?.lists?.length) return { code: 0, data: [], total: res.data?.total || 0 };
   const songs = res.data.lists.map(s => ({
-    id: s.Audioid || s.MixSongID || s.Scid,
+    id: String(s.Audioid || s.MixSongID || s.Scid),
     hash: s.FileHash,
     name: s.OriSongName || s.FileName,
     artists: s.SingerName || s.Singers?.map(a => a.name).join(', ') || '',
     album: s.AlbumName || '',
-    duration: s.Duration || 0,
+    duration: s.Duration ? s.Duration * 1000 : 0,
     platform: 'kugou',
     cover: s.Image ? s.Image.replace('{size}', '300') : '',
     badge: { vip: s.PayType > 0 || s.FailProcess > 0 },
-    // 酷狗：默认允许试听
+    // 酷狗默认允许试听，完整播放需要VIP
     availability: { trial: true, full: s.PayType === 0 && s.FailProcess === 0 },
   }));
   return { code: 200, data: songs, total: res.data.total || songs.length };
 }
 
-// 获取歌曲播放 URL
+// ======================== 播放 URL ========================
+
 async function kugouSongUrl(hash, quality = '128') {
-  const res = await kugouRequest('/song_url', {
-    hash: hash,
-    quality: quality,
+  // kugou-api 路由规则：文件 song_url.js 的路径会转成 /song/url
+  const res = await kugouRequest('/song/url', {
+    hash: (hash || '').toLowerCase(),
+    quality,
+    cmd: 26,
+    pid: 2,
+    behavior: 'play',
+    version: 11430,
   });
-  if (!res?.data?.url) {
+  const urls = res?.data?.url || res?.url;
+  const playUrl = Array.isArray(urls) ? urls[0] : (res?.data?.play_url || res?.play_url || '');
+  if (!playUrl) {
+    if (res?.fail_process?.length > 0) {
+      return { code: 403, reason: 'vip_required', data: null, msg: '该歌曲需要VIP或不可播放' };
+    }
     return { code: -1, data: null, msg: '获取播放链接失败' };
   }
-  // 酷狗返回完整URL，非会员也能播放
-  return { code: 200, data: { url: res.data.url, playMode: 'full', trialDuration: null } };
+  return { code: 200, data: { url: playUrl, playMode: 'full', trialDuration: null } };
 }
 
-// 获取用户信息
+// ======================== 会员解析 ========================
+
+/**
+ * 酷狗会员身份解析
+ * 返回标准 membership 结构 { status, provider, level, name, icon }
+ * 酷狗会员类型参考 API 返回字段：vip_type / svip_type 等
+ * 暂时使用本地 SVG 资源作为 icon
+ */
+function parseKugouMembership(userInfo) {
+  if (!userInfo) {
+    return { status: 'unknown', provider: 'kugou', level: null, name: null, icon: null };
+  }
+  // 酷狗会员类型判断：vip_type=1 为 VIP，2 为 SVIP（根据 KuGouMusicApi 返回字段调整）
+  const vipType = userInfo.vip_type || userInfo.viptype || 0;
+  if (vipType >= 2) {
+    return { status: 'vip', provider: 'kugou', level: 'svip', name: 'SVIP', icon: '/icons/vip-kugou.svg' };
+  }
+  if (vipType >= 1) {
+    return { status: 'vip', provider: 'kugou', level: 'vip', name: 'VIP', icon: '/icons/vip-kugou.svg' };
+  }
+  return { status: 'normal', provider: 'kugou', level: null, name: null, icon: null };
+}
+
+// ======================== 用户信息 ========================
+
 async function kugouUserInfo() {
   const cookie = getKugouCookieString();
   if (!cookie) return null;
   const res = await kugouRequest('/user/detail', {});
   if (!res?.data) return null;
   const info = res.data;
+  const membership = parseKugouMembership(info);
   return {
     platform: 'kugou',
     nickname: info.nickname || info.username || '',
     avatar: info.avatar || info.headpic || '',
     userId: String(info.userid || info.uid || ''),
-    vip: info.vip_type > 0,
-    vipName: info.vip_type > 0 ? 'VIP会员' : '',
+    vip: membership.status === 'vip',
+    vipName: membership.name || '',
+    membership,
   };
 }
 
-// 二维码登录 - 获取二维码
+// ======================== 二维码登录 ========================
+
 async function kugouQrLogin() {
   const res = await kugouRequest('/login_qr_key', {});
   if (!res?.data?.qrcode) return { code: -1, msg: '获取二维码失败' };
   return { code: 200, data: { qrimg: res.data.qrcode, sigx: res.data.sigx || '' } };
 }
 
-// 二维码登录 - 检查状态
 async function kugouQrCheck(sigx) {
   const res = await kugouRequest('/login_qr_check', { sigx });
   return { code: res?.errcode || res?.status, msg: res?.msg || '', cookie: res?.cookie || '', userid: res?.userid || 0 };
@@ -174,4 +211,5 @@ module.exports = {
   kugouQrCheck,
   saveKugouCookies,
   getKugouCookieString,
+  parseKugouMembership,
 };

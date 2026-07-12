@@ -9,12 +9,14 @@ const { startApiServer } = require('../server/index');
 const PLATFORM_LOGIN_URLS = {
   netease: 'https://music.163.com/#/login',
   qq: 'https://y.qq.com/n/ryqq/profile',
+  kugou: 'https://www.kugou.com/',
 };
 
 // 各平台 partition（隔离 session，避免污染主窗口）
 const PLATFORM_PARTITIONS = {
   netease: 'persist:ivym-netease-login',
   qq: 'persist:ivym-qq-login',
+  kugou: 'persist:ivym-kugou-login',
 };
 
 // QQ 音乐关键 cookie：需要 uin AND music key 同时存在
@@ -118,6 +120,7 @@ function hasLoginCookies(platform, cookies) {
   const names = cookies.map(c => c.name);
   if (platform === 'netease') return names.includes('MUSIC_U'); // 网易云只认 MUSIC_U
   if (platform === 'qq') return qqHasValidLogin(cookies);
+  if (platform === 'kugou') return names.some(n => n.includes('kg_mid') || n.includes('KG_FID') || n.includes('kg_dfid'));
   return false;
 }
 
@@ -479,11 +482,51 @@ ipcMain.handle('login:kugou-qr-key', async () => {
   }
 });
 
-// 轮询扫码状态
+// 轮询扫码状态（酷狗扫码登录结果 → 保存 cookie + 用户信息 + 通知前端）
 ipcMain.handle('login:kugou-qr-check', async (event, sigx) => {
   try {
-    const { kugouQrCheck } = require('../server/kugou');
+    const { kugouQrCheck, saveKugouCookies: saveKgCookies, getKugouCookieString, parseKugouMembership } = require('../server/kugou');
     const result = await kugouQrCheck(sigx);
+    // 登录成功（酷狗 API status=0 表示扫码成功，cookie 在 result.cookie 中）
+    if ((result.code === 0 || result.status === 0) && result.cookie) {
+      try {
+        // 解析 cookie 字符串，写入 .kg-cookie.json
+        const cookieObj = {};
+        result.cookie.split(';').forEach(pair => {
+          const [k, ...v] = pair.trim().split('=');
+          if (k) cookieObj[k.trim()] = v.join('=');
+        });
+        const fs = require('fs');
+        const path = require('path');
+        fs.writeFileSync(
+          path.join(__dirname, '../server/.kg-cookie.json'),
+          JSON.stringify({ cookies: cookieObj, time: Date.now() }, null, 2),
+        );
+        // 拉取用户信息并持久化账号
+        const { kugouUserInfo } = require('../server/kugou');
+        const info = await kugouUserInfo();
+        if (info?.userId) {
+          AccountManager.upsertAccount({
+            platform: info.platform || 'kugou',
+            nickname: info.nickname || '',
+            avatar: info.avatar || '',
+            userId: info.userId,
+            vip: info.vip || false,
+            vipName: info.vipName || '',
+            membership: info.membership || parseKugouMembership(info.raw || info),
+            bindTime: Date.now(),
+          });
+          mainWin?.webContents.send('login:result', {
+            platform: 'kugou',
+            success: true,
+            user: info,
+            cookie: result.cookie,
+          });
+        }
+      } catch (innerErr) {
+        console.warn('[IvyM] kugou post-login save failed:', innerErr.message);
+      }
+    }
     return result;
   } catch (e) {
     return { code: -1, msg: e.message };
@@ -643,6 +686,8 @@ ipcMain.handle('login:clear', async (event, platform) => {
     try { fs.unlinkSync(path.join(__dirname, '../server/.netease-cookie.json')); } catch {}
   } else if (platform === 'qq') {
     try { fs.unlinkSync(path.join(__dirname, '../server/.qq-cookie.json')); } catch {}
+  } else if (platform === 'kugou') {
+    try { fs.unlinkSync(path.join(__dirname, '../server/.kg-cookie.json')); } catch {}
   }
 
   // 2) 清除 Electron partition session
@@ -658,6 +703,8 @@ ipcMain.handle('login:switch-account', async (event, platform) => {
     try { fs.unlinkSync(path.join(__dirname, '../server/.netease-cookie.json')); } catch {}
   } else if (platform === 'qq') {
     try { fs.unlinkSync(path.join(__dirname, '../server/.qq-cookie.json')); } catch {}
+  } else if (platform === 'kugou') {
+    try { fs.unlinkSync(path.join(__dirname, '../server/.kg-cookie.json')); } catch {}
   }
   await clearPlatformSession(platform);
 
