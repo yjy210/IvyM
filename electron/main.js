@@ -9,7 +9,7 @@ const { startApiServer } = require('../server/index');
 const PLATFORM_LOGIN_URLS = {
   netease: 'https://music.163.com/#/login',
   qq: 'https://y.qq.com/n/ryqq/profile',
-  kugou: 'https://www.kugou.com/',
+  kugou: 'https://m.kugou.com/index.php',
 };
 
 // 各平台 partition（隔离 session，避免污染主窗口）
@@ -268,9 +268,22 @@ async function getUserInfo(platform, cookieStr) {
   if (platform === 'kugou') {
     try {
       console.log('[KUGOU_userInfo_cookie]', cookieStr.split(';').map(s => s.trim().split('=')[0]).join(', '));
-      const text = await httpsRequest('http://localhost:3200/api/user/info', {
-        headers: { 'Cookie': cookieStr, 'Referer': 'https://www.kugou.com' },
+      // kuGou-api 跑在 HTTP（不能用 httpsRequest），端口 3201
+      const kugouPort = process.env.KUGOU_API_PORT || '3201';
+      const kugouUrl = `http://localhost:${kugouPort}/api/user/info`;
+      console.log('[KUGOU_userInfo_url]', kugouUrl);
+      const text = await new Promise<string>((resolve, reject) => {
+        const req = http.get(kugouUrl, {
+          headers: { 'Cookie': cookieStr, 'Referer': 'https://www.kugou.com' },
+        }, (res) => {
+          let body = '';
+          res.on('data', chunk => body += chunk);
+          res.on('end', () => resolve(body));
+        });
+        req.on('error', reject);
+        req.setTimeout(10000, () => { req.destroy(); reject(new Error('timeout')); });
       });
+      console.log('[KUGOU_userInfo_raw]', text.slice(0, 300));
       const raw = safeJsonParse(text);
       if (raw?.data) {
         const info = raw.data;
