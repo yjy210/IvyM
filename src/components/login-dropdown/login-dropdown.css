@@ -115,7 +115,7 @@
 }
 /* 会员等级文字渐变: 金色 → 米白色 */
 .vip-text-gradient {
-  background: linear-gradient(to right, #f0c75e 0%, #f0c75e 40%, #e8e0d0 100%);
+  background: linear-gradient(to right, #d4af37, #f8e7b0);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
