@@ -401,22 +401,18 @@ ipcMain.handle('login:open', async (event, platform) => {
         try {
           const probe = await loginWin.webContents.executeJavaScript(`(function(){
             const out = {};
-            try { for (let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(/user|nick|avatar|vip|info|member|account/i.test(k)){out['local_'+k]=localStorage.getItem(k)?.slice(0,150);}} } catch{}
-            try { for (let i=0;i<sessionStorage.length;i++){const k=sessionStorage.key(i);if(/user|nick|avatar|vip|info/i.test(k)){out['session_'+k]=sessionStorage.getItem(k)?.slice(0,150);}} } catch{}
-            out['windowKeys'] = Object.keys(window).filter(k=>/user|nick|avatar|vip|info|member|kg/i.test(k)).slice(0,20);
+            try {
+              if (window.KgUser) out['KgUser'] = JSON.stringify(window.KgUser).slice(0,500);
+              if (typeof window.getBaseInfo === 'function') out['getBaseInfo'] = JSON.stringify(window.getBaseInfo()).slice(0,500);
+              if (window.__INITIAL_STATE__) out['INITIAL_STATE'] = JSON.stringify(window.__INITIAL_STATE__).slice(0,500);
+              if (window.__NUXT__) out['NUXT'] = JSON.stringify(window.__NUXT__).slice(0,500);
+            } catch(e) { out['err'] = e.message; }
             return JSON.stringify(out);
           })()`);
-          console.log('[KUGOU_STORAGE_PROBE]', probe);
+          console.log('[KUGOU_USER_PROBE]', probe);
         } catch (e) {
-          console.warn('[KUGOU_STORAGE_PROBE_err]', e.message);
+          console.warn('[KUGOU_USER_PROBE_err]', e.message);
         }
-        // ★ 自动导航到个人中心（触发用户资料 API）
-        setTimeout(() => {
-          if (!loginWin.isDestroyed()) {
-            console.log('[KUGOU_nav] → user-center');
-            loginWin.loadURL('https://www.kugou.com/yy/html/user-center.html').catch(()=>{});
-          }
-        }, 2000);
       }
       // 登录成功 → 保存 cookie 到文件（供 server 使用）
       if (result?.success && result.cookie) {
