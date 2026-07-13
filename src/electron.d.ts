@@ -30,6 +30,10 @@ declare global {
       switchAccount: (platform: 'netease' | 'qq' | 'kugou') => Promise<void>;
       onAccountRemoved: (callback: (data: { platform: string }) => void) => () => void;
       clearPlatformSession: (platform: 'netease' | 'qq' | 'kugou') => Promise<void>;
+      // 酷狗统一 QR 登录入口（由 LoginDropdown 调用）
+      startKugouQrLogin: () => Promise<void>;
+      onKugouQrImg: (callback: (data: { qrimg: string; sigx: string }) => void) => () => void;
+      onKugouQrStatus: (callback: (data: { status: string }) => void) => () => void;
     };
   }
 }

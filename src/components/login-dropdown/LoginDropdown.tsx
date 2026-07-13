@@ -143,7 +143,7 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
 
   // 打开平台登录（网易云/酷狗/QQ 均用官网 BrowserWindow）
   const handleBind = useCallback(async (platform: 'netease' | 'qq' | 'kugou') => {
-    if (platform === 'netease' || platform === 'kugou') {
+    if (platform === 'netease') {
       try {
         const result = await window.electronAPI?.openPlatformLogin(platform);
         handleLoginResult({
@@ -153,6 +153,52 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
           user: result?.user,
           msg: result?.msg,
         });
+      } catch (e: any) {
+        setQrModal({ visible: true, qrImg: null, unikey: null, ptqrtoken: null, status: 'failed', errorMsg: e?.message || '登录失败' });
+      }
+      return;
+    }
+    if (platform === 'kugou') {
+      // ★ 酷狗 QR 登录：electron 返回二维码 + 轮询状态
+      try {
+        setQrModal({ visible: true, qrImg: null, unikey: null, ptqrtoken: null, status: 'waiting', errorMsg: '' });
+
+        // 注册登录结果监听
+        const cleanup = window.electronAPI?.onLoginResult(handleLoginResult);
+
+        // 启动酷狗 QR 流程（electron 生成二维码并通过 IPC 发回）
+        window.electronAPI?.startKugouQrLogin();
+
+        // 监听二维码图片
+        const unsub = window.electronAPI?.onKugouQrImg(({ qrimg }) => {
+          setQrModal(prev => ({ ...prev, qrImg: qrimg }));
+        });
+
+        // 监听状态变更
+        const unsubStatus = window.electronAPI?.onKugouQrStatus((s) => {
+          if (s.status === 'scanned') setQrModal(prev => ({ ...prev, status: 'scanned' }));
+        });
+
+        // 轮询 check（1.5s 一次）
+        const timer = setInterval(async () => {
+          try {
+            const status = await window.electronAPI?.checkKugouQr();
+            if (status?.status === 4) {
+              clearInterval(timer);
+              unsub?.();
+              unsubStatus?.();
+              setQrModal({ visible: false, qrImg: null, unikey: null, ptqrtoken: null, status: 'idle', errorMsg: '' });
+            }
+          } catch { /* ignore */ }
+        }, 1500);
+
+        // 兜底超时 120s
+        setTimeout(() => {
+          clearInterval(timer);
+          unsub?.();
+          unsubStatus?.();
+          setQrModal({ visible: false, qrImg: null, unikey: null, ptqrtoken: null, status: 'idle', errorMsg: '' });
+        }, 120000);
       } catch (e: any) {
         setQrModal({ visible: true, qrImg: null, unikey: null, ptqrtoken: null, status: 'failed', errorMsg: e?.message || '登录失败' });
       }

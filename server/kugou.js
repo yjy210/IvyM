@@ -31,6 +31,42 @@ function getKugouCookieString() {
   return Object.entries(_kugouCookies).map(([k, v]) => `${k}=${v}`).join('; ');
 }
 
+/**
+ * 酷狗登录态完整组装 — 会员登录时由 check 返回 token/userid/cookies，
+ * 调用此函数组装成统一 session，供后续 API 请求使用。
+ *
+ * authContext: { token, userid, cookies: [{name,value}...] }
+ */
+function createKugouSession(authContext) {
+  const { token, userid, cookies } = authContext;
+  if (!token || !userid) return null;
+
+  // 注入登录凭证到 _kugouCookies
+  _kugouCookies.token = token;
+  _kugouCookies.userid = String(userid);
+  _kugouCookies.dfid = _kugouCookies.dfid || `kg_${Date.now()}`;
+
+  // 刷新 cookie 列表
+  if (Array.isArray(cookies)) {
+    for (const c of cookies) {
+      if (c?.name) _kugouCookies[c.name] = c.value;
+    }
+  }
+
+  saveKugouCookies();
+  console.log('[KUGOU_SESSION_CREATED]', JSON.stringify({ userid, token: token?.slice(0, 20), cookieCount: Object.keys(_kugouCookies).length }));
+
+  // 同步写 session 文件（供 server 重启恢复）
+  const sessionFile = path.join(__dirname, '.kg-session.json');
+  fs.writeFileSync(sessionFile, JSON.stringify({
+    token, userid, userId: userid,
+    cookies: { token, userid, ...Object.fromEntries(Object.entries(_kugouCookies)) },
+    time: Date.now(),
+  }, null, 2));
+
+  return { token, userId: userid, cookies: { ..._kugouCookies } };
+}
+
 // 注册设备获取 dfid
 async function ensureDfid() {
   if (_kugouCookies.dfid) return _kugouCookies.dfid;
@@ -197,22 +233,33 @@ async function kugouUserInfo() {
 }
 
 // ======================== 二维码登录 ========================
-// kugou-api 路由规则：login_qr_key.js → /login/qr/key（下划线转斜杠）
+// ⚠️ 酷狗 API 不是 /login/qr/key（那是网易云），而是 /v2/qrcode + /v2/get_userinfo_qrcode
+// 参考：github.com/XxHuberrr/Mineradio kugou-api/module/login_qr_{key,check}.js
 
 async function kugouQrLogin() {
-  const res = await kugouRequest('/login/qr/key', {});
-  console.log('[KUGOU RAW QR KEY]', JSON.stringify({ hasData: !!res?.data, qrcode: res?.data?.qrcode?.slice(0, 20), hasImg: !!res?.data?.qrcode_img }));
-  // 二维码图片字段：qrcode_img 是 base64 图片，qrcode 是 token
-  const qrImg = res?.data?.qrcode_img;
-  const qrToken = res?.data?.qrcode || '';
-  if (!qrImg && !qrToken) return { code: -1, msg: '获取二维码失败' };
-  return { code: 200, data: { qrimg: qrImg, sigx: qrToken } };
+  // tokens 数据，避免和 KugouMusicApi 共用缓存
+  const res = await kugouRequest('/v2/qrcode', {});
+  const img = res?.data?.qrcode_img || res?.qrcode_img || '';
+  const token = res?.data?.qrcode || res?.qrcode || '';
+  console.log('[KUGOU_QR_KEY]', JSON.stringify({ hasImg: !!img, tokenPrefix: token.slice(0, 20) }));
+  if (!img && !token) return { code: -1, msg: '获取二维码失败' };
+  return { code: 200, data: { qrimg: img, sigx: token } };
 }
 
 async function kugouQrCheck(sigx) {
-  const res = await kugouRequest('/login/qr/check', { key: sigx });
-  console.log('[KUGOU RAW QR CHECK]', JSON.stringify(res));
-  return { status: res?.status || res?.data?.status, error_code: res?.error_code, msg: res?.msg || '', cookie: res?.cookie || '', userid: res?.userid || 0 };
+  const res = await kugouRequest('/v2/get_userinfo_qrcode', { qrcode: sigx });
+  const status = res?.data?.status ?? res?.status;
+  const userInfo = res?.data?.userInfo || {};
+  console.log('[KUGOU_QR_CHECK]', JSON.stringify({ status, hasCookie: !!res?.cookie, userid: userInfo?.userid }));
+  return {
+    code: 0,
+    status,
+    msg: res?.msg || '',
+    cookie: res?.cookie || [],
+    userid: userInfo?.userid || 0,
+    nickname: userInfo?.nickname || '',
+    avatar: userInfo?.avatar || '',
+  };
 }
 
 module.exports = {
@@ -223,5 +270,6 @@ module.exports = {
   kugouQrCheck,
   saveKugouCookies,
   getKugouCookieString,
+  createKugouSession,
   parseKugouMembership,
 };
