@@ -246,19 +246,23 @@ async function kugouQrLogin() {
 }
 
 async function kugouQrCheck(sigx) {
-  const res = await kugouRequest('/login/qr/check', { key: sigx });
-  // MakcRe 返回格式：{errcode, msg, cookie, userid}
-  const status = res?.errcode;
-  const cookie = Array.isArray(res?.cookie) ? res.cookie : [];
-  console.log('[KUGOU_QR_CHECK]', JSON.stringify({ status, hasCookie: cookie.length > 0 }));
+  // ⚠️ MakcRe kugou-api 的 login_qr_check 模块用 params.qrcode（不是 key），还要求 plat/dfid
+  const res = await kugouRequest('/login/qr/check', { qrcode: sigx, plat: 4, dfid: undefined });
+  // 响应结构可能有两种：v1 {errcode,cookie,userid} 或 v2 {data:{status,cookie,userid,vip}}
+  const status = res?.data?.status ?? res?.errcode ?? res?.status;
+  const cookie = res?.data?.cookie || res?.cookie || [];
+  const userid = res?.data?.userid || res?.userid || 0;
+  const nickname = res?.data?.nickname || res?.nickname || '';
+  const avatar = res?.data?.avatar || res?.avatar || '';
+  console.log('[KUGOU_QR_CHECK]', JSON.stringify({ status, hasCookie: cookie.length > 0, userid }));
   return {
     code: 0,
     status,
     msg: res?.msg || '',
     cookie,
-    userid: res?.userid || 0,
-    nickname: res?.nickname || '',
-    avatar: res?.avatar || '',
+    userid,
+    nickname,
+    avatar,
   };
 }
 
