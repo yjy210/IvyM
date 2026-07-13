@@ -4,3 +4,18 @@ dist-app/
 *.log
 .DS_Store
 build/icon.ico
+
+# Session / cookie files (per-user secrets)
+server/.kg-cookie.json
+server/.kg-session.json
+server/.netease-cookie.json
+server/.qq-cookie.json
+server/.mm-cookie.json
+
+# Debug / test artifacts
+server/.kugoo-dump-*.json
+server/.kugoo-vip-probe-*.json
+server/_qr_test.png
+_diag/
+_kg_test/
+*.7z

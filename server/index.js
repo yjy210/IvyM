@@ -108,8 +108,23 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     if (url.pathname === '/api/kugou/login/check') {
-      const sigx = url.searchParams.get('sigx') || '';
-      const data = await kugouQrCheck(sigx);
+      // 检查 Content-Type：支持 POST JSON（electron 前端用 invoke 带 body 调用）
+      const contentType = req.headers['content-type'] || '';
+      let sigx = url.searchParams.get('sigx') || '';
+      let dfid = url.searchParams.get('dfid') || '';
+      if (contentType.includes('application/json')) {
+        let rawBody = '';
+        await new Promise((r) => {
+          req.on('data', (c) => (rawBody += c));
+          req.on('end', r);
+        });
+        try {
+          const body = JSON.parse(rawBody);
+          sigx = sigx || body.sigx || body.qrsign || '';
+          dfid = dfid || body.dfid || '';
+        } catch { /* ignore */ }
+      }
+      const data = await kugouQrCheck(sigx, dfid);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(data));
       return;

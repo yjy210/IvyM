@@ -33,9 +33,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   checkQQQRStatus: (params) => ipcRenderer.invoke('login:qq-qr-check', params),
   // --- 酷狗音乐 QR 登录 ---
   getKugouQrKey: () => ipcRenderer.invoke('login:kugou-qr-key'),
-  checkKugouQr: (sigx) => ipcRenderer.invoke('login:kugou-qr-check', sigx),
+  checkKugouQr: (sigx) => ipcRenderer.invoke('login:kugou-qr-check', { sigx }),
   // ★ 酷狗统一 QR 入口：启动 QR 流程（二维码 + 状态推送 + 账号落库）
   startKugouQrLogin: () => ipcRenderer.invoke('login:kugou-qr-start'),
+  // ★ 用户关闭 QR 弹窗时调用，通知后端清除 session 避免状态污染
+  cancelKugouQrLogin: () => ipcRenderer.send('login:kugou-qr-cancel'),
   onKugouQrImg: (callback) => {
     const listener = (event, data) => callback(data);
     ipcRenderer.on('login:kugou-qr-img', listener);
@@ -60,4 +62,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAccounts: () => ipcRenderer.invoke('account:get'),
   upsertAccount: (account) => ipcRenderer.invoke('account:upsert', account),
   removeAccount: (platform) => ipcRenderer.invoke('account:remove', platform),
+  // ★ DEBUG 抓包: VIP vs 普通账号字段对比工具 (DEBUG_KUGOO=1)
+  dumpKugooDebugLog: (label) => ipcRenderer.invoke('kugoo:debug:dump', label),
+  clearKugooDebugLog: () => ipcRenderer.invoke('kugoo:debug:clear'),
 });

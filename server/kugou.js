@@ -8,9 +8,82 @@ const KUGOU_API_BASE = process.env.KUGOU_API_BASE || 'http://localhost:3201';
 
 // 酷狗 cookie 文件
 const KG_COOKIE_FILE = path.join(__dirname, '.kg-cookie.json');
-const KUGOO_API_PORT = KUGOO_API_BASE.split(':').pop() || '3201';
+const KUGOO_API_PORT = KUGOU_API_BASE.split(':').pop() || '3201';
+
+// ★ DEBUG: VIP / 会员字段探测
+//   方式: QR status=4 原始响应 + 登录后 60s 内被动扫描所有 CoolGoo 响应 + 主动探测用户接口
+const DEBUG_KUGOO = process.env.DEBUG_KUGOO === '1';
+let _debugRawQrStatus4 = null;      // status=4 原始响应
+let _debugScannerEntries = [];      // 60s 被动扫描窗口内的所有响应
+let _debugScannerUntil = 0;         // 扫描窗口截止时间戳
+let _debugUserProbes = [];          // 主动探测接口结果
 
 let _kugouCookies = {};
+
+function setDebugRawQrStatus4(data) { if (DEBUG_KUGOO) _debugRawQrStatus4 = data; }
+function addDebugUserProbe(entry) { if (DEBUG_KUGOO) _debugUserProbes.push(entry); }
+function captureDebugCookies() { if (DEBUG_KUGOO) { globalThis.__kugooCookiesSnap = { ..._kugouCookies }; } }
+
+/** ★ DEBUG: 启动 60 秒被动扫描窗口（登录成功后调用） */
+function startDebugScanner() {
+  if (!DEBUG_KUGOO) return;
+  _debugScannerUntil = Date.now() + 60_000;
+  _debugScannerEntries = [];
+  console.log('[KUGOO_VIP_PROBE] scanner started (60s)');
+}
+
+// ★ DEBUG: VIP 关键词 — 出现这些词时触发完整保存
+const VIP_KEYWORDS = /vip|svip|member|privilege|level|identity|rights|权益|身份/;
+
+/** ★ DEBUG: 被动记录响应，VIP 关键词命中时保存完整结构否则只存 key summary */
+function _debugMaybeCapture(path, response) {
+  if (!DEBUG_KUGOO || Date.now() > _debugScannerUntil) return;
+  if (!response || typeof response !== 'object') return;
+  const hit = JSON.stringify(response);
+  const vipHit = VIP_KEYWORDS.test(hit);
+  _debugScannerEntries.push({
+    ts: Date.now(),
+    url: path,
+    vipHit,
+    // VIP 命中时保存完整响应，否则只存顶层 key（减小体积）
+    keys: vipHit ? null : Object.keys(response).slice(0, 20),
+    data: vipHit ? response : null,
+  });
+}
+
+/**
+ * ★ DEBUG: 全链路最终记录 — 在 electron/main.js status=4 直接注入
+ *   这里记录的是最终组装好的 account / user 数据（包含所有合并来源）
+ */
+function addDebugFinalAccountSnapshot(snapshot) {
+  if (!DEBUG_KUGOO) return;
+  _debugFinalAccounts.push({ ts: Date.now(), ...snapshot });
+}
+let _debugFinalAccounts = [];
+
+/** ★ DEBUG: 保存所有抓包数据（文件名绑定 userid 避免混） */
+function dumpKugouVipProbe(label = 'run') {
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  const uid = (globalThis.__kugooCookiesSnap && globalThis.__kugooCookiesSnap.userid) || _kugouCookies.userid || 'unknown';
+  // 文件名含 userid
+  const file = path.join(__dirname, `.kugoo-vip-probe-${uid}-${stamp}.json`);
+  // 命中 VIP 关键词的响应数量
+  const vipHits = _debugScannerEntries.filter(e => e.vipHit).length;
+  const data = {
+    label,
+    time: Date.now(),
+    userId: uid,
+    cookies: globalThis.__kugooCookiesSnap || { ..._kugouCookies },
+    qrStatus4Raw: _debugRawQrStatus4,
+    scannerCaptures: _debugScannerEntries,
+    scannerVipHits: vipHits,
+    userProbes: _debugUserProbes,
+    finalAccountSnapshots: _debugFinalAccounts,
+  };
+  fs.writeFileSync(file, JSON.stringify(data, null, 2));
+  console.log(`[KUGOU_VIP_PROBE] dump → ${file} (qr1 + ${_debugScannerEntries.length} passive[${vipHits} vip] + ${_debugUserProbes.length} probes + ${_debugFinalAccounts.length} final)`);
+  return file;
+}
 
 function loadKugouCookies() {
   try {
@@ -47,18 +120,74 @@ async function kugoApiCall(path, params = {}) {
     Object.entries(params).forEach(([k, v]) => {
       if (v != null) url.searchParams.set(k, String(v));
     });
-    console.log('[KUGOO_API_CALL] URL:', url.toString());
-    const req = http.get(url.toString(), res => {
+    const urlStr = url.toString();
+    const cookieStr = getKugouCookieString();
+    const headers = cookieStr ? { 'Cookie': cookieStr } : {};
+
+    const req = http.get(urlStr, { headers }, res => {
       let body = '';
+      // ★ 抓 Set-Cookie：酷狗某些接口（如手机登录）把 vip_type/vip_token 放 Set-Cookie 而不是 body
+      const setCookieHeader = res.headers['set-cookie'] || [];
+      const setCookies = Array.isArray(setCookieHeader) ? setCookieHeader : [setCookieHeader];
+      const vipCookieNames = ['vip_type', 'vip_token', 'userid', 'token', 't1', 'id_type'];
+      for (const sc of setCookies) {
+        if (!sc) continue;
+        const first = sc.split(';')[0]; // name=value
+        const eq = first.indexOf('=');
+        if (eq < 0) continue;
+        const name = first.slice(0, eq).trim();
+        const value = first.slice(eq + 1).trim();
+        if (!name) continue;
+        if (vipCookieNames.includes(name)) {
+          _kugouCookies[name] = value;
+          console.log(`[KUGOO_SETCOOKIE] ${name}=${value.slice(0, 24)}`);
+        }
+      }
+
       res.on('data', chunk => body += chunk);
       res.on('end', () => {
-        try { resolve(JSON.parse(body)); }
-        catch (e) { resolve({}); }
+        let parsed = {};
+        try { parsed = JSON.parse(body); } catch { /* ignore */ }
+        _debugMaybeCapture(path, parsed);
+        resolve(parsed);
       });
     });
     req.on('error', reject);
     req.setTimeout(10000, () => { req.destroy(); reject(new Error('timeout')); });
   });
+}
+
+/**
+ * ★ DEBUG: 登录成功后主动探测用户信息接口，寻找 VIP 字段
+ * 只在 DEBUG_KUGOO=1 时调用，不影响正常流程
+ */
+async function kugouVipProbe() {
+  if (!DEBUG_KUGOO) return;
+  const cookie = getKugouCookieString();
+  if (!cookie) return;
+
+  // 可能返回用户身份信息的接口列表（含 CoolGoo 新版疑似端点）
+  const probes = [
+    { path: '/user/vip/detail', params: { busi_type: 'concept' } },
+    { path: '/user/detail', params: {} },
+    { path: '/user/info', params: {} },
+    { path: '/user/member', params: {} },
+    { path: '/user/level', params: {} },
+    { path: '/user/identity', params: {} },
+    { path: '/user/privilege', params: {} },
+    { path: '/personal/fm', params: { userid: _kugouCookies.userid || 0 } },
+    { path: '/search/default', params: {} },
+  ];
+
+  for (const p of probes) {
+    try {
+      const res = await kugoApiCall(p.path, p.params);
+      addDebugUserProbe({ path: p.path, params: p.params, response: res });
+    } catch (e) {
+      addDebugUserProbe({ path: p.path, error: e.message });
+    }
+  }
+  console.log(`[KUGOU_VIP_PROBE] ${probes.length} probes done`);
 }
 
 /**
@@ -230,15 +359,22 @@ function parseKugouMembership(userInfo) {
   if (!userInfo) {
     return { status: 'unknown', provider: 'kugou', level: null, name: null, icon: null };
   }
-  // 酷狗会员类型判断：vip_type=1 为 VIP，2 为 SVIP（根据 KuGouMusicApi 返回字段调整）
-  const vipType = userInfo.vip_type || userInfo.viptype || 0;
-  if (vipType >= 2) {
+  // ★ CoolGoo 字段兼容：vip_type / viptype / is_vip / svip_type / is_svip / member_type
+  const vipFlags = [
+    userInfo.vip_type, userInfo.viptype, userInfo.svip_type, userInfo.member_type,
+    userInfo.is_vip, userInfo.is_svip,
+  ].map(v => (typeof v === 'string' ? parseInt(v, 10) : v));
+  const vipType = Math.max(0, ...vipFlags.filter(v => Number.isFinite(v)));
+  const isSvp = [userInfo.is_svip, userInfo.svip_type].some(v => /1|true/i.test(String(v))) || vipType >= 2;
+
+  if (isSvp || vipType >= 2) {
     return { status: 'vip', provider: 'kugou', level: 'svip', name: 'SVIP', icon: '/icons/vip-kugou.svg' };
   }
   if (vipType >= 1) {
     return { status: 'vip', provider: 'kugou', level: 'vip', name: 'VIP', icon: '/icons/vip-kugou.svg' };
   }
-  return { status: 'normal', provider: 'kugou', level: null, name: null, icon: null };
+  // ★ 拿不到任何 VIP 字段 → unknown（绝不静默判 normal）
+  return { status: 'unknown', provider: 'kugou', level: null, name: null, icon: null };
 }
 
 // ======================== 用户信息 ========================
@@ -246,19 +382,59 @@ function parseKugouMembership(userInfo) {
 async function kugouUserInfo() {
   const cookie = getKugouCookieString();
   if (!cookie) return null;
-  const res = await kugouRequest('/user/info', {});
-  if (!res?.data) return null;
-  const info = res.data;
+  // ★ 上游真实模块是 module/user_detail.js → 路由 /user/detail（不是 /user/info）
+  //    且响应结构是 { body: { data: { data: { ... } } } }
+  const res = await kugoApiCall('/user/detail', {});
+  const info = res?.data?.data || res?.data || null;
+  if (!info) return null;
   const membership = parseKugouMembership(info);
   return {
     platform: 'kugou',
-    nickname: info.nickname || info.username || '',
-    avatar: info.avatar || info.headpic || '',
-    userId: String(info.userid || info.uid || ''),
+    nickname: info.nickname || info.username || info.nick_name || '',
+    avatar: info.avatar || info.headpic || info.pic || '',
+    userId: String(info.userid || info.uid || info.user_id || ''),
     vip: membership.status === 'vip',
     vipName: membership.name || '',
     membership,
   };
+}
+
+// ======================== VIP / 会员信息 ========================
+// ======================== VIP / 会员信息 ========================
+// ★ 参考 QQ Music 检测模式：从响应字段中提取 VIP 图标 / 等级信息
+//    - userInfoUI.iconlist[].srcUrl → 包含 vip/svip 表示有 VIP
+//    - lvinfo[].iconurl → 包含 svip/vip 表示等级
+//
+// ★ 但 CoolGou 架构不同：
+//    - vip_type + vip_token 仅在非 QR 登录响应的 secu_params AES 解密后出现
+//    - QR status=4 返回结构不含 VIP 字段
+//    - CoolGoo 私有 API（user/vip/detail, /v3/get_my_info, v5/login_by_token）均失效
+//    → result = null 表示"API 无法判断"，非"用户非 VIP"
+// ★ CoolGoo 新/旧两代接口兼容；返回 {vip_type,...} 或 null
+async function kugouVipInfo() {
+  const cookie = getKugouCookieString();
+  if (!cookie || !_kugouCookies.token) return null;
+
+  const tries = [
+    { path: '/user/vip/detail', params: { busi_type: 'concept' } },
+    { path: '/user/detail',     params: {} },
+  ];
+
+  for (const t of tries) {
+    try {
+      const res = await kugoApiCall(t.path, t.params);
+      if (res?.status == null || res.status === 1) {
+        const info = res?.data?.data || res?.data || res;
+        if (info && (info.vip_type || info.is_vip || info.svip_type || info.is_svip || info.member_type)) {
+          console.log('[KUGOU_VIP_RAW]', t.path, JSON.stringify(info).slice(0, 400));
+          return info;
+        }
+      }
+    } catch (e) {
+      console.log('[KUGOU_VIP_REQ] error path=' + t.path + ':', e.message);
+    }
+  }
+  return null;
 }
 
 // ======================== 二维码登录 ========================
@@ -296,9 +472,14 @@ async function kugouQrLogin() {
 async function kugouQrCheck(sigx) {
   const dfid = _kugouCookies.dfid;
   console.log('[KUGOU_QR_CHECK_REQ]', JSON.stringify({ sigx, dfid }));
-  const res = await kugoApiCall('/login/qr/check', { qrcode: sigx, dfid });
+  // 参数名用 key（MakcRe 上游 login_qr_check.js 读取 params.key），并加 timestamp 防缓存
+  const res = await kugoApiCall('/login/qr/check', { key: sigx, timestamp: Date.now() });
   // [DEBUG] 完整原始返回
   console.log('[KUGOU_QR_CHECK_RAW]', JSON.stringify(res));
+  // ★ status=4 时打印完整响应字段（排查是否有 VIP 等隐藏字段）
+  if (res?.data?.status === 4) {
+    console.log('[KUGOU_QR_CHECK_FULL_DATA]', JSON.stringify(res?.data));
+  }
   if (res?.data?.dfid) {
     _kugouCookies.dfid = res.data.dfid;
     saveKugouCookies();
@@ -307,7 +488,7 @@ async function kugouQrCheck(sigx) {
   const cookie = res?.data?.cookie || [];
   const userid = res?.data?.userid || 0;
   const nickname = res?.data?.nickname || '';
-  const avatar = res?.data?.avatar || '';
+  const avatar = res?.data?.avatar || res?.data?.pic || '';
   const token = res?.data?.token || '';
   console.log('[KUGOU_QR_CHECK]', JSON.stringify({ status, hasCookie: cookie.length > 0, userid, token: token?.slice(0, 20) }));
   return {
@@ -322,6 +503,17 @@ async function kugouQrCheck(sigx) {
   };
 }
 
+/**
+ * ★ 解绑 / 重新扫码时调用：强制生成新 dfid，避免 CoolGou 复用旧 session
+ */
+function resetKugouSession() {
+  _kugouCookies = {};
+  saveKugouCookies();
+  // 触发重新注册设备（新 dfid）
+  ensureDfid();
+  console.log('[IvyM] kugou session reset, new dfid will be generated');
+}
+
 module.exports = {
   kugouSearch,
   kugouSongUrl,
@@ -332,4 +524,14 @@ module.exports = {
   getKugouCookieString,
   createKugouSession,
   parseKugouMembership,
+  resetKugouSession,
+  kugouVipInfo,
+  // ★ DEBUG: VIP 探测 (聚焦 status=4 原始响应 + 用户信息接口探测)
+  setDebugRawQrStatus4,
+  addDebugUserProbe,
+  dumpKugouVipProbe,
+  kugouVipProbe,
+  startDebugScanner,
+  addDebugFinalAccountSnapshot,
+  dumpKugouDebugLog: dumpKugouVipProbe, // alias for preload
 };

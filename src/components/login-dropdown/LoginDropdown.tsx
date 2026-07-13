@@ -19,27 +19,46 @@ interface PlatformAccount {
   };
 }
 
+/**
+ * ★ 保留后端给的真实 status（不下推、不错位），仅做字段清洗
+ *   后端 membership.status === 'unknown' → 显示未知，不冒充 VIP
+ */
+function normalizeMembership(m?: PlatformAccount['membership']): PlatformAccount['membership'] {
+  if (!m) return { status: 'unknown', provider: null, level: null, name: null, icon: null };
+  // 脏数据降级：status=vip 但无 level 且无 icon → 不算 VIP，降级
+  if (m.status === 'vip' && !m.level && !m.icon) {
+    return { ...m, status: 'normal' };
+  }
+  return {
+    status: m.status || 'unknown',
+    provider: m.provider ?? null,
+    level: m.level ?? null,
+    name: m.name ?? null,
+    icon: m.icon ?? null,
+    ...(m.type ? { type: m.type } : {}),
+    ...(m.expireAt ? { expireAt: m.expireAt } : {}),
+  };
+}
+
 /** 兼容旧格式：{vip, vipName} → {membership: {status, level, name, icon}} */
 function normalizeAccount(acc: any): PlatformAccount {
-  if (acc.membership && acc.membership.level !== undefined) return acc as PlatformAccount;
+  if (acc.membership && acc.membership.level !== undefined) return { ...acc, membership: normalizeMembership(acc.membership) };
   let status = acc.membership?.status || (acc.vip ? 'vip' : 'unknown');
-  const level = acc.membership?.level || null;
-  const icon = acc.membership?.icon || null;
-  // 脏数据降级：status=vip 但无 level 且无 icon → normal
-  if (status === 'vip' && !level && !icon) status = 'normal';
+  // 脏数据降级：vip 但无 level+icon → normal
+  if (status === 'vip' && !(acc.membership?.level) && !(acc.membership?.icon)) status = 'normal';
   return {
     platform: acc.platform,
     nickname: acc.nickname || '',
     avatar: acc.avatar || '',
     userId: acc.userId || '',
     bindTime: acc.bindTime || Date.now(),
-    membership: {
+    membership: normalizeMembership({
       status,
       provider: acc.membership?.provider || null,
-      level,
+      level: acc.membership?.level || null,
       name: acc.membership?.name || acc.vipName || null,
-      icon,
-    },
+      icon: acc.membership?.icon || null,
+    }),
   };
 }
 
@@ -90,9 +109,7 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
                     ...prev[idx],
                     nickname: info.nickname || prev[idx].nickname,
                     avatar: info.avatar || prev[idx].avatar,
-                    membership: info.membership
-                      ? { status: 'vip' as const, level: info.membership.level, name: info.membership.name, icon: info.membership.icon }
-                      : { status: info.vip ? 'vip' : 'unknown', level: null, name: null, icon: null },
+                    membership: normalizeMembership(info.membership),
                   };
                   window.electronAPI?.upsertAccount(updated);
                   return [...prev.filter(a => a.platform !== 'qq'), updated];
@@ -241,8 +258,8 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
             nickname, avatar, userId,
             bindTime: Date.now(),
             membership: qqMembership
-              ? { status: 'vip', level: qqMembership.level, name: qqMembership.name, icon: qqMembership.icon }
-              : { status: vipBool ? 'vip' : 'unknown', level: null, name: vipBool ? result.user?.vipName || null : null, icon: null },
+              ? normalizeMembership(qqMembership)
+              : { status: 'unknown', provider: 'qq', level: null, name: null, icon: null },
           };
           window.electronAPI?.upsertAccount(newAccount);
           setAccounts(prev => [...prev.filter(a => a.platform !== 'qq'), newAccount]);
@@ -260,9 +277,7 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
               .then(data => {
                 if (data?.data) {
                   const info = data.data;
-                  const updatedMembership = info.membership
-                    ? { status: 'vip' as const, level: info.membership.level, name: info.membership.name, icon: info.membership.icon }
-                    : newAccount.membership;
+                  const updatedMembership = normalizeMembership(info.membership);
                   const updated: PlatformAccount = {
                     ...newAccount,
                     nickname: info.nickname || nickname,
@@ -306,9 +321,7 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
       avatar: result.user.avatar || '',
       userId: result.user.userId || '',
       bindTime: Date.now(),
-      membership: result.user.membership
-        ? { status: 'vip', level: result.user.membership.level, name: result.user.membership.name, icon: result.user.membership.icon }
-        : { status: result.user.vip ? 'vip' : 'unknown', level: null, name: result.user.vip ? result.user.vipName || null : null, icon: null },
+      membership: normalizeMembership(result.user.membership),
     };
     window.electronAPI?.upsertAccount(newAccount);
     setAccounts(prev => [...prev.filter(a => a.platform !== result.user!.platform), newAccount]);
@@ -500,6 +513,10 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
         const platformIcon = PLATFORMS.find(p => p.id === activeTab)?.icon || '/platform-icons/wyy.svg';
         const closeModal = () => {
           stopQRPoll();
+          // ★ 关闭 QR 弹窗时通知后端清理 session，避免下次打开 QR 状态污染
+          if (activeTab === 'kugou') {
+            window.electronAPI?.cancelKugouQrLogin();
+          }
           setQrModal({ visible: false, qrImg: null, unikey: null, ptqrtoken: null, status: 'idle', errorMsg: '' });
         };
         const statusText = {
