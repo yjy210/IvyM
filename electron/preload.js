@@ -34,6 +34,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // --- 酷狗音乐 QR 登录 ---
   getKugouQrKey: () => ipcRenderer.invoke('login:kugou-qr-key'),
   checkKugouQr: (sigx) => ipcRenderer.invoke('login:kugou-qr-check', sigx),
+  // ★ 酷狗统一 QR 入口：启动 QR 流程（二维码 + 状态推送 + 账号落库）
+  startKugouQrLogin: () => ipcRenderer.invoke('login:kugou-qr-start'),
+  onKugouQrImg: (callback) => {
+    const listener = (event, data) => callback(data);
+    ipcRenderer.on('login:kugou-qr-img', listener);
+    return () => ipcRenderer.removeListener('login:kugou-qr-img', listener);
+  },
+  onKugouQrStatus: (callback) => {
+    const listener = (event, data) => callback(data);
+    ipcRenderer.on('login:kugou-qr-status', listener);
+    return () => ipcRenderer.removeListener('login:kugou-qr-status', listener);
+  },
   // --- 解绑：清除平台的登录 session ---
   clearPlatformSession: (platform) => ipcRenderer.invoke('login:clear', platform),
   // --- 切换账号：清 session + 清账号 + 重新登录 ---
