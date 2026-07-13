@@ -159,38 +159,58 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
       return;
     }
     if (platform === 'kugou') {
-      // ★ 酷狗 QR 登录：electron 返回二维码 + 轮询状态
+      // ★ 酷狗客户端 QR 登录 — 前端主动轮询驱动状态机
+      //  电子端 generate QR 后在其 finish() 只在 check 被调用时评估 status，没有内部 polling。
+      //  所以前端必须 setInterval 调 checkKugouQr(sigx) 推动流程。
       try {
-        // ① 先清理上一次的 polling + listeners，避免竞态
+        // ① 清理上一次 polling
         stopQRPoll();
+        let savedSigx = '';
         setQrModal({ visible: true, qrImg: null, unikey: null, ptqrtoken: null, status: 'waiting', errorMsg: '' });
 
-        // ② 启动酷狗 QR 流程（electron 统一控制 polling，结果走 onLoginResult 回调）
-        //    前端只负责 UI 展示 + 事件触发，不自行 polling，避免与 electron 竞争同一接口
+        // ② 启动 QR 登录
         window.electronAPI?.startKugouQrLogin();
 
-        // ③ 监听二维码图片（electron 生成 QR 后回传）
-        const unsubImg = window.electronAPI?.onKugouQrImg(({ qrimg }) => {
+        // ③ 监听 QR 图片 — 拿到后启动主动 polling
+        const unsubImg = window.electronAPI?.onKugouQrImg(({ qrimg, sigx }) => {
+          savedSigx = sigx;
           setQrModal(prev => ({ ...prev, qrImg: qrimg }));
+          // ★ QR 就绪 → 启动前端 polling（每 1.5s 调一次 check）
+          if (!qrPollTimerRef.current && sigx) {
+            qrPollTimerRef.current = setInterval(async () => {
+              try {
+                const status = await window.electronAPI?.checkKugouQr(sigx);
+                if (!status) return;
+                if (status.status === 2) {
+                  setQrModal(prev => ({ ...prev, status: 'scanned' }));
+                } else if (status.status === 4) {
+                  // 登录成功 — 由 onLoginResult 关闭弹窗；停止 polling
+                  stopQRPoll();
+                } else if (status.status === 0) {
+                  // 过期
+                  stopQRPoll();
+                  setQrModal(prev => ({ ...prev, status: 'failed', errorMsg: '二维码已过期' }));
+                }
+              } catch { /* ignore */ }
+            }, 1500);
+          }
         });
 
-        // ④ 监听状态变更（waiting→scanned→confirmed）
+        // ④ 监听状态同步（electron 推送的 scanned 状态）
         const unsubStatus = window.electronAPI?.onKugouQrStatus((s) => {
           if (s.status === 'scanned') setQrModal(prev => ({ ...prev, status: 'scanned' }));
-          if (s.status === 'confirmed') setQrModal(prev => ({ ...prev, status: 'confirmed' }));
         });
 
-        // ⑤ 监听最终登录结果（electron 完成 account 落库后发送）
+        // ⑤ 监听最终结果
         const cleanupResult = window.electronAPI?.onLoginResult((result) => {
           handleLoginResult(result);
-          // 关闭弹窗
           stopQRPoll();
           unsubImg?.();
           unsubStatus?.();
           setQrModal({ visible: false, qrImg: null, unikey: null, ptqrtoken: null, status: 'idle', errorMsg: '' });
         });
 
-        // ⑥ 兜底超时 120s
+        // ⑥ 兜底 120s
         setTimeout(() => {
           stopQRPoll();
           unsubImg?.();
