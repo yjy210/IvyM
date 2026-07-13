@@ -256,9 +256,11 @@ async function kugouQrLogin() {
 async function kugouQrCheck(sigx, dfid) {
   // ⚠️ MakcRe kugou-api 的 login_qr_check 模块用 params.qrcode（不是 key），还要求 plat/dfid
   const effectiveDfid = dfid || _kugouCookies.dfid;
+  // [EXPERIMENTAL] 通过 KUGOU_PLAT env 切换 plat 测试哪个值能让扫码状态生效（1/2/3/4/5）
+  const plat = Number(process.env.KUGOU_PLAT) || 4;
   // [DEBUG] 打印请求参数
-  console.log('[KUGOU_QR_CHECK_REQ]', JSON.stringify({ sigx, dfid: effectiveDfid, plat: 4 }));
-  const res = await kugouRequest('/login/qr/check', { qrcode: sigx, plat: 4, dfid: effectiveDfid });
+  console.log('[KUGOU_QR_CHECK_REQ]', JSON.stringify({ sigx, dfid: effectiveDfid, plat }));
+  const res = await kugouRequest('/login/qr/check', { qrcode: sigx, plat, dfid: effectiveDfid });
   // [DEBUG] 打印完整原始返回
   console.log('[KUGOU_QR_CHECK_RAW]', JSON.stringify(res));
   // 同步最新 dfid
