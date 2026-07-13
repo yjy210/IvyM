@@ -399,26 +399,84 @@ ipcMain.handle('login:open', async (event, platform) => {
       settled = true;
       if (pollTimer) clearInterval(pollTimer);
       pollTimer = null;
-      // ★ kugou：等待 CDP 捕获 login_by_token_get 返回（真正用户资料），超时兜底
+      // ★ kugou：用 session cookie 直调 login_by_token_get 接口获取用户资料
       if (platform === 'kugou' && result?.success) {
         try {
-          await new Promise((resolve) => {
-            const timeout = setTimeout(() => resolve('timeout'), 4000); // 最多等 4s
-            const check = setInterval(() => {
-              if (_kugouCapturedUser) { clearTimeout(timeout); clearInterval(check); resolve('ok'); }
-            }, 200);
-            // 窗口关闭兜底
-            loginWin.once('closed', () => { clearTimeout(timeout); clearInterval(check); resolve('closed'); });
+          // 聚齐所有 cookie（跨域名）
+          const allCookies = await getPlatformCookies('kugou');
+          const cookieStr = allCookies.map((c) => `${c.name}=${c.value}`).join('; ');
+          const kv = Object.fromEntries(allCookies.map((c) => [c.name, c.value]));
+          const userid = kv.KugooID || '';
+          const mid = kv.mid || kv.kg_mid || '';
+          const dfid = kv.dfid || kv.kg_dfid || '';
+          const uin = mid; // uuid 同 mid
+          // 构建请求
+          const url = new URL('https://loginservice.kugou.com/v1/login_by_token_get');
+          url.searchParams.set('appid', '1014');
+          url.searchParams.set('clientver', '1000');
+          url.searchParams.set('clienttime', String(Math.floor(Date.now() / 1000)));
+          url.searchParams.set('mid', mid);
+          url.searchParams.set('uuid', uin);
+          url.searchParams.set('dfid', dfid || '-');
+          url.searchParams.set('dev', 'web');
+          url.searchParams.set('userid', userid);
+          url.searchParams.set('plat', '4');
+          url.searchParams.set('clienttime_ms', String(Date.now()));
+          url.searchParams.set('pk', '0'); // 公开接口不需要 RSA
+          url.searchParams.set('params', ''); // params 由服务端验证
+          url.searchParams.set('srcappid', '2919');
+          url.searchParams.set('signature', ''); // 测试用空签名
+          console.log('[KUGOU_API_CALL]', url.toString().slice(0, 200));
+          // 发起请求
+          const body = await new Promise<string>((resolve, reject) => {
+            const req = https.request(url.toString(), {
+              method: 'POST',
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Referer': 'https://login-user.kugou.com/',
+                'Cookie': cookieStr,
+                'Content-Type': 'application/x-www-form-urlencoded',
+              },
+            }, (res) => {
+              let data = '';
+              res.on('data', (c) => (data += c));
+              res.on('end', () => resolve(data));
+            });
+            req.on('error', reject);
+            req.setTimeout(10000, () => { req.destroy(); reject(new Error('timeout')); });
+            req.write(''); // POST body 为空
+            req.end();
           });
-          if (_kugouCapturedUser) {
-            // CDP 抓到了，合并到 result.user
-            result.user = _kugouCapturedUser;
-            console.log('[KUGOU_CDP_USER]', JSON.stringify(_kugouCapturedUser));
+          console.log('[KUGOU_API_RESP]', body.slice(0, 500));
+          const j = JSON.parse(body);
+          const data = typeof j.data === 'object' ? j.data : null;
+          if (data && (data.nickname || data.username || data.userid)) {
+            const vipT = Number(data.vip_type || data.viptype || data.vip || 0);
+            const isVip = vipT > 0;
+            const svipLevel = Number(data.svip_level || 0);
+            const level = svipLevel >= 1 ? 'svip' : 'vip';
+            const name = !isVip ? null : (level === 'svip' ? 'SVIP' : 'VIP');
+            result.user = {
+              platform: 'kugou',
+              nickname: data.nickname || data.username || '',
+              avatar: data.avatar || data.pic || data.headpic || data.headurl || '',
+              userId: String(data.userid || data.uid || userid),
+              vip: isVip,
+              vipName: name || '',
+              membership: {
+                status: isVip ? 'vip' : 'normal',
+                provider: 'kugou',
+                level: isVip ? level : null,
+                name,
+                icon: isVip ? '/icons/vip-kugou.svg' : null,
+              },
+            };
+            console.log('[KUGOU_USER_OK]', JSON.stringify(result.user));
           } else {
-            console.log('[KUGOU_CDP_TIMEOUT]  fallback to KugooID');
+            console.warn('[KUGOU_API_no_user]', body.slice(0, 200));
           }
         } catch (e) {
-          console.warn('[KUGOU_CDP_WAIT_err]', e.message);
+          console.warn('[KUGOU_API_err]', e.message);
         }
       }
       // 登录成功 → 持久化
@@ -459,66 +517,8 @@ ipcMain.handle('login:open', async (event, platform) => {
       const kgUserUrl = 'https://loginservice.kugou.com/v1/login_by_token_get';
       const kgFilter = { urls: ['*://loginservice.kugou.com/*'] };
       // 用 devtools 的 debugger 读 responseBody
-      try {
-        loginWin.webContents.debugger.attach('1.3');
-        loginWin.webContents.debugger.on('message', async (_evt, method, params) => {
-          if (method === 'Network.requestWillBeSent') {
-            const url = params?.request?.url || '';
-            if (url.includes(kgUserUrl)) {
-              console.log('[KUGOU_REQ]', url);
-              console.log('[KUGOU_REQ_HEADERS]', JSON.stringify(params?.request?.headers || {}));
-              console.log('[KUGOU_REQ_POSTDATA]', (params?.request?.postData || '').slice(0, 400));
-            }
-          } else if (method === 'Network.responseReceived') {
-            const url = params?.response?.url || '';
-            console.log('[KUGOU_RESP_STATUS]', params?.response?.status, url.includes(kgUserUrl) ? 'LOGIN_URL' : '');
-            if (url.includes(kgUserUrl)) {
-              try {
-                const body = await loginWin.webContents.debugger.sendCommand('Network.getResponseBody', { requestId: params.requestId });
-                const raw = body?.body || '';
-                console.log('[KUGOU_USER_RESPONSE]', raw.slice(0, 800));
-                // 解析返回 JSON，暂存真实用户资料
-                try {
-                  const j = JSON.parse(raw);
-                  const d = j?.data || j;
-                  if (d && typeof d === 'object' && (d.nickname || d.username || d.userid)) {
-                    const vipT = Number(d.vip_type || d.viptype || d.vip || 0);
-                    const isVip = vipT > 0;
-                    const svipLevel = Number(d.svip_level || 0);
-                    const level = svipLevel >= 1 ? 'svip' : 'vip';
-                    const name = !isVip ? null : (level === 'svip' ? 'SVIP' : 'VIP');
-                    _kugouCapturedUser = {
-                      platform: 'kugou',
-                      nickname: d.nickname || d.username || '',
-                      avatar: d.avatar || d.pic || d.headpic || d.headurl || '',
-                      userId: String(d.userid || d.uid || ''),
-                      vip: isVip,
-                      vipName: name || '',
-                      membership: {
-                        status: isVip ? 'vip' : 'normal',
-                        provider: 'kugou',
-                        level: isVip ? level : null,
-                        name,
-                        icon: isVip ? '/icons/vip-kugou.svg' : null,
-                      },
-                    };
-                  } else if (typeof d === 'string') {
-                    console.warn('[KUGOU_USER_RESPONSE_string]', d);
-                  }
-                } catch (e) { console.warn('[KUGOU_PARSE_err]', e.message); }
-              } catch (e) {
-                console.warn('[KUGOU_USER_RESPONSE_err]', e.message);
-              }
-            }
-          }
-        });
-        loginWin.webContents.debugger.sendCommand('Network.enable');
-        loginWin.once('closed', () => {
-          try { loginWin.webContents.debugger.detach(); } catch {}
-        });
-      } catch (e) {
-        console.warn('[KUGOU_USER_DEBUGGER_err]', e.message);
-      }
+      // ★ CDP 已废弃 —— 改为 session cookie 直调 API（无竞态 / 无 body-release 问题）
+      // 详见 debug history: CDP getResponseBody 因 buffer 释放导致 "No data found"
       loginWin.webContents.on('did-start-loading', () => console.log('[KUGOU_LOADING] start'));
       loginWin.webContents.on('did-finish-load', () => console.log('[KUGOU_LOADING] finish'));
       loginWin.webContents.on('did-fail-load', (_, code, desc, url) => console.error('[KUGOU_LOADING] FAIL', code, desc, url));
