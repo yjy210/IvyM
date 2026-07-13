@@ -8,6 +8,7 @@ const KUGOU_API_BASE = process.env.KUGOU_API_BASE || 'http://localhost:3201';
 
 // 酷狗 cookie 文件
 const KG_COOKIE_FILE = path.join(__dirname, '.kg-cookie.json');
+const KUGOO_API_PORT = KUGOO_API_BASE.split(':').pop() || '3201';
 
 let _kugouCookies = {};
 
@@ -29,6 +30,35 @@ function saveKugouCookies() {
 
 function getKugouCookieString() {
   return Object.entries(_kugouCookies).map(([k, v]) => `${k}=${v}`).join('; ');
+}
+
+/**
+ * 调用 MakcRe kugo-api（port 3201）封装的 Cool狗接口
+ * path: /login/qr/key  或  /login/qr/check
+ * params: 要传给 kugo-api 的 query/body
+ *
+ * 为什么不用直接发 HTTPS 给 Cool 官方：
+ * MakcRe kugo-api 已经封装好了加密参数 / 接口签名 / 响应解析，
+ * 直接调它等于复用 MakcRe 官方维护的这套登录协议。
+ */
+async function kugoApiCall(path, params = {}) {
+  return new Promise((resolve, reject) => {
+    const url = new URL(`http://localhost:${KUGOO_API_PORT}${path}`);
+    Object.entries(params).forEach(([k, v]) => {
+      if (v != null) url.searchParams.set(k, String(v));
+    });
+    console.log('[KUGOO_API_CALL] URL:', url.toString());
+    const req = http.get(url.toString(), res => {
+      let body = '';
+      res.on('data', chunk => body += chunk);
+      res.on('end', () => {
+        try { resolve(JSON.parse(body)); }
+        catch (e) { resolve({}); }
+      });
+    });
+    req.on('error', reject);
+    req.setTimeout(10000, () => { req.destroy(); reject(new Error('timeout')); });
+  });
 }
 
 /**
@@ -235,45 +265,51 @@ async function kugouUserInfo() {
 // MakcRe/KugouMusicApi 仅提供 v1 路由 /login/qr/key，返回 {qrcode, qrcode_img}
 // 注意：/v2/qrcode 是酷狗官方网页端接口，MakcRe 未实现
 
+/**
+ * 调用 MakcRe kugo-api（port 3201）生成二维码。
+ * MakcRe 返回结构：{data:{qrcode, qrcode_img}, status:1, error_code:0}
+ * 映射到旧的 canonical 输出：{code, qrimg, sigx, dfid}
+ */
 async function kugouQrLogin() {
-  // ★ QR 生成：始终用已注册的 dfid，保证与 check 一致
-  const res = await kugouRequest('/login/qr/key', { dfid: _kugouCookies.dfid });
-  // [DEBUG] 打印完整原始返回
+  console.log('[KUGOU_QR_KEY_REQ] port=' + KUGOO_API_PORT);
+  const res = await kugoApiCall('/login/qr/key', {});
+  // [DEBUG] 完整原始返回
   console.log('[KUGOU_QR_KEY_RAW]', JSON.stringify(res));
-  const qrImg = res?.data?.qrcode_img || res?.qrcode_img || '';
-  const qrToken = res?.data?.qrcode || res?.qrcode || '';
-  // 若 MakcRe 返回了新的 dfid，立即同步
+  const qrToken = res?.data?.qrcode || '';
+  const qrImg = res?.data?.qrcode_img || '';
   if (res?.data?.dfid) {
     _kugouCookies.dfid = res.data.dfid;
     saveKugouCookies();
   }
   console.log('[KUGOU_QR_KEY]', JSON.stringify({ hasImg: !!qrImg, qrToken, dfid: _kugouCookies.dfid }));
   if (!qrImg && !qrToken) return { code: -1, msg: '获取二维码失败', debug: JSON.stringify(res).slice(0, 200) };
-  // 把 dfid 一并返回给前端，用于后续 polling
+  // canonical 输出（与旧格式兼容）
   return { code: 200, qrimg: qrImg, sigx: qrToken, dfid: _kugouCookies.dfid };
 }
 
-async function kugouQrCheck(sigx, dfid) {
-  // ⚠️ MakcRe kugou-api 的 login_qr_check 模块用 params.qrcode（不是 key），还要求 plat/dfid
-  const effectiveDfid = dfid || _kugouCookies.dfid;
-  // [EXPERIMENTAL] 通过 KUGOU_PLAT env 切换 plat 测试哪个值能让扫码状态生效（1/2/3/4/5）
-  const plat = Number(process.env.KUGOU_PLAT) || 4;
-  // [DEBUG] 打印请求参数
-  console.log('[KUGOU_QR_CHECK_REQ]', JSON.stringify({ sigx, dfid: effectiveDfid, plat }));
-  const res = await kugouRequest('/login/qr/check', { qrcode: sigx, plat, dfid: effectiveDfid });
-  // [DEBUG] 打印完整原始返回
+/**
+ * 调用 MakcRe kugo-api 检测扫码状态。
+ * MakcRe 返回结构：{data:{status, userid, cookie, ...}, status, error_code}
+ * status: 0=过期 / 1=等待 / 2=已扫待确认 / 4=授权成功
+ * 映射到旧的 canonical 输出：{code, status, cookie[], userid, nickname, avatar}
+ */
+async function kugouQrCheck(sigx) {
+  const dfid = _kugouCookies.dfid;
+  console.log('[KUGOU_QR_CHECK_REQ]', JSON.stringify({ sigx, dfid }));
+  const res = await kugoApiCall('/login/qr/check', { qrcode: sigx, dfid });
+  // [DEBUG] 完整原始返回
   console.log('[KUGOU_QR_CHECK_RAW]', JSON.stringify(res));
-  // 同步最新 dfid
   if (res?.data?.dfid) {
     _kugouCookies.dfid = res.data.dfid;
     saveKugouCookies();
   }
-  const status = res?.data?.status ?? res?.errcode ?? res?.status;
-  const cookie = res?.data?.cookie || res?.cookie || [];
-  const userid = res?.data?.userid || res?.userid || 0;
-  const nickname = res?.data?.nickname || res?.nickname || '';
-  const avatar = res?.data?.avatar || res?.avatar || '';
-  console.log('[KUGOU_QR_CHECK]', JSON.stringify({ status, hasCookie: cookie.length > 0, userid }));
+  const status = res?.data?.status;
+  const cookie = res?.data?.cookie || [];
+  const userid = res?.data?.userid || 0;
+  const nickname = res?.data?.nickname || '';
+  const avatar = res?.data?.avatar || '';
+  const token = res?.data?.token || '';
+  console.log('[KUGOU_QR_CHECK]', JSON.stringify({ status, hasCookie: cookie.length > 0, userid, token: token?.slice(0, 20) }));
   return {
     code: 0,
     status,
@@ -282,6 +318,7 @@ async function kugouQrCheck(sigx, dfid) {
     userid,
     nickname,
     avatar,
+    token,
   };
 }
 
