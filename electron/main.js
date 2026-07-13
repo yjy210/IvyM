@@ -368,7 +368,7 @@ async function getUserInfo(platform, cookieStr) {
  *   6. 发送 login:result
  */
 // ★ kugou QR 流程状态机（模块级，唯一实例）
-let _kugouQrState = null; // { sigx, settled, timeoutId, resultPromise, finish }
+let _kugouQrState = null; // { sigx, dfid, settled, timeoutId, resultPromise, finish }
 
 async function executeKugouQrLogin() {
   console.log('[IvyM] executeKugouQrLogin called');
@@ -395,8 +395,10 @@ async function executeKugouQrLogin() {
   if (qrResult.code !== 200) {
     return { platform: 'kugou', success: false, msg: qrResult.msg || '获取二维码失败' };
   }
-  const { qrimg, sigx } = qrResult.data;
-  mainWin?.webContents.send('login:kugou-qr-img', { platform: 'kugou', qrimg, sigx });
+  const qrimg = qrResult.qrimg || qrResult.data?.qrimg;
+  const sigx  = qrResult.sigx  || qrResult.data?.sigx;
+  const dfid  = qrResult.dfid  || qrResult.data?.dfid  || _kugouQrState?.dfid;
+  mainWin?.webContents.send('login:kugou-qr-img', { platform: 'kugou', qrimg, sigx, dfid });
 
   // 构造新的 Promise 返回给所有并发调用者
   let resolvePromise;
@@ -415,6 +417,7 @@ async function executeKugouQrLogin() {
 
   _kugouQrState = {
     sigx,
+    dfid,
     settled: false,
     timeoutId: setTimeout(() => {
       finish({ platform: 'kugou', success: false, msg: '二维码已过期' });
@@ -477,9 +480,23 @@ async function handleKugouQrCheck(sigx) {
 
 // ★ handlers 注册一次
 ipcMain.handle('login:kugou-qr-start', () => executeKugouQrLogin());
-ipcMain.handle('login:kugou-qr-check', async (_e, sigx) => {
-  if (!sigx && _kugouQrState) sigx = _kugouQrState.sigx;
-  return handleKugouQrCheck(sigx);
+ipcMain.handle('login:kugou-qr-check', async (_e, { sigx, dfid } = {}) => {
+  // 前端 polling 调用：传 { sigx, dfid } 或仅 sigx
+  const effectiveSigx = sigx || (_kugouQrState && _kugouQrState.sigx);
+  const effectiveDfid = dfid || (_kugouQrState && _kugouQrState.dfid);
+  return handleKugouQrCheck(effectiveSigx, effectiveDfid);
+});
+
+// ★ 酷狗会员信息查询（VIP 账号 fallback）
+ipcMain.handle('login:kugou-qr-vip', async () => {
+  try {
+    const { kugoUserInfo } = require('../server/kugo');
+    const info = await kugoUserInfo();
+    if (!info) return { code: 401, msg: '未登录' };
+    return { code: 200, data: info };
+  } catch (e) {
+    return { code: -1, msg: e.message };
+  }
 });
 
 // ==================== 登录入口 ====================
