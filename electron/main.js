@@ -428,7 +428,7 @@ ipcMain.handle('login:open', async (event, platform) => {
           url.searchParams.set('signature', ''); // 测试用空签名
           console.log('[KUGOU_API_CALL]', url.toString().slice(0, 200));
           // 发起请求
-          const body = await new Promise<string>((resolve, reject) => {
+          const body = await new Promise((resolve, reject) => {
             const req = https.request(url.toString(), {
               method: 'POST',
               headers: {
