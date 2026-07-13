@@ -233,32 +233,32 @@ async function kugouUserInfo() {
 }
 
 // ======================== 二维码登录 ========================
-// ⚠️ 酷狗 API 不是 /login/qr/key（那是网易云），而是 /v2/qrcode + /v2/get_userinfo_qrcode
-// 参考：github.com/XxHuberrr/Mineradio kugou-api/module/login_qr_{key,check}.js
+// MakcRe/KugouMusicApi 仅提供 v1 路由 /login/qr/key，返回 {qrcode, qrcode_img}
+// 注意：/v2/qrcode 是酷狗官方网页端接口，MakcRe 未实现
 
 async function kugouQrLogin() {
-  // tokens 数据，避免和 KugouMusicApi 共用缓存
-  const res = await kugouRequest('/v2/qrcode', {});
-  const img = res?.data?.qrcode_img || res?.qrcode_img || '';
-  const token = res?.data?.qrcode || res?.qrcode || '';
-  console.log('[KUGOU_QR_KEY]', JSON.stringify({ hasImg: !!img, tokenPrefix: token.slice(0, 20) }));
-  if (!img && !token) return { code: -1, msg: '获取二维码失败' };
-  return { code: 200, data: { qrimg: img, sigx: token } };
+  const res = await kugouRequest('/login/qr/key', {});
+  const qrImg = res?.data?.qrcode_img || res?.qrcode_img || '';
+  const qrToken = res?.data?.qrcode || res?.qrcode || '';
+  console.log('[KUGOU_QR_KEY]', JSON.stringify({ hasImg: !!qrImg, tokenPrefix: qrToken.slice(0, 20) }));
+  if (!qrImg && !qrToken) return { code: -1, msg: '获取二维码失败', debug: JSON.stringify(res).slice(0, 200) };
+  return { code: 200, data: { qrimg: qrImg, sigx: qrToken } };
 }
 
 async function kugouQrCheck(sigx) {
-  const res = await kugouRequest('/v2/get_userinfo_qrcode', { qrcode: sigx });
-  const status = res?.data?.status ?? res?.status;
-  const userInfo = res?.data?.userInfo || {};
-  console.log('[KUGOU_QR_CHECK]', JSON.stringify({ status, hasCookie: !!res?.cookie, userid: userInfo?.userid }));
+  const res = await kugouRequest('/login/qr/check', { key: sigx });
+  // MakcRe 返回格式：{errcode, msg, cookie, userid}
+  const status = res?.errcode;
+  const cookie = Array.isArray(res?.cookie) ? res.cookie : [];
+  console.log('[KUGOU_QR_CHECK]', JSON.stringify({ status, hasCookie: cookie.length > 0 }));
   return {
     code: 0,
     status,
     msg: res?.msg || '',
-    cookie: res?.cookie || [],
-    userid: userInfo?.userid || 0,
-    nickname: userInfo?.nickname || '',
-    avatar: userInfo?.avatar || '',
+    cookie,
+    userid: res?.userid || 0,
+    nickname: res?.nickname || '',
+    avatar: res?.avatar || '',
   };
 }
 
