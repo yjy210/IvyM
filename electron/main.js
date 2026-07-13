@@ -367,8 +367,23 @@ async function getUserInfo(platform, cookieStr) {
  *   5. AccountManager.upsertAccount → 账号落库
  *   6. 发送 login:result
  */
+// ★ kugou QR 流程状态机（模块级，唯一实例）
+let _kugouQrState = null; // { sigx, settled, timeoutId, resultPromise, finish }
+
 async function executeKugouQrLogin() {
   console.log('[IvyM] executeKugouQrLogin called');
+
+  // 如果已有活跃流程，返回同一个 Promise（避免重复注册 handler）
+  if (_kugouQrState && !_kugouQrState.settled) {
+    return _kugouQrState.resultPromise;
+  }
+
+  // 清理上一次的流程（如果超时未解决）
+  if (_kugouQrState?.timeoutId) {
+    clearTimeout(_kugouQrState.timeoutId);
+    _kugouQrState = null;
+  }
+
   // 获取二维码
   let qrResult;
   try {
@@ -381,102 +396,90 @@ async function executeKugouQrLogin() {
     return { platform: 'kugou', success: false, msg: qrResult.msg || '获取二维码失败' };
   }
   const { qrimg, sigx } = qrResult.data;
-
-  // 二维码推给前端
   mainWin?.webContents.send('login:kugou-qr-img', { platform: 'kugou', qrimg, sigx });
 
-  // 轮询等待前端扫码 + 确认
-  return new Promise((resolve) => {
-    let resolved = false;
-    const cleanup = () => {};
+  // 构造新的 Promise 返回给所有并发调用者
+  let resolvePromise;
+  const resultPromise = new Promise((resolve) => { resolvePromise = resolve; });
 
-    const finish = (result) => {
-      if (resolved) return;
-      resolved = true;
-      clearTimeout(timeoutId);
+  const finish = (result) => {
+    if (_kugouQrState) {
+      _kugouQrState.settled = true;
+      clearTimeout(_kugouQrState.timeoutId);
       mainWin?.webContents.send('login:result', result);
-      resolve(result);
-    };
+      // 清理（保留短时间以便 last-gasp resolve）
+      setTimeout(() => { _kugouQrState = null; }, 2000);
+    }
+    resolvePromise(result);
+  };
 
-    // 超时 120 秒
-    const timeoutId = setTimeout(() => {
+  _kugouQrState = {
+    sigx,
+    settled: false,
+    timeoutId: setTimeout(() => {
       finish({ platform: 'kugou', success: false, msg: '二维码已过期' });
-    }, 120000);
+    }, 120000),
+    finish,
+    resultPromise,
+  };
 
-    // IPC handler：check 扫码状态（scanner 重复调用）
-    const checkHandler = async (event, { sigx: sigxCheck }) => {
-      if (resolved) return { code: 0, status: -1, msg: '已结束' };
-      try {
-        const { kugouQrCheck, createKugouSession } = require('../server/kugou');
-        const check = await kugouQrCheck(sigxCheck);
-        // status: 1=等待, 2=已扫待确认, 4=登录成功, 0=过期
-        if (check.status === 0) {
-          clearInterval(pollInterval);
-          finish({ platform: 'kugou', success: false, msg: '二维码已过期' });
-          return check;
-        }
-        if (check.status === 2) {
-          mainWin?.webContents.send('login:kugou-qr-status', { platform: 'kugou', status: 'scanned' });
-        }
-        if (check.status === 4) {
-          clearInterval(pollInterval);
-          try {
-            const { kugouQrCheck: kc2 } = require('../server/kugou');
-            const fullCheck = await kc2(sigxCheck);
-            const cookies = Array.isArray(fullCheck.cookie) ? fullCheck.cookie : [];
-            const token = cookies.find((c) => c.name === 'token')?.value || '';
-            const userid = fullCheck.userid || token || '';
-            createKugouSession({ token, userid, cookies });
-            // 拉用户信息
-            const { kugouUserInfo } = require('../server/kugou');
-            const info = await kugouUserInfo();
-            const account = {
-              platform: 'kugou',
-              nickname: info?.nickname || `酷狗${String(userid).slice(-6)}`,
-              avatar: info?.avatar || '',
-              userId: String(userid),
-              vip: info?.vip || false,
-              vipName: info?.vipName || '',
-              membership: info?.membership || { status: 'unknown', provider: 'kugou' },
-            };
-            AccountManager.upsertAccount(account);
-            finish({ platform: 'kugou', success: true, user: account, cookie: cookies.map((c) => `${c.name}=${c.value}`).join('; ') });
-          } catch (e) {
-            console.error('[IvyM] final kugou check error:', e.message);
-            finish({ platform: 'kugou', success: false, msg: '登录完成但获取用户信息失败: ' + e.message });
-          }
-        }
-        return check;
-      } catch (e) {
-        console.error('[IvyM] kugou check error:', e.message);
-        return { status: check?.status ?? 1, msg: e.message };
-      }
-    };
-
-    if (!ipcMain._handlers) ipcMain._handlers = {};
-    const handlerKey = 'login:kugou-qr-check';
-    const oldHandler = ipcMain._handlers[handlerKey];
-    ipcMain.handle(handlerKey, checkHandler);
-    ipcMain._handlers[handlerKey] = checkHandler;
-  });
+  return resultPromise;
 }
 
-// 注册 handler
-ipcMain.handle('login:kugou-qr-start', () => executeKugouQrLogin());
-// 兼容旧 handler
-ipcMain.handle('login:kugou-qr-check', async (e, sigx) => {
-  const { kugouQrCheck, createKugouSession } = require('../server/kugou');
-  const check = await kugouQrCheck(sigx);
-  if (check.status === 4) {
-    const cookies = Array.isArray(check.cookie) ? check.cookie : [];
-    const token = cookies.find((c) => c.name === 'token')?.value || '';
-    const userid = check.userid || token;
-    createKugouSession({ token, userid, cookies });
-    const { kugouUserInfo } = require('../server/kugou');
-    const info = await kugouUserInfo();
-    return { code: 0, status: 4, cookie, userid, nickname: info?.nickname || '', avatar: info?.avatar || '' };
+// kugou QR check handler（注册一次，由 polling 调用）
+async function handleKugouQrCheck(sigx) {
+  const state = _kugouQrState;
+  if (!state || state.settled) return { status: state ? -1 : 0, msg: '无活跃登录流程' };
+
+  try {
+    const { kugouQrCheck, createKugouSession } = require('../server/kugou');
+    const check = await kugouQrCheck(sigx);
+    const status = check.status;
+
+    if (status === 0) {
+      state.finish({ platform: 'kugou', success: false, msg: '二维码已过期' });
+      return check;
+    }
+    if (status === 2) {
+      mainWin?.webContents.send('login:kugou-qr-status', { platform: 'kugou', status: 'scanned' });
+    }
+    if (status === 4) {
+      try {
+        const fullCheck = await kugouQrCheck(sigx);
+        const cookies = Array.isArray(fullCheck.cookie) ? fullCheck.cookie : [];
+        const token = cookies.find((c) => c.name === 'token')?.value || '';
+        const userid = fullCheck.userid || token || '';
+        createKugouSession({ token, userid, cookies });
+        const { kugouUserInfo } = require('../server/kugou');
+        const info = await kugouUserInfo();
+        const account = {
+          platform: 'kugou',
+          nickname: info?.nickname || `酷狗${String(userid).slice(-6)}`,
+          avatar: info?.avatar || '',
+          userId: String(userid),
+          vip: info?.vip || false,
+          vipName: info?.vipName || '',
+          membership: info?.membership || { status: 'unknown', provider: 'kugou' },
+        };
+        AccountManager.upsertAccount(account);
+        state.finish({ platform: 'kugou', success: true, user: account, cookie: cookies.map((c) => `${c.name}=${c.value}`).join('; ') });
+      } catch (e) {
+        console.error('[IvyM] final kugou check error:', e.message);
+        state.finish({ platform: 'kugou', success: false, msg: '登录完成但获取用户信息失败: ' + e.message });
+      }
+    }
+    return check;
+  } catch (e) {
+    console.error('[IvyM] kugou check error:', e.message);
+    return { status: 1, msg: e.message };
   }
-  return check;
+}
+
+// ★ handlers 注册一次
+ipcMain.handle('login:kugou-qr-start', () => executeKugouQrLogin());
+ipcMain.handle('login:kugou-qr-check', async (_e, sigx) => {
+  if (!sigx && _kugouQrState) sigx = _kugouQrState.sigx;
+  return handleKugouQrCheck(sigx);
 });
 
 // ==================== 登录入口 ====================
