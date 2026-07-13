@@ -430,13 +430,15 @@ async function executeKugouQrLogin() {
 }
 
 // kugou QR check handler（注册一次，由 polling 调用）
-async function handleKugouQrCheck(sigx) {
+async function handleKugouQrCheck(sigx, dfid) {
   const state = _kugouQrState;
+  // [DEBUG] 打印入参 vs state 对比
+  console.log('[KUGOU_QR_CHECK_CALL]', JSON.stringify({ incomingSigx: sigx, incomingDfid: dfid, stateSigx: state?.sigx, stateDfid: state?.dfid, sigxMatch: sigx === state?.sigx }));
   if (!state || state.settled) return { status: state ? -1 : 0, msg: '无活跃登录流程' };
 
   try {
     const { kugouQrCheck, createKugouSession } = require('../server/kugou');
-    const check = await kugouQrCheck(sigx);
+    const check = await kugouQrCheck(sigx, dfid);
     const status = check.status;
 
     if (status === 0) {

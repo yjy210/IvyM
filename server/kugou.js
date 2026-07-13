@@ -69,7 +69,6 @@ function createKugouSession(authContext) {
 
 // 注册设备获取 dfid
 async function ensureDfid() {
-  if (_kugouCookies.dfid) return _kugouCookies.dfid;
   try {
     const res = await _rawRequest('/register/dev', {});
     if (res?.data?.dfid) {
@@ -81,7 +80,7 @@ async function ensureDfid() {
   } catch (e) {
     console.error('[IvyM] KuGou register_dev failed:', e.message);
   }
-  return null;
+  return _kugouCookies.dfid || null;
 }
 
 // 原始请求函数（不带 cookie）
@@ -237,18 +236,36 @@ async function kugouUserInfo() {
 // 注意：/v2/qrcode 是酷狗官方网页端接口，MakcRe 未实现
 
 async function kugouQrLogin() {
-  const res = await kugouRequest('/login/qr/key', {});
+  // ★ QR 生成：始终用已注册的 dfid，保证与 check 一致
+  const res = await kugouRequest('/login/qr/key', { dfid: _kugouCookies.dfid });
+  // [DEBUG] 打印完整原始返回
+  console.log('[KUGOU_QR_KEY_RAW]', JSON.stringify(res));
   const qrImg = res?.data?.qrcode_img || res?.qrcode_img || '';
   const qrToken = res?.data?.qrcode || res?.qrcode || '';
-  console.log('[KUGOU_QR_KEY]', JSON.stringify({ hasImg: !!qrImg, tokenPrefix: qrToken.slice(0, 20) }));
+  // 若 MakcRe 返回了新的 dfid，立即同步
+  if (res?.data?.dfid) {
+    _kugouCookies.dfid = res.data.dfid;
+    saveKugouCookies();
+  }
+  console.log('[KUGOU_QR_KEY]', JSON.stringify({ hasImg: !!qrImg, qrToken, dfid: _kugouCookies.dfid }));
   if (!qrImg && !qrToken) return { code: -1, msg: '获取二维码失败', debug: JSON.stringify(res).slice(0, 200) };
-  return { code: 200, data: { qrimg: qrImg, sigx: qrToken } };
+  // 把 dfid 一并返回给前端，用于后续 polling
+  return { code: 200, qrimg: qrImg, sigx: qrToken, dfid: _kugouCookies.dfid };
 }
 
-async function kugouQrCheck(sigx) {
+async function kugouQrCheck(sigx, dfid) {
   // ⚠️ MakcRe kugou-api 的 login_qr_check 模块用 params.qrcode（不是 key），还要求 plat/dfid
-  const res = await kugouRequest('/login/qr/check', { qrcode: sigx, plat: 4, dfid: undefined });
-  // 响应结构可能有两种：v1 {errcode,cookie,userid} 或 v2 {data:{status,cookie,userid,vip}}
+  const effectiveDfid = dfid || _kugouCookies.dfid;
+  // [DEBUG] 打印请求参数
+  console.log('[KUGOU_QR_CHECK_REQ]', JSON.stringify({ sigx, dfid: effectiveDfid, plat: 4 }));
+  const res = await kugouRequest('/login/qr/check', { qrcode: sigx, plat: 4, dfid: effectiveDfid });
+  // [DEBUG] 打印完整原始返回
+  console.log('[KUGOU_QR_CHECK_RAW]', JSON.stringify(res));
+  // 同步最新 dfid
+  if (res?.data?.dfid) {
+    _kugouCookies.dfid = res.data.dfid;
+    saveKugouCookies();
+  }
   const status = res?.data?.status ?? res?.errcode ?? res?.status;
   const cookie = res?.data?.cookie || res?.cookie || [];
   const userid = res?.data?.userid || res?.userid || 0;
