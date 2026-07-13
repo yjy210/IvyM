@@ -360,6 +360,8 @@ async function getUserInfo(platform, cookieStr) {
 let _kugouCapturedUser = null;
 
 ipcMain.handle('login:open', async (event, platform) => {
+  // ★ 每个新登录周期清零，避免残留上一账号数据
+  _kugouCapturedUser = null;
   console.log(`[IvyM] login:open called for platform: ${platform}`);
   const url = PLATFORM_LOGIN_URLS[platform];
   const partition = PLATFORM_PARTITIONS[platform];
@@ -460,22 +462,29 @@ ipcMain.handle('login:open', async (event, platform) => {
       try {
         loginWin.webContents.debugger.attach('1.3');
         loginWin.webContents.debugger.on('message', async (_evt, method, params) => {
-          if (method === 'Network.responseReceived') {
+          if (method === 'Network.requestWillBeSent') {
+            const url = params?.request?.url || '';
+            if (url.includes(kgUserUrl)) {
+              console.log('[KUGOU_REQ]', url);
+              console.log('[KUGOU_REQ_HEADERS]', JSON.stringify(params?.request?.headers || {}));
+              console.log('[KUGOU_REQ_POSTDATA]', (params?.request?.postData || '').slice(0, 400));
+            }
+          } else if (method === 'Network.responseReceived') {
             const url = params?.response?.url || '';
+            console.log('[KUGOU_RESP_STATUS]', params?.response?.status, url.includes(kgUserUrl) ? 'LOGIN_URL' : '');
             if (url.includes(kgUserUrl)) {
               try {
                 const body = await loginWin.webContents.debugger.sendCommand('Network.getResponseBody', { requestId: params.requestId });
                 const raw = body?.body || '';
                 console.log('[KUGOU_USER_RESPONSE]', raw.slice(0, 800));
-                // ★ 解析返回 JSON，暂存真实用户资料
+                // 解析返回 JSON，暂存真实用户资料
                 try {
                   const j = JSON.parse(raw);
                   const d = j?.data || j;
-                  if (d && (d.nickname || d.username || d.userid)) {
+                  if (d && typeof d === 'object' && (d.nickname || d.username || d.userid)) {
                     const vipT = Number(d.vip_type || d.viptype || d.vip || 0);
                     const isVip = vipT > 0;
                     const svipLevel = Number(d.svip_level || 0);
-                    // 酷狗会员: vip_type=1 VIP, svip_level>=1 SVIP
                     const level = svipLevel >= 1 ? 'svip' : 'vip';
                     const name = !isVip ? null : (level === 'svip' ? 'SVIP' : 'VIP');
                     _kugouCapturedUser = {
@@ -493,8 +502,10 @@ ipcMain.handle('login:open', async (event, platform) => {
                         icon: isVip ? '/icons/vip-kugou.svg' : null,
                       },
                     };
+                  } else if (typeof d === 'string') {
+                    console.warn('[KUGOU_USER_RESPONSE_string]', d);
                   }
-                } catch { /* ignore parse errors */ }
+                } catch (e) { console.warn('[KUGOU_PARSE_err]', e.message); }
               } catch (e) {
                 console.warn('[KUGOU_USER_RESPONSE_err]', e.message);
               }
