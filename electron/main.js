@@ -399,97 +399,73 @@ ipcMain.handle('login:open', async (event, platform) => {
       settled = true;
       if (pollTimer) clearInterval(pollTimer);
       pollTimer = null;
+      // ★ kugou: CDP 捕获 login_by_token_get 的响应体
+      // 注意：必须等 loadingFinished 再 getResponseBody，否则 buffer 会被释放
       if (platform === 'kugou' && result?.success && loginWin && !loginWin.isDestroyed()) {
-        // ★ 登录完成后在页面上下文注入 XHR 拦截器
-        // 监听下一次 kugo 接口自动触发的 login_by_token_get
         try {
-          await loginWin.webContents.executeJavaScript(`(function(){
-            if (window.__kugoHooked) return 'hooked_already';
-            window.__kugoUserCache = null;
-            // 拦截 fetch
-            const origFetch = window.fetch;
-            window.fetch = function(url, opts){
-              return origFetch.apply(this, arguments).then(resp => {
-                try {
-                  const u = (typeof url === 'string') ? url : url?.url || '';
-                  if (u.includes('login_by_token_get') || u.includes('get_userinfo')) {
-                    resp.clone().json().then(j => {
-                      window.__kugoUserCache = {url: u, data: j?.data || j, ts: Date.now()};
-                    }).catch(()=>{});
-                  }
-                } catch(e) {}
-                return resp;
-              });
-            };
-            // 拦截 XHR
-            const origOpen = XMLHttpRequest.prototype.open;
-            const origSend = XMLHttpRequest.prototype.send;
-            XMLHttpRequest.prototype.open = function(){
-              this.__url = arguments[1];
-              return origOpen.apply(this, arguments);
-            };
-            XMLHttpRequest.prototype.send = function(){
-              const xhr = this;
-              const origHandler = xhr.onreadystatechange;
-              xhr.onreadystatechange = function(){
-                if (xhr.readyState === 4) {
-                  try {
-                    const u = xhr.__url || '';
-                    if (u.includes('login_by_token_get') || u.includes('get_userinfo')) {
-                      const j = JSON.parse(xhr.responseText);
-                      window.__kugoUserCache = {url: u, data: j?.data || j, ts: Date.now()};
-                    }
-                  } catch(e) {}
+          // 确保 debugger 已 attach + Network.enable
+          try { loginWin.webContents.debugger.attach('1.3'); } catch {}
+          try { loginWin.webContents.debugger.sendCommand('Network.enable'); } catch {}
+
+          let pendingRequestId = null;
+
+          // 设置监听器：responseReceived 只存 ID；loadingFinished 才读 body
+          loginWin.webContents.debugger.on('message', async (_evt, method, params) => {
+            if (method === 'Network.responseReceived') {
+              const url = params?.response?.url || '';
+              if (url.includes('login_by_token_get') || url.includes('get_userinfo_qrcode')) {
+                pendingRequestId = params.requestId;
+                console.log('[KUGOU_REQ]', url.slice(0, 150));
+              }
+            } else if (method === 'Network.loadingFinished' && params.requestId === pendingRequestId) {
+              try {
+                const body = await loginWin.webContents.debugger.sendCommand('Network.getResponseBody', { requestId: pendingRequestId });
+                const raw = body?.body || '';
+                console.log('[KUGOU_USER_RESPONSE]', raw.slice(0, 600));
+                const j = JSON.parse(raw);
+                const d = typeof j.data === 'object' ? j.data : null;
+                if (d && (d.nickname || d.username || d.userid)) {
+                  const vipT = Number(d.vip_type || d.viptype || d.vip || 0);
+                  const isVip = vipT > 0;
+                  const svipLevel = Number(d.svip_level || 0);
+                  const level = svipLevel >= 1 ? 'svip' : 'vip';
+                  const name = !isVip ? null : (level === 'svip' ? 'SVIP' : 'VIP');
+                  result.user = {
+                    platform: 'kugou',
+                    nickname: d.nickname || d.username || '',
+                    avatar: d.avatar || d.pic || d.headpic || d.headurl || '',
+                    userId: String(d.userid || d.uid || ''),
+                    vip: isVip,
+                    vipName: name || '',
+                    membership: {
+                      status: isVip ? 'vip' : 'normal',
+                      provider: 'kugou',
+                      level: isVip ? level : null,
+                      name,
+                      icon: isVip ? '/icons/vip-kugou.svg' : null,
+                    },
+                  };
+                  console.log('[KUGOU_USER_OK]', JSON.stringify(result.user));
                 }
-                if (origHandler) origHandler.apply(this, arguments);
-              };
-              return origSend.apply(this, arguments);
-            };
-            window.__kugoHooked = true;
-            return 'hook_installed';
-          })()`);
-          console.log('[KUGOU_HOOK] 拦截器已安装');
-        } catch(e) {
-          console.warn('[KUGOU_HOOK_err]', e.message);
-        }
-
-        // ★ 等 2s（等前端页面自己触发登录态刷新）
-        await new Promise(r => setTimeout(r, 2000));
-
-        // ★ 读取缓存
-        try {
-          const cached = await loginWin.webContents.executeJavaScript(`(function(){
-            return window.__kugoUserCache ? JSON.stringify(window.__kugoUserCache) : null;
-          })()`);
-          if (cached && cached !== 'null') {
-            const parsed = JSON.parse(cached);
-            console.log('[KUGOU_HOOK_RESULT]', JSON.stringify(parsed));
-            const d = parsed?.data;
-            if (d && typeof d === 'object' && (d.nickname || d.username || d.userid)) {
-              const vipT = Number(d.vip_type || d.viptype || d.vip || 0);
-              const isVip = vipT > 0;
-              const svipLevel = Number(d.svip_level || 0);
-              const level = svipLevel >= 1 ? 'svip' : 'vip';
-              const name = !isVip ? null : (level === 'svip' ? 'SVIP' : 'VIP');
-              result.user = {
-                platform: 'kugou',
-                nickname: d.nickname || d.username || '',
-                avatar: d.avatar || d.pic || d.headpic || d.headurl || '',
-                userId: String(d.userid || d.uid || ''),
-                vip: isVip,
-                vipName: name || '',
-                membership: {
-                  status: isVip ? 'vip' : 'normal',
-                  provider: 'kugou',
-                  level: isVip ? level : null,
-                  name,
-                  icon: isVip ? '/icons/vip-kugou.svg' : null,
-                },
-              };
+              } catch (e) {
+                console.warn('[KUGOU_USER_RESPONSE_err]', e.message);
+              }
             }
-          }
-        } catch(e) {
-          console.warn('[KUGOU_HOOK_READ_err]', e.message);
+          });
+
+          // 等最多 6s
+          await new Promise((resolve) => {
+            const timeout = setTimeout(resolve, 6000);
+            const check = setInterval(() => {
+              if (result.user?.nickname) { clearInterval(check); clearTimeout(timeout); resolve(undefined); }
+            }, 300);
+          });
+
+          // 清理
+          try { loginWin.webContents.debugger.sendCommand('Network.disable'); } catch {}
+          try { loginWin.webContents.debugger.detach(); } catch {}
+        } catch (e) {
+          console.warn('[KUGOU_CDP_err]', e.message);
         }
       }
       // 登录成功 → 持久化
