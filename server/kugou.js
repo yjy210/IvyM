@@ -490,7 +490,22 @@ async function kugouQrCheck(sigx) {
   const nickname = res?.data?.nickname || '';
   const avatar = res?.data?.avatar || res?.data?.pic || '';
   const token = res?.data?.token || '';
+
+  // ★ 直接在 QR Check 阶段写入 _kugouCookies，不让状态依赖 electron 主进程传递
+  if (token) _kugouCookies.token = String(token);
+  if (userid) _kugouCookies.userid = String(userid);
+  // 解析 CoolGoo 返回的 cookie 数组（含 vip_token / vip_type）
+  if (Array.isArray(cookie)) {
+    for (const c of cookie) {
+      if (c?.name && c?.value != null) _kugouCookies[c.name] = String(c.value);
+    }
+  }
+  saveKugouCookies();
+  console.log('[KUGOU_SESSION]', JSON.stringify({ status, keys: Object.keys(_kugouCookies), hasToken: !!_kugouCookies.token, hasUserid: !!_kugouCookies.userid }));
   console.log('[KUGOU_QR_CHECK]', JSON.stringify({ status, hasCookie: cookie.length > 0, userid, token: token?.slice(0, 20) }));
+  if (status === 4) {
+    console.log('[KUGOU_QR_CHECK_FULL_DATA]', JSON.stringify(res?.data));
+  }
   return {
     code: 0,
     status,

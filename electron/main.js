@@ -370,18 +370,18 @@ async function getUserInfo(platform, cookieStr) {
 // ★ kugou QR 流程状态机（模块级，唯一实例）
 let _kugouQrState = null; // { sigx, dfid, settled, timeoutId, resultPromise, finish }
 
-/** 清理当前 QR session（关闭窗口 / 解绑 / 登录完成 / 超时时调用） */
+/**
+ * 清理当前 QR session（关闭窗口 / 登录完成 / 超时时调用）
+ * ★ 不调用 resetKugouSession：登录成功后还要用 token/userid 查 VIP
+ *   只有解绑 / 重新扫码开始 / 凭证失效时才清 session
+ */
 function cleanupKugouQrState() {
   if (_kugouQrState?.timeoutId) {
     clearTimeout(_kugouQrState.timeoutId);
   }
   _kugouQrState = null;
-  // ★ 同时清理 server/kugou.js 侧的 dfid + cookie，避免下次二维码复用旧 session
-  try {
-    const kg = require('../server/kugou');
-    if (kg.resetKugouSession) kg.resetKugouSession();
-  } catch {}
-  console.log('[IvyM] kugou QR session cleaned up');
+  // ★ 绝不在这里 resetKugouSession() — 登录态由 unbind / restart QR 流程管理
+  console.log('[IvyM] kugou QR session cleaned up (login state preserved)');
 }
 
 async function executeKugouQrLogin() {
@@ -414,8 +414,8 @@ async function executeKugouQrLogin() {
     if (_kugouQrState) {
       _kugouQrState.settled = true;
       mainWin?.webContents.send('login:result', result);
-      // ★ 立即清理（不再等 2000ms — 用户可能马上重新打开扫码）
-      cleanupKugouQrState();
+      // ★ 只清本地状态，不清 login session（cleanupKugouQrState 已不含 reset）
+      _kugouQrState = null;
     }
     resolvePromise(result);
   };
@@ -465,14 +465,26 @@ async function handleKugouQrCheck(sigx, dfid) {
         // ★ 新版 kugou QR check 直接在顶层返回 nickname / avatar / token / userid，无需 cookie 解析
         const nickname = check?.nickname || '';
         const avatar = check?.avatar || '';
-        const token = check?.token || '';
-        const userid = check?.userid || token || '';
+        const token = String(check?.token || '');
+        // ★ userid 禁止回退成 token — token 是认证字符串，userid 是数字 ID
+        const userid = String(
+          check?.userid
+          || check?.user_id
+          || check?.uid
+          || check?.userinfo?.userid
+          || check?.user_info?.userid
+          || ''
+        );
 
         console.log('[KUGOU_QR_USER]', JSON.stringify({ nickname, userid, avatar: avatar?.slice(0, 50), token: token?.slice(0, 20) }));
 
         // 保存 session（用 token + userid，不需要 cookies 数组）
-        if (token && userid) {
+        if (token && userid && /^\d+$/.test(userid)) {
           createKugouSession({ token, userid: String(userid), cookies: [] });
+        } else {
+          console.error('[KUGOU_AUTH_INVALID] userid is not a valid number', { userid, token: token?.slice(0, 20) });
+          state.finish({ platform: 'kugou', success: false, msg: '酷狗登录成功但未获取到有效 userid' });
+          return check;
         }
 
         // ★ DEBUG: VIP 字段探测 — 在 finish() 之前抓取快照，避免 cleanup 清空 cookies

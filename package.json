@@ -8,9 +8,9 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "kugou-api": "cd kugou-api && node app.js",
-    "electron:dev": "concurrently -k \"npm run dev\" \"set PORT=3201 && npm run kugou-api\" \"wait-on http://localhost:5174 http://localhost:3201 && electron .\"",
-    "electron:dev:debug": "concurrently -k \"npm run dev\" \"set PORT=3201 && npm run kugou-api\" \"wait-on http://localhost:5174 http://localhost:3201 && set DEBUG_KUGOO=1 && electron .\"",
+    "kugou-api": "set platform=lite&& set PORT=3201&& cd kugou-api && node app.js",
+    "electron:dev": "concurrently -k \"npm run dev\" \"npm run kugou-api\" \"wait-on http://localhost:5174 http://localhost:3201 && electron .\"",
+    "electron:dev:debug": "concurrently -k \"npm run dev\" \"npm run kugou-api\" \"wait-on http://localhost:5174 http://localhost:3201 && set DEBUG_KUGOO=1 && electron .\"",
     "electron:build": "vite build && electron-builder"
   },
   "keywords": [],
