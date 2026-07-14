@@ -156,10 +156,10 @@ export default function SearchBar() {
             <>
               <div className="search-hot-header">
                 <button className={`search-hot-platform${hotPlatform === 'netease' ? ' active' : ''}`} onClick={() => toggleHotPlatform('netease')} title="网易云音乐">
-                  <span className="hot-platform-logo netease">网易</span>
+                  <img src="/platform-icons/wyy.svg" alt="网易云音乐" className="hot-platform-logo wyy" />
                 </button>
                 <button className={`search-hot-platform${hotPlatform === 'qq' ? ' active' : ''}`} onClick={() => toggleHotPlatform('qq')} title="QQ 音乐">
-                  <span className="hot-platform-logo qq">QQ</span>
+                  <img src="/platform-icons/qq.svg" alt="QQ 音乐" className="hot-platform-logo qq" />
                 </button>
                 <span className="search-hot-title">热搜榜</span>
               </div>

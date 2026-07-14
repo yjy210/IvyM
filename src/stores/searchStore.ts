@@ -182,7 +182,7 @@ export const useSearchStore = create<SearchState>((set, get) => ({
       } else {
         items = Array.isArray(json?.data) ? json.data : [];
       }
-      set(s => ({ hotItems: { ...s.hotItems, [p]: items } }));
+      set(s => ({ hotItems: { ...s.hotItems, [p]: items.slice(0, 9) } }));
     } catch { /* ignore */ }
   },
 

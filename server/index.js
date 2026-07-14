@@ -78,6 +78,7 @@ const server = http.createServer(async (req, res) => {
     // 网易云 热搜榜  NeteaseCloudMusicApi.search_hot → { body: { result: { hots: [{ first }] } } }
     if (url.pathname === '/api/netease/search/hot') {
       const data = await api.search_hot({});
+      if (data.body?.result?.hots) data.body.result.hots = data.body.result.hots.slice(0, 9);
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(data.body || data));
       return;
