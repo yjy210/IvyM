@@ -6,6 +6,7 @@ import Toast from './Toast';
 import { playSong } from '../../services/playController';
 import { onPlayEvent } from '../../events/playEvents';
 import MarqueeText from './MarqueeText';
+import { useAutoHidePlayer } from './useAutoHidePlayer';
 import './player.css';
 import './GlassSurface.css';
 import './VolumeSlider.css';
@@ -45,6 +46,8 @@ export default function Player() {
   const [toastMsg, setToastMsg] = useState<{ id: string; message: string } | null>(null);
   const toastTimerRef = useRef<number | null>(null);
   const currentUrl = usePlayerStore(s => s.currentUrl);
+  const toggleCover = usePlayerStore(s => s.toggleCover);
+  const { gsapRef, visible } = useAutoHidePlayer();
 
   // 喜欢的歌曲
   const [likes, setLikes] = useState<string[]>(() => {
@@ -276,46 +279,54 @@ export default function Player() {
         onEnded={onEnded}
       />
 
-      <div className="player-bar">
-        <GlassSurface
-          width="100%"
-          height="100%"
-          borderRadius={20}
-          brightness={85}
-          opacity={0.35}
-          blur={4}
-          displace={4}
-          distortionScale={-40}
-          saturation={1.4}
-          className="player-glass"
-        >
-          <div className="player-glass-inner" />
-        </GlassSurface>
+      {/* ★ 播放器自动隐藏：外层 wrapper 控制 translateY 动画 */}
+      <div className="player-bar-anim-wrapper" ref={gsapRef}>
+        <div className="player-bar">
+          <GlassSurface
+            width="100%"
+            height="100%"
+            borderRadius={20}
+            brightness={85}
+            opacity={0.35}
+            blur={4}
+            displace={4}
+            distortionScale={-40}
+            saturation={1.4}
+            className="player-glass"
+          >
+            <div className="player-glass-inner" />
+          </GlassSurface>
 
-        <div className="player-content">
-        {/* 进度条 */}
-        <div className="player-progress-track" onClick={(e) => {
-          if (!duration) return;
-          const rect = e.currentTarget.getBoundingClientRect();
-          const pct = (e.clientX - rect.left) / rect.width;
-          if (audioRef.current) audioRef.current.currentTime = pct * duration;
-        }}>
-          <div className="player-progress-fill" style={{ width: `${progressPct}%` }}>
-            <span className="player-progress-time" style={{ left: `${progressPct}%` }}>
-              {fmt(currentTime)} / {fmt(duration)}
-            </span>
+          <div className="player-content">
+          {/* 进度条 */}
+          <div className="player-progress-track" onClick={(e) => {
+            if (!duration) return;
+            const rect = e.currentTarget.getBoundingClientRect();
+            const pct = (e.clientX - rect.left) / rect.width;
+            if (audioRef.current) audioRef.current.currentTime = pct * duration;
+          }}>
+            <div className="player-progress-fill" style={{ width: `${progressPct}%` }}>
+              <span className="player-progress-time" style={{ left: `${progressPct}%` }}>
+                {fmt(currentTime)} / {fmt(duration)}
+              </span>
+            </div>
           </div>
-        </div>
 
-        {/* 主内容 */}
-        <div className="player-main">
+          {/* 主内容 */}
+          <div className="player-main">
           {/* 歌曲信息 */}
           <div className="player-song-info">
-            {currentSong?.cover ? (
-              <img src={currentSong.cover} alt="" className="player-cover" />
-            ) : (
-              <img src="/logo.png" alt="IvyM" className="player-cover" />
-            )}
+            <div
+              className="player-cover-hit"
+              onClick={(e) => { e.stopPropagation(); toggleCover(); }}
+              title="查看封面"
+            >
+              {currentSong?.cover ? (
+                <img src={currentSong.cover} alt="" className="player-cover" />
+              ) : (
+                <img src="/logo.png" alt="IvyM" className="player-cover" />
+              )}
+            </div>
             <div className="player-text">
               <div className="player-song-name">
                 <MarqueeText text={currentSong?.name || '未选择歌曲'} />
@@ -476,6 +487,12 @@ export default function Player() {
 
       {/* 播放权限 Toast（试听/VIP/失败） */}
       {toastMsg && <Toast message={toastMsg.message} duration={3000} />}
+      </div>{/* ★ end player-bar-anim-wrapper */}
+
+      {/* ★ 迷你进度条：纯黑色，仅播放器隐藏时显示 */}
+      {!visible && (
+        <div className="player-mini-progress" style={{ width: `${progressPct}%` }} />
+      )}
     </>
   );
 }

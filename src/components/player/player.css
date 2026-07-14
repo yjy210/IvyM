@@ -1,18 +1,35 @@
-/* ── Player Bar ── */
-.player-bar {
+/* ── Player Bar 动画 wrapper ── */
+.player-bar-anim-wrapper {
   position: fixed;
-  bottom: 12px;
+  bottom: 0;
   left: 50%;
-  transform: translateX(-50%);
+  margin-left: -45vw;
   width: 90vw;
-  height: 86px;
+  z-index: 800;
+  -webkit-app-region: no-drag;
+  will-change: transform;
+}
+
+/* ── Player Bar（原始布局，width:100% 撑满 wrapper） ── */
+.player-bar {
   border-radius: 0 0 20px 20px;
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-top: none;
   background: transparent;
   overflow: visible;
-  z-index: 800;
-  -webkit-app-region: no-drag;
+  width: 100%;
+  height: 86px;
+}
+
+/* 迷你进度条：纯黑色，仅播放器完全隐藏时显示，由 Player.tsx 条件渲染 */
+.player-mini-progress {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: #000000;
+  z-index: 801;
+  pointer-events: none;
 }
 
 
@@ -127,13 +144,33 @@
   gap: 12px;
 }
 
+/* ★ 封面点击热区：点击升起沉浸背景 */
+.player-cover-hit {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: transform 0.15s, box-shadow 0.15s;
+  -webkit-app-region: no-drag;
+}
+.player-cover-hit:hover {
+  transform: scale(1.06);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+.player-cover-hit:active {
+  transform: scale(0.97);
+}
+
 .player-cover {
   width: 56px;
   height: 56px;
-  border-radius: 0;
+  border-radius: 6px;
   flex-shrink: 0;
   object-fit: cover;
   background: transparent;
+  pointer-events: none; /* 让点击落在 hit 容器上 */
 }
 
 /* 文字区域：flex:1 + min-width:0 让文字在可用空间内自然截断 */

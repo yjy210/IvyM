@@ -18,6 +18,10 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   currentView: 'home',
   currentQuality: DEFAULT_QUALITY,
 
+  // ★ 沉浸封面背景（GSAP 曲线升起）
+  coverOpen: false,
+  coverColor: 'rgb(120, 70, 110)',
+
   play: (song, url) => set({ currentSong: song, isPlaying: true, currentTime: 0, currentUrl: url ?? null }),
   pause: () => set({ isPlaying: false }),
   resume: () => set({ isPlaying: true }),
@@ -28,6 +32,11 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   setCurrentView: (view) => set({ currentView: view }),
   setCurrentUrl: (url) => set({ currentUrl: url }),
   setCurrentQuality: (q: AudioQuality) => set({ currentQuality: q }),
+
+  // ★ 沉浸封面背景
+  toggleCover: () => set(s => ({ coverOpen: !s.coverOpen })),
+  setCoverOpen: (open: boolean) => set({ coverOpen: open }),
+  setCoverColor: (color: string) => set({ coverColor: color }),
 
   playNext: () => {
     const { playlist, currentSong, playMode } = get();

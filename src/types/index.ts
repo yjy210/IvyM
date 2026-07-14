@@ -20,6 +20,12 @@ export interface PlayerState {
   playlist: Song[];
   currentView: ViewType;
   currentQuality: string;
+  coverOpen: boolean;
+  coverColor: string;
+
+  toggleCover: () => void;
+  setCoverOpen: (open: boolean) => void;
+  setCoverColor: (color: string) => void;
 
   play: (song: Song, url?: string) => void;
   pause: () => void;

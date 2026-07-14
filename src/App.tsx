@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { TitleBar } from './components/TitleBar';
 import { WindowControls } from './components/WindowControls';
 import { LogoAnimation } from './components/splash/LogoAnimation';
@@ -6,6 +6,8 @@ import Grainient from './components/grainient/Grainient';
 import LoginDropdown from './components/login-dropdown/LoginDropdown';
 import SearchBar from './components/search/SearchBar';
 import Player from './components/player/Player';
+import CoverTransition from './components/player/CoverTransition';
+import { useCoverColor } from './components/player/useCoverColor';
 import Search from './pages/Search';
 import BackToTop from './components/BackToTop';
 import { usePlayerStore } from './stores/playerStore';
@@ -13,6 +15,7 @@ import { Home } from './pages/Home';
 import './components/login-dropdown/login-dropdown.css';
 import './components/search/search-bar.css';
 import './components/player/player.css';
+import './components/player/cover-transition.css';
 import './components/back-to-top.css';
 import './pages/search-page.css';
 
@@ -21,6 +24,19 @@ export default function App() {
   const [showDropdown, setShowDropdown] = useState(false);
   const currentView = usePlayerStore(s => s.currentView);
   const setCurrentView = usePlayerStore(s => s.setCurrentView);
+
+  // ★ 封面主色提取（监听 currentSong.cover）
+  useCoverColor();
+  const setCoverOpen = usePlayerStore(s => s.setCoverOpen);
+  const currentSong = usePlayerStore(s => s.currentSong);
+  // ★ 切歌时收回封面（用 ref 跟踪上一首 id，避免首帧误触发）
+  const prevSongIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    const id = currentSong ? `${currentSong.source}-${currentSong.id || currentSong.mid}` : null;
+    const prev = prevSongIdRef.current;
+    prevSongIdRef.current = id;
+    if (prev !== null && id !== prev) setCoverOpen(false);
+  }, [currentSong, setCoverOpen]);
 
   useEffect(() => {
     const updateMax = async () => {
@@ -76,6 +92,9 @@ export default function App() {
 
         {/* 播放控制栏 */}
         <Player />
+
+        {/* ★ 沉浸封面背景 —— 曲线升起层（z-750，播放器保持在它之上） */}
+        <CoverTransition />
 
         {/* 右上角控制 - 登录 + 窗口控制 */}
         <div className="absolute top-4 right-4 z-50 flex items-center gap-3" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>

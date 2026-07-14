@@ -1,0 +1,17 @@
+/* ★ 沉浸封面背景 —— 曲线升起层
+ * z-750: 高于内容(z10-50)与返回顶部(z700)，低于播放器(z800)与弹窗(z850)
+ * pointer-events: none 不阻挡任何点击（点击封面由播放器自身处理） */
+
+.cover-transition {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 750;
+  pointer-events: none;
+  display: block;
+}
+
+.cover-transition-path {
+  will-change: d;
+}
