@@ -30,14 +30,22 @@ export function useAutoHidePlayer(coverOpen: boolean, onHiddenChange?: (hidden: 
   const show = useCallback(() => {
     if (!gsapRef.current || hiddenRef.current === false) return;
     hiddenRef.current = false;
+    // 播放器开始上滑 → 立刻收回迷你进度条（哪怕还没完全下来）
+    emitHidden(false);
     gsap.to(gsapRef.current, { y: 0, duration: ANIM_SHOW, ease: 'power3.out', overwrite: 'auto' });
-  }, []);
+  }, [emitHidden]);
 
   const hide = useCallback(() => {
     if (!gsapRef.current || hiddenRef.current === true) return;
     hiddenRef.current = true;
-    emitHidden(true);
-    gsap.to(gsapRef.current, { y: `${HIDDEN_Y}%`, duration: ANIM_HIDE, ease: 'power2.in', overwrite: 'auto' });
+    // 滑到底（动画完成）后才弹出迷你进度条，避免两者并排
+    gsap.to(gsapRef.current, {
+      y: `${HIDDEN_Y}%`,
+      duration: ANIM_HIDE,
+      ease: 'power2.in',
+      overwrite: 'auto',
+      onComplete: () => emitHidden(true),
+    });
   }, [emitHidden]);
 
   // 沉浸视图：强制显示 + 切断隐藏计时

@@ -21,15 +21,16 @@
   height: 86px;
 }
 
-/* 迷你进度条：纯黑色，仅播放器完全隐藏时显示，由 Player.tsx 条件渲染 */
+/* 迷你进度条：仅在播放器完全滑出后显示（由 onHiddenChange 触发，避免与滑行动画并排） */
 .player-mini-progress {
   position: fixed;
   bottom: 0;
   left: 0;
-  height: 3px;
-  background: #000000;
+  height: 6px;                 /* 加粗，从 3px → 6px */
+  background: #1a1a2e;         /* 与播放器主色一致，纯黑太愣 */
   z-index: 801;
   pointer-events: none;
+  transition: width 0.1s linear;
 }
 
 
