@@ -134,7 +134,8 @@ export default function SearchBar() {
   }, [setHotPlatform]);
 
   const showHistoryHot = panelOpen && !hasKeyword && (history.length > 0 || hotList.length > 0);
-  const showSuggest = hasKeyword && suggestions.length > 0;
+  // ★ 三项互斥：搜索联想只在面板开启 + 有输入 + 有结果时显示（提交/失焦后 panelOpen=false，自然消失）
+  const showSuggest = panelOpen && hasKeyword && suggestions.length > 0;
 
   return (
     <div className="search-bar-container">
