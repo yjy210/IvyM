@@ -32,11 +32,12 @@ export default function CoverTransition() {
   const coverColor = usePlayerStore(s => s.coverColor);
 
   // ① 构建 timeline（仅一次，StrictMode 下 cleanup 会 kill 重建的）
+  //    起点状态 = progress 0 = START（贴底，高度 0，不可见）
   useEffect(() => {
     const path = pathRef.current;
     if (!path) return;
 
-    const tl = gsap.timeline({ paused: true, reversed: true })
+    const tl = gsap.timeline({ paused: true })
       .to(path, { morphSVG: MIDDLE, duration: 0.45, ease: 'power3.in' })
       .to(path, { morphSVG: END, duration: 0.55, ease: 'power3.out' }, '<0.02');
     tlRef.current = tl;
@@ -44,13 +45,12 @@ export default function CoverTransition() {
     return () => { tl.kill(); tlRef.current = null; };
   }, []);
 
-  // ② 切 coverOpen → 播放 / 倒放
+  // ② 切 coverOpen → 用 play()/reverse() 真正驱动动画（可打断）
   useEffect(() => {
     const tl = tlRef.current;
     if (!tl) return;
-    // reversed=true 对应收起（start），reversed=false 对应展开（end）
-    if (coverOpen && tl.reversed()) tl.reversed(false);
-    else if (!coverOpen && !tl.reversed()) tl.reversed(true);
+    if (coverOpen) tl.play();   // 0→1 ：贴底升起至全屏
+    else tl.reverse();          // 1→0 ：全屏收回至贴底
   }, [coverOpen]);
 
   // ③ 颜色平滑过渡（切歌或首帧提取完成时）
