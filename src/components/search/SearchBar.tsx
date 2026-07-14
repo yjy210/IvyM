@@ -97,7 +97,7 @@ export default function SearchBar() {
               onKeyDown={e => { if (e.key === 'Enter') submitSearch(keyword); }}
             />
             {keyword && (
-              <button type="button" className="s-clear-btn" onClick={(e) => { e.stopPropagation(); clearInput(); }} title="清空">×</button>
+              <button type="button" className="s-clear-btn" onClick={clearInput} title="清空">×</button>
             )}
           </div>
         </GlassSurface>
