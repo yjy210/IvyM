@@ -411,4 +411,69 @@ async function qqLyric(mid) {
   });
 }
 
-module.exports = { qqSearch, qqSongUrl, qqLyric, qqQrLogin, qqQrCheck, qqUserInfo, saveQQCookie };
+// ===== ★ QQ 搜索联想（smartbox）=====
+function qqSuggestFetch(keyword) {
+  const params = { key: keyword, format: 'json', 'inCharset': 'utf-8', outCharset: 'utf-8', platform: 'yqq' };
+  // smartbox 走专门路径 /splcloud/fcgi-bin/
+  const qs = new URLSearchParams(params).toString();
+  return new Promise((resolve, reject) => {
+    https.get(`https://c.y.qq.com/splcloud/fcgi-bin/smartbox_new.fcg?${qs}`, {
+      headers: { 'User-Agent': 'Mozilla/5.0', Referer: 'https://y.qq.com/' }
+    }, res => {
+      let body = '';
+      res.on('data', c => (body += c));
+      res.on('end', () => { try { resolve(JSON.parse(body)); } catch (e) { resolve(null); } });
+    }).on('error', reject);
+  });
+}
+
+async function qqSuggest(keyword) {
+  if (!keyword) return [];
+  try {
+    const json = await qqSuggestFetch(keyword);
+    if (!json || json.code !== 0 || !json.data) return [];
+    const data = json.data;
+    const out = [];
+    const seen = new Set();
+    // 优先 keyword 联想词，再取歌手/歌名去重
+    if (Array.isArray(data.keyword?.itemlist)) {
+      for (const it of data.keyword.itemlist) {
+        if (out.length >= 12) break;
+        if (it.name && !seen.has(it.name)) { seen.add(it.name); out.push(it.name); }
+      }
+    }
+    for (const key of ['song', 'singer', 'album', 'mv']) {
+      if (!Array.isArray(data[key]?.itemlist)) continue;
+      for (const it of data[key].itemlist) {
+        if (out.length >= 12) break;
+        const label = it.name && it.singer ? `${it.name} - ${it.singer}` : (it.name || '');
+        if (label && !seen.has(label)) { seen.add(label); out.push(label); }
+      }
+    }
+    return out.slice(0, 9);
+  } catch { return []; }
+}
+
+// ===== ★ QQ 热搜榜（gethotkey）=====
+function qqHotFetch() {
+  const qs = new URLSearchParams({ format: 'json', 'inCharset': 'utf-8', outCharset: 'utf-8', platform: 'yqq' }).toString();
+  return new Promise((resolve, reject) => {
+    https.get(`https://c.y.qq.com/splcloud/fcgi-bin/gethotkey.fcg?${qs}`, {
+      headers: { 'User-Agent': 'Mozilla/5.0', Referer: 'https://y.qq.com/' }
+    }, res => {
+      let body = '';
+      res.on('data', c => (body += c));
+      res.on('end', () => { try { resolve(JSON.parse(body)); } catch (e) { resolve(null); } });
+    }).on('error', reject);
+  });
+}
+
+async function qqHot() {
+  try {
+    const json = await qqHotFetch();
+    if (!json || json.code !== 0 || !json.data?.hotkey) return [];
+    return json.data.hotkey.slice(0, 9).map(it => (it.k || '').trim()).filter(Boolean);
+  } catch { return []; }
+}
+
+module.exports = { qqSearch, qqSongUrl, qqLyric, qqQrLogin, qqQrCheck, qqUserInfo, saveQQCookie, qqSuggest, qqHot };

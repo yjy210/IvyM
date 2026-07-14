@@ -152,23 +152,33 @@
   color: rgba(0, 0, 0, 0.6);
 }
 
-.search-history-item {
+/* ★ grid：三列，行顺序按列填充（第 1 列 1,2,3；第 2 列 4,5,6；第 3 列 7,8,9） */
+.search-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.25rem 0.4rem;
+  padding: 0.3rem 0.4rem;
+}
+
+.search-grid-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 0.5rem 0.5rem;
+  gap: 6px;
+  padding: 0.4rem 0.45rem;
   border-radius: 6px;
   cursor: pointer;
   transition: background 0.12s;
+  min-width: 0; /* 允许子项 overflow 截断 */
 }
 
-.search-history-item:hover {
+.search-grid-item:hover {
   background: rgba(0, 0, 0, 0.04);
 }
 
-.search-history-item svg {
-  color: rgba(0, 0, 0, 0.25);
-  flex-shrink: 0;
+/* ── 搜索历史项（无序号） ── */
+.search-history-item {
+  position: relative;
+  padding-right: 1.4rem; /* 给右侧 x 留位 */
 }
 
 .search-history-text {
@@ -181,6 +191,10 @@
 }
 
 .search-history-remove {
+  position: absolute;
+  right: 0.3rem;
+  top: 50%;
+  transform: translateY(-50%);
   width: 18px;
   height: 18px;
   display: flex;
@@ -203,4 +217,117 @@
 .search-history-remove:hover {
   background: rgba(0, 0, 0, 0.06);
   color: rgba(0, 0, 0, 0.5);
+}
+
+/* ── 热搜头：平台切换 + 标题 ── */
+.search-hot-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0.4rem 0.5rem 0.2rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.04);
+  margin-top: 0.2rem;
+}
+
+.search-hot-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.35);
+  margin-left: auto;
+}
+
+.search-hot-platform {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.12s;
+  opacity: 0.5;
+}
+
+.search-hot-platform.active {
+  opacity: 1;
+  border-color: rgba(0, 0, 0, 0.1);
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.hot-platform-logo {
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+.hot-platform-logo.netease { color: #ec4141; }
+.hot-platform-logo.qq { color: #31c27c; }
+
+/* ── 热搜项（带序号） ── */
+.search-hot-item {
+  gap: 4px;
+}
+
+.search-hot-rank {
+  display: inline-block;
+  width: 16px;
+  text-align: right;
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(0, 0, 0, 0.35);
+  flex-shrink: 0;
+}
+
+/* ★ 前三名红色 */
+.search-hot-rank.rank-1,
+.search-hot-rank.rank-2,
+.search-hot-rank.rank-3 {
+  color: #ec4141;
+}
+
+.search-hot-text {
+  flex: 1;
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.7);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── 搜索联想 ── */
+.search-suggest-list {
+  padding: 0.3rem 0;
+}
+
+.search-suggest-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0.5rem 0.9rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.12s;
+  margin: 0 0.3rem;
+}
+
+.search-suggest-item:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.search-suggest-item svg {
+  color: rgba(0, 0, 0, 0.25);
+  flex-shrink: 0;
+}
+
+.search-suggest-text {
+  flex: 1;
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.7);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ★ 联想词命中前缀：灰色（与用户输入相同的文本段） */
+.search-suggest-match {
+  color: rgba(0, 0, 0, 0.3);
 }

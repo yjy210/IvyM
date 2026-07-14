@@ -1,6 +1,7 @@
 const http = require('http');
 const { neteaseSearch, neteaseSongUrl, neteaseLyric, neteaseQrLogin, neteaseQrCheck, neteaseUserInfo } = require('./netease');
-const { qqSearch, qqUserInfo, qqSongUrl } = require('./qq'); // 搜索/用户信息/播放链接(直连QQ官方接口)
+const { qqSearch, qqUserInfo, qqSongUrl, qqSuggest, qqHot } = require('./qq'); // 搜索/用户信息/播放链接(直连QQ官方接口)
+const api = require('NeteaseCloudMusicApi');
 
 
 const PORT = 3001;
@@ -72,6 +73,38 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+
+    // ===== ★ 搜索结果页接口（与现有搜索页面一致）=====
+    // 网易云 热搜榜  NeteaseCloudMusicApi.search_hot → { body: { result: { hots: [{ first }] } } }
+    if (url.pathname === '/api/netease/search/hot') {
+      const data = await api.search_hot({});
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(data.body || data));
+      return;
+    }
+    // 网易云 搜索联想  NeteaseCloudMusicApi.search_suggest → { body: { result: { allMatch: [{ keyword }] } } }
+    if (url.pathname === '/api/netease/search/suggest') {
+      const keyword = url.searchParams.get('keyword') || '';
+      const data = await api.search_suggest({ keywords: keyword, type: 'mobile' });
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(data.body || data));
+      return;
+    }
+    // QQ音乐 热搜榜
+    if (url.pathname === '/api/qq/search/hot') {
+      const data = await qqHot();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ code: 200, data }));
+      return;
+    }
+    // QQ音乐 搜索联想
+    if (url.pathname === '/api/qq/search/suggest') {
+      const keyword = url.searchParams.get('keyword') || '';
+      const data = await qqSuggest(keyword);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ code: 200, data }));
+      return;
+    }
 
     // ===== 登录状态（前端用来判断是否显示VIP提示）=====
     if (url.pathname === '/api/netease/login/status') {
