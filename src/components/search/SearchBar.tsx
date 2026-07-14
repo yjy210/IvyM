@@ -27,18 +27,28 @@ export default function SearchBar() {
   const [panelOpen, setPanelOpen] = useState(false);
   // ★ tooltip（只在文本被截断时显示完整内容，跟随鼠标）
   const [tooltip, setTooltip] = useState<{ text: string; x: number; y: number } | null>(null);
+  // ★ 边界翻转标志（出界就放到鼠标左侧/上侧）
+  const [tooltipFlip, setTooltipFlip] = useState<{ x: boolean; y: boolean }>({ x: false, y: false });
 
   // 进入词条：判断 scrollWidth > clientWidth → 显示
   const handleTooltipEnter = useCallback((e: React.MouseEvent, text: string) => {
     const el = e.currentTarget as HTMLElement;
     if (el.scrollWidth > el.clientWidth) {
       setTooltip({ text, x: e.clientX, y: e.clientY });
+      // 初始进入时按默认右下方向；实际翻转由 effect 监听鼠标移动来决定
+      setTooltipFlip({ x: false, y: false });
     }
   }, []);
 
-  // 鼠标移动：更新位置
+  // 鼠标移动：更新位置 + 依据 tooltip 实际尺寸判断是否出界翻转
   const handleTooltipMove = useCallback((e: React.MouseEvent) => {
-    setTooltip(t => (t ? { ...t, x: e.clientX, y: e.clientY } : null));
+    const x = e.clientX, y = e.clientY;
+    setTooltip(t => (t ? { ...t, x, y } : null));
+    // tooltip 文字通常不会超长，按经验宽度估约 320 / 高 30 已足够；精算可在容器 ref 测量
+    const W = 320, H = 30;
+    const flipX = x + 8 + W > window.innerWidth;
+    const flipY = y + 8 + H > window.innerHeight;
+    setTooltipFlip(f => (f.x === flipX && f.y === flipY) ? f : { x: flipX, y: flipY });
   }, []);
 
   // 离开：隐藏
@@ -210,10 +220,17 @@ export default function SearchBar() {
         </div>
       )}
 
-      {/* ★ tooltip 挂载点：跟随鼠标，仅截断时显示 */}
-      {tooltip && (
-        <div className="search-tooltip" style={{ left: tooltip.x + 12, top: tooltip.y + 12 }}>{tooltip.text}</div>
-      )}
+      {/* ★ tooltip 挂载点：跟随鼠标，仅截断时显示；出界时翻转 */}
+      {tooltip && (() => {
+        const OFFSET = 8;
+        const style: React.CSSProperties = {};
+        // 默认右下角；右侧或底部溢出则翻到左/上
+        if (tooltipFlip.x) style.right = window.innerWidth - tooltip.x + OFFSET;
+        else style.left = tooltip.x + OFFSET;
+        if (tooltipFlip.y) style.bottom = window.innerHeight - tooltip.y + OFFSET;
+        else style.top = tooltip.y + OFFSET;
+        return <div className="search-tooltip" style={style}>{tooltip.text}</div>;
+      })()}
 
       {/* ★ 搜索联想：仅有输入时显示，三者不并存 */}
       {showSuggest && (

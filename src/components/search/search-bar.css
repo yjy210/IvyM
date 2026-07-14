@@ -333,24 +333,26 @@
   color: rgba(0, 0, 0, 0.3);
 }
 
-/* ★ 自定义 tooltip：跟随鼠标，仅词条被截断时加载 */
+/* ★ 自定义 tooltip：跟随鼠标，仅词条被截断时显示（Win11 浅色胶囊风） */
 .search-tooltip {
   position: fixed;
-  max-width: 280px;
-  padding: 6px 10px;
-  border-radius: 6px;
-  background: rgba(30, 30, 40, 0.88);
-  color: #fff;
-  font-size: 12px;
-  line-height: 1.4;
-  white-space: normal;
-  word-break: break-all;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.28);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  pointer-events: none;          /* 不阻挡点击 */
+  padding: 6px 14px;
+  border-radius: 999px;          /* 胶囊 */
+  background: #ffffff;
+  color: #222;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: nowrap;           /* 单行 */
+  overflow: hidden;
+  text-overflow: ellipsis;       /* 超长省略，不挤出窗口 */
+  max-width: 320px;
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.14),
+    0 0 0 1px rgba(0, 0, 0, 0.06);
+  pointer-events: none;          /* 不挡点击 */
   z-index: 9999;                 /* 高于弹窗 */
-  animation: tooltipIn 0.12s ease-out;
+  font-family: inherit;
+  animation: tooltipIn 0.1s ease-out;
 }
 
 @keyframes tooltipIn {
