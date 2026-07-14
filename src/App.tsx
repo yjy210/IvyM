@@ -28,6 +28,7 @@ export default function App() {
   // ★ 封面主色提取（监听 currentSong.cover）
   useCoverColor();
   const setCoverOpen = usePlayerStore(s => s.setCoverOpen);
+  const coverOpen = usePlayerStore(s => s.coverOpen);
   const currentSong = usePlayerStore(s => s.currentSong);
   // ★ 切歌时收回封面（用 ref 跟踪上一首 id，避免首帧误触发）
   const prevSongIdRef = useRef<string | null>(null);
@@ -67,12 +68,14 @@ export default function App() {
 
         <TitleBar />
 
-        {/* 搜索框 - 常驻 */}
-        <SearchBar />
+        {/* 搜索框 - 常驻；封面升起时隐藏，避免浮在彩色背景之上 */}
+        <div className={coverOpen ? 'hidden' : ''}>
+          <SearchBar />
+        </div>
 
-        {/* 左上角 Logo — 点击返回主页 */}
+        {/* 左上角 Logo — 点击返回主页；封面升起时隐藏 */}
         <button
-          className="absolute top-3 left-4 z-50 px-3 h-8 flex items-center justify-center rounded-lg bg-black/40 backdrop-blur-sm hover:bg-black/60 transition-colors"
+          className={`absolute top-3 left-4 z-50 px-3 h-8 flex items-center justify-center rounded-lg bg-black/40 backdrop-blur-sm hover:bg-black/60 transition-colors${coverOpen ? ' hidden' : ''}`}
           style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
           onClick={() => setCurrentView('home')}
           title="返回主页"
