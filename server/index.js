@@ -1,6 +1,7 @@
 const http = require('http');
 const { neteaseSearch, neteaseSongUrl, neteaseLyric, neteaseQrLogin, neteaseQrCheck, neteaseUserInfo } = require('./netease');
-const { qqSearch, qqUserInfo, qqSongUrl, qqSuggest, qqHot } = require('./qq'); // 搜索/用户信息/播放链接(直连QQ官方接口)
+const { qqSearch, qqUserInfo, qqSongUrl, qqSuggest } = require('./qq'); // 搜索/用户信息/播放链接(直连QQ官方接口)
+const { getQQHotSearch } = require('./qq-hot-provider'); // ★ 双层 fallback + 5 分钟缓存
 const api = require('NeteaseCloudMusicApi');
 
 
@@ -91,9 +92,9 @@ const server = http.createServer(async (req, res) => {
       res.end(JSON.stringify(data.body || data));
       return;
     }
-    // QQ音乐 热搜榜
+    // ★ QQ音乐 热搜榜（provider：优先 musicu 新接口 / fallback gethotkey + 5分钟缓存）
     if (url.pathname === '/api/qq/search/hot') {
-      const data = await qqHot();
+      const data = await getQQHotSearch();
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ code: 200, data }));
       return;
