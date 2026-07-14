@@ -40,7 +40,7 @@ const VALID_PROVIDERS = ['qq', 'netease', 'kugou'];
 const VALID_LEVELS = [
   'super_vip', 'green_diamond',                   // QQ（超级会员 / 豪华绿钻）
   'black_vip', 'black_svip',                      // 网易云（黑胶VIP / 黑胶SVIP）
-  // 酷狗后续可扩展
+  'vip', 'svip', 'music_vip',                     // 酷狗（VIP / SVIP / 音乐VIP）
 ];
 
 // ============ 数据清洗 ============
@@ -90,7 +90,8 @@ function sanitizeAccount(account) {
  */
 function sanitizeMembership(m) {
   if (!m || typeof m !== 'object') return null;
-  let status = ['vip', 'normal'].includes(m.status) ? m.status : 'normal';
+  // ★ 保留 unknown — API 拿不到 ≠ 用户无 VIP
+  let status = ['vip', 'normal', 'unknown'].includes(m.status) ? m.status : 'unknown';
   const provider = VALID_PROVIDERS.includes(m.provider) ? m.provider : null;
   const level = VALID_LEVELS.includes(m.level) ? m.level : null;
   const name = m.name != null && typeof m.name === 'string' ? m.name : null;
