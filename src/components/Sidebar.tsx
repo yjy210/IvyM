@@ -40,7 +40,7 @@ interface SidebarProps {
 }
 
 interface PlatformAccount {
-  platform: 'netease' | 'qq' | 'kugou';
+  platform: 'netease' | 'qq';
   nickname: string;
   avatar: string;
   userId: string;
@@ -120,8 +120,8 @@ export function Sidebar({ currentPage, onNavigate }: SidebarProps) {
       {accounts.length > 0 && (
         <div className="px-3 py-2 space-y-1.5 border-t border-black/5 mt-2">
           {accounts.map(acc => {
-            const colors: Record<string, string> = { netease: '#ec4141', qq: '#31c27c', kugou: '#1a7dc9' };
-            const icons: Record<string, string> = { netease: '网易', qq: 'QQ', kugou: 'KG' };
+            const colors: Record<string, string> = { netease: '#ec4141', qq: '#31c27c' };
+            const icons: Record<string, string> = { netease: '网易', qq: 'QQ' };
             return (
               <div key={acc.platform} className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-black/5 transition-colors">
                 {acc.avatar ? (

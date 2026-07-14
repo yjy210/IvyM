@@ -5,7 +5,7 @@ import { usePlaySong } from '../hooks/usePlaySong';
 import type { Song } from '../types/song';
 import './search-page.css';
 
-type Platform = 'all' | 'netease' | 'qq' | 'kugou';
+type Platform = 'all' | 'netease' | 'qq';
 
 export default function Search() {
   const results = useSearchStore(s => s.results);
@@ -18,16 +18,14 @@ export default function Search() {
   // 根据筛选+轮询获取歌曲列表
   const allSongs = useMemo(() => {
     if (!results) return [];
-    const list: { song: Song; platform: 'netease' | 'qq' | 'kugou' }[] = [];
+    const list: { song: Song; platform: 'netease' | 'qq' }[] = [];
     const { songs: neteaseSongs } = results.netease;
     const { songs: qqSongs } = results.qq;
-    const { songs: kugouSongs } = results.kugou;
 
     if (activeFilter === 'all') {
       const sources = [
         { platform: 'netease' as const, songs: neteaseSongs },
         { platform: 'qq' as const, songs: qqSongs },
-        { platform: 'kugou' as const, songs: kugouSongs },
       ];
       const maxLen = Math.max(...sources.map(s => s.songs.length));
       for (let i = 0; i < maxLen; i++) {
@@ -37,10 +35,8 @@ export default function Search() {
       }
     } else if (activeFilter === 'netease') {
       neteaseSongs.forEach(s => list.push({ song: s, platform: 'netease' }));
-    } else if (activeFilter === 'qq') {
-      qqSongs.forEach(s => list.push({ song: s, platform: 'qq' }));
     } else {
-      kugouSongs.forEach(s => list.push({ song: s, platform: 'kugou' }));
+      qqSongs.forEach(s => list.push({ song: s, platform: 'qq' }));
     }
     return list;
   }, [results, activeFilter]);
@@ -50,7 +46,6 @@ export default function Search() {
     if (activeFilter === 'all') {
       loadMore('netease');
       loadMore('qq');
-      loadMore('kugou');
     } else {
       loadMore(activeFilter);
     }
@@ -66,17 +61,16 @@ export default function Search() {
   }, [handleLoadMore]);
 
   if (!results) return null;
-  const sourceLabel = (p: string) => p === 'netease' ? '网易云' : p === 'qq' ? 'QQ' : '酷狗';
+  const sourceLabel = (p: string) => p === 'netease' ? '网易云' : 'QQ';
 
   return (
     <div className="search-page">
       {/* 平台筛选 */}
       <div className="filter-bar">
         {([
-          { key: 'all', label: '全部', count: results.netease.songs.length + results.qq.songs.length + results.kugou.songs.length, color: 'rgba(0,0,0,0.75)' },
+          { key: 'all', label: '全部', count: results.netease.songs.length + results.qq.songs.length, color: 'rgba(0,0,0,0.75)' },
           { key: 'netease', label: '网易云', count: results.netease.songs.length, color: '#ec4141' },
           { key: 'qq', label: 'QQ', count: results.qq.songs.length, color: '#31c27c' },
-          { key: 'kugou', label: '酷狗', count: results.kugou.songs.length, color: '#2196f3' },
         ] as const).map(tab => (
           <button
             key={tab.key}

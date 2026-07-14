@@ -10,7 +10,7 @@ declare global {
       isMaximized: () => Promise<boolean>;
       onMaximize: (callback: () => void) => void;
       onUnmaximize: (callback: () => void) => void;
-      openPlatformLogin: (platform: 'netease' | 'qq' | 'kugou') => Promise<void>;
+      openPlatformLogin: (platform: 'netease' | 'qq') => Promise<void>;
       onLoginResult: (callback: (result: {
         platform: string;
         success: boolean;
@@ -27,13 +27,9 @@ declare global {
       checkQRStatus: (unikey: string) => Promise<{ code: number; msg?: string; cookie?: string }>;
       getQRUserInfo: () => Promise<{ code: number; data?: { nickname: string; avatar: string; userId: string } }>;
       openQQLogin: () => Promise<void>;
-      switchAccount: (platform: 'netease' | 'qq' | 'kugou') => Promise<void>;
+      switchAccount: (platform: 'netease' | 'qq') => Promise<void>;
       onAccountRemoved: (callback: (data: { platform: string }) => void) => () => void;
-      clearPlatformSession: (platform: 'netease' | 'qq' | 'kugou') => Promise<void>;
-      // 酷狗统一 QR 登录入口（由 LoginDropdown 调用）
-      startKugouQrLogin: () => Promise<void>;
-      onKugouQrImg: (callback: (data: { qrimg: string; sigx: string }) => void) => () => void;
-      onKugouQrStatus: (callback: (data: { status: string }) => void) => () => void;
+      clearPlatformSession: (platform: 'netease' | 'qq') => Promise<void>;
     };
   }
 }

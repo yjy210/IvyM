@@ -4,7 +4,7 @@ export interface Membership {
 }
 
 export interface Account {
-  platform: 'netease' | 'qq' | 'kugou';
+  platform: 'netease' | 'qq';
   nickname: string;
   avatar: string;
   userId: string;

@@ -102,15 +102,25 @@ export default function Player() {
   const onTimeUpdate = () => {
     if (!audioRef.current) return;
     setCurrentTime(audioRef.current.currentTime);
-    // 试听结束 → 暂停 + Toast + 自动下一首
+    // ★ 试听结束 → 暂停 + Toast + 自动下一首（走权限检查）
     if (trialEndTime && audioRef.current.currentTime >= trialEndTime) {
       audioRef.current.pause();
+      audioRef.current.removeAttribute('src');
+      audioRef.current.load();
+      setIsPlaying(false);
+      const finishedSong = currentSong;
       setTrialEndTime(null);
-      setToastMsg({ id: `trial-end-${Date.now()}`, message: '试听结束' });
-      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-      toastTimerRef.current = window.setTimeout(() => setToastMsg(null), 3000);
-      // 自动播放下一首
-      setTimeout(() => playNext(), 500);
+      // 试听结束 Toast（新歌开始前先显示）
+      const trialMsg = finishedSong?.isVip
+        ? '试听结束，开通会员畅听完整版'
+        : `试听结束，${finishedSong?.trialRequiresMembership ? '该歌曲需要会员' : '30秒试听已结束'}`;
+      setToastMsg({ id: `trial-end-${Date.now()}`, message: trialMsg });
+      // 延迟后走权限检查再播下一首
+      setTimeout(() => {
+        autoPlayNext();
+        // Toast 在新歌开始后才消失（3.5s 应已足够）
+        setTimeout(() => setToastMsg(null), 3500);
+      }, 800);
     }
   };
 
@@ -168,9 +178,33 @@ export default function Player() {
       }
       return;
     }
-
-    playNext();
+    // ★ 歌曲自然结束后，走权限检查再播下一首
+    autoPlayNext();
   };
+
+  /** 带权限检查的自动下一首：曲库循环播完时不触发，无下一首时不触发 */
+  const autoPlayNext = useCallback(async () => {
+    const { playlist, currentSongId, playMode } = usePlayerStore.getState();
+    if (playlist.length === 0) return;
+    const idx = playlist.findIndex(s => s.id === currentSongId);
+    let nextIdx: number;
+    if (playMode === 'shuffle') {
+      nextIdx = Math.floor(Math.random() * playlist.length);
+    } else {
+      nextIdx = (idx + 1) % playlist.length;
+    }
+    const nextSong = playlist[nextIdx];
+    if (!nextSong) return;
+
+    try {
+      const result = await playSong(nextSong, { quality: currentQuality });
+      if (result.started && result.source) {
+        setTrialEndTime(result.source.playMode === 'trial' ? result.source.trialDuration : null);
+        play(nextSong, result.source.url);
+      }
+      // 失败事件由 playController 通过 emitPlayEvent 处理 → 前端 Toast
+    } catch { /* ignore */ }
+  }, [play, currentQuality]);
 
 
   const togglePlayMode = () => {

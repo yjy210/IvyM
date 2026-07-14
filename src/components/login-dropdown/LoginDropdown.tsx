@@ -3,14 +3,14 @@ import './login-dropdown.css';
 import { useMembershipStore } from '../../stores/membershipStore';
 
 interface PlatformAccount {
-  platform: 'netease' | 'qq' | 'kugou';
+  platform: 'netease' | 'qq';
   nickname: string;
   avatar: string;
   userId: string;
   bindTime: number;
   membership: {
     status: 'vip' | 'normal' | 'unknown';
-    provider?: 'qq' | 'netease' | 'kugou' | null;
+    provider?: 'qq' | 'netease' | null;
     level: string | null;
     name: string | null;
     icon: string | null;
@@ -78,11 +78,10 @@ interface LoginDropdownProps {
 const PLATFORMS = [
   { id: 'netease' as const, name: '网易云音乐', icon: '/platform-icons/wyy.svg', color: '#ec4141' },
   { id: 'qq' as const, name: 'QQ音乐', icon: '/platform-icons/qq.svg', color: '#31c27c' },
-  { id: 'kugou' as const, name: '酷狗音乐', icon: '/platform-icons/kg.svg', color: '#1a7dc9' },
 ];
 
 export default function LoginDropdown({ onClose }: LoginDropdownProps) {
-  const [activeTab, setActiveTab] = useState<'bound' | 'netease' | 'qq' | 'kugou'>('bound');
+  const [activeTab, setActiveTab] = useState<'bound' | 'netease' | 'qq'>('bound');
   const [accounts, setAccounts] = useState<PlatformAccount[]>([]);
   const [hoveredPlatform, setHoveredPlatform] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -123,7 +122,7 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
   }, []);
 
   // 解绑账号（清除 cookie + 通知主进程移除）
-  const handleUnbind = useCallback((platform: 'netease' | 'qq' | 'kugou') => {
+  const handleUnbind = useCallback((platform: 'netease' | 'qq') => {
     window.electronAPI?.clearPlatformSession(platform);
     window.electronAPI?.removeAccount(platform);
     setAccounts(prev => prev.filter(a => a.platform !== platform));
@@ -158,8 +157,8 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
     }
   }, []);
 
-  // 打开平台登录（网易云/酷狗/QQ 均用官网 BrowserWindow）
-  const handleBind = useCallback(async (platform: 'netease' | 'qq' | 'kugou') => {
+  // 打开平台登录（网易云/QQ 均用官网 BrowserWindow）
+  const handleBind = useCallback(async (platform: 'netease' | 'qq') => {
     if (platform === 'netease') {
       try {
         const result = await window.electronAPI?.openPlatformLogin(platform);
@@ -171,72 +170,6 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
           msg: result?.msg,
         });
       } catch (e: any) {
-        setQrModal({ visible: true, qrImg: null, unikey: null, ptqrtoken: null, status: 'failed', errorMsg: e?.message || '登录失败' });
-      }
-      return;
-    }
-    if (platform === 'kugou') {
-      // ★ 酷狗客户端 QR 登录 — 前端主动轮询驱动状态机
-      //  电子端 generate QR 后在其 finish() 只在 check 被调用时评估 status，没有内部 polling。
-      //  所以前端必须 setInterval 调 checkKugouQr(sigx) 推动流程。
-      try {
-        // ① 清理上一次 polling
-        stopQRPoll();
-        let savedSigx = '';
-        setQrModal({ visible: true, qrImg: null, unikey: null, ptqrtoken: null, status: 'waiting', errorMsg: '' });
-
-        // ② 启动 QR 登录
-        window.electronAPI?.startKugouQrLogin();
-
-        // ③ 监听 QR 图片 — 拿到后启动主动 polling
-        const unsubImg = window.electronAPI?.onKugouQrImg(({ qrimg, sigx }) => {
-          savedSigx = sigx;
-          setQrModal(prev => ({ ...prev, qrImg: qrimg }));
-          // ★ QR 就绪 → 启动前端 polling（每 1.5s 调一次 check）
-          if (!qrPollTimerRef.current && sigx) {
-            qrPollTimerRef.current = setInterval(async () => {
-              try {
-                const status = await window.electronAPI?.checkKugouQr(sigx);
-                if (!status) return;
-                if (status.status === 2) {
-                  setQrModal(prev => ({ ...prev, status: 'scanned' }));
-                } else if (status.status === 4) {
-                  // 登录成功 — 由 onLoginResult 关闭弹窗；停止 polling
-                  stopQRPoll();
-                } else if (status.status === 0) {
-                  // 过期
-                  stopQRPoll();
-                  setQrModal(prev => ({ ...prev, status: 'failed', errorMsg: '二维码已过期' }));
-                }
-              } catch { /* ignore */ }
-            }, 1500);
-          }
-        });
-
-        // ④ 监听状态同步（electron 推送的 scanned 状态）
-        const unsubStatus = window.electronAPI?.onKugouQrStatus((s) => {
-          if (s.status === 'scanned') setQrModal(prev => ({ ...prev, status: 'scanned' }));
-        });
-
-        // ⑤ 监听最终结果
-        const cleanupResult = window.electronAPI?.onLoginResult((result) => {
-          handleLoginResult(result);
-          stopQRPoll();
-          unsubImg?.();
-          unsubStatus?.();
-          setQrModal({ visible: false, qrImg: null, unikey: null, ptqrtoken: null, status: 'idle', errorMsg: '' });
-        });
-
-        // ⑥ 兜底 120s
-        setTimeout(() => {
-          stopQRPoll();
-          unsubImg?.();
-          unsubStatus?.();
-          cleanupResult?.();
-          setQrModal({ visible: false, qrImg: null, unikey: null, ptqrtoken: null, status: 'idle', errorMsg: '' });
-        }, 120000);
-      } catch (e: any) {
-        stopQRPoll();
         setQrModal({ visible: true, qrImg: null, unikey: null, ptqrtoken: null, status: 'failed', errorMsg: e?.message || '登录失败' });
       }
       return;
@@ -316,7 +249,7 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
       return;
     }
     const newAccount: PlatformAccount = {
-      platform: result.user.platform as 'netease' | 'qq' | 'kugou',
+      platform: result.user.platform as 'netease' | 'qq',
       nickname: result.user.nickname,
       avatar: result.user.avatar || '',
       userId: result.user.userId || '',
@@ -514,9 +447,6 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
         const closeModal = () => {
           stopQRPoll();
           // ★ 关闭 QR 弹窗时通知后端清理 session，避免下次打开 QR 状态污染
-          if (activeTab === 'kugou') {
-            window.electronAPI?.cancelKugouQrLogin();
-          }
           setQrModal({ visible: false, qrImg: null, unikey: null, ptqrtoken: null, status: 'idle', errorMsg: '' });
         };
         const statusText = {
@@ -554,7 +484,7 @@ export default function LoginDropdown({ onClose }: LoginDropdownProps) {
                         onClick={() => {
                           stopQRPoll();
                           setQrModal({ visible: false, qrImg: null, unikey: null, ptqrtoken: null, status: 'idle', errorMsg: '' });
-                          window.electronAPI?.openPlatformLogin(activeTab as 'netease' | 'qq' | 'kugou');
+                          window.electronAPI?.openPlatformLogin(activeTab as 'netease' | 'qq');
                         }}
                       >
                         网页登录

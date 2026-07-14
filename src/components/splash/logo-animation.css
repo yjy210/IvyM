@@ -59,7 +59,8 @@
   width: 160px; height: 160px;
   object-fit: contain;
   border-radius: 16px;
-  box-shadow: 0 16px 48px rgba(0,0,0,0.12);
+  background: transparent;
+  box-shadow: none;
 }
 
 /* 文字容器 - 始终存在，opacity 控制显隐 */

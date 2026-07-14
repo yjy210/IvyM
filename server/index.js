@@ -1,7 +1,7 @@
 const http = require('http');
 const { neteaseSearch, neteaseSongUrl, neteaseLyric, neteaseQrLogin, neteaseQrCheck, neteaseUserInfo } = require('./netease');
 const { qqSearch, qqUserInfo, qqSongUrl } = require('./qq'); // 搜索/用户信息/播放链接(直连QQ官方接口)
-const { kugouSearch, kugouSongUrl, kugouUserInfo, kugouQrLogin, kugouQrCheck } = require('./kugou');
+
 
 const PORT = 3001;
 
@@ -72,63 +72,6 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // ===== 酷狗音乐 =====
-    if (url.pathname === '/api/kugou/search') {
-      const keyword = url.searchParams.get('keyword') || '';
-      const limit = parseInt(url.searchParams.get('limit') || '30');
-      const page = parseInt(url.searchParams.get('page') || '1');
-      const data = await kugouSearch(keyword, limit, page);
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(data));
-      return;
-    }
-    if (url.pathname === '/api/kugou/url') {
-      const hash = url.searchParams.get('hash') || '';
-      const quality = url.searchParams.get('quality') || '128';
-      const data = await kugouSongUrl(hash, quality);
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(data));
-      return;
-    }
-    if (url.pathname === '/api/kugou/user') {
-      const info = await kugouUserInfo();
-      if (!info) {
-        res.writeHead(401, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ code: 401, msg: '酷狗音乐未登录' }));
-      } else {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ code: 200, data: info }));
-      }
-      return;
-    }
-    if (url.pathname === '/api/kugou/login/qr') {
-      const qr = await kugouQrLogin();
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(qr));
-      return;
-    }
-    if (url.pathname === '/api/kugou/login/check') {
-      // 检查 Content-Type：支持 POST JSON（electron 前端用 invoke 带 body 调用）
-      const contentType = req.headers['content-type'] || '';
-      let sigx = url.searchParams.get('sigx') || '';
-      let dfid = url.searchParams.get('dfid') || '';
-      if (contentType.includes('application/json')) {
-        let rawBody = '';
-        await new Promise((r) => {
-          req.on('data', (c) => (rawBody += c));
-          req.on('end', r);
-        });
-        try {
-          const body = JSON.parse(rawBody);
-          sigx = sigx || body.sigx || body.qrsign || '';
-          dfid = dfid || body.dfid || '';
-        } catch { /* ignore */ }
-      }
-      const data = await kugouQrCheck(sigx, dfid);
-      res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(data));
-      return;
-    }
 
     // ===== 登录状态（前端用来判断是否显示VIP提示）=====
     if (url.pathname === '/api/netease/login/status') {

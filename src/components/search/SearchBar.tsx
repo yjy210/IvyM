@@ -70,6 +70,11 @@ export default function SearchBar() {
     searchRef.current?.focus();
   }, [setKeyword]);
 
+  // 点击搜索框任何区域都聚焦输入
+  const handleContainerClick = useCallback(() => {
+    searchRef.current?.focus();
+  }, []);
+
   return (
     <div className="search-bar-container">
       <div className="search-bar-static">
@@ -79,7 +84,7 @@ export default function SearchBar() {
           distortionScale={-80} redOffset={5} greenOffset={10} blueOffset={15}
           saturation={1.4} className="search-island"
         >
-          <div className="s-input-area">
+          <div className="s-input-area" onClick={handleContainerClick}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="11" cy="11" r="7" /><line x1="16.5" y1="16.5" x2="21" y2="21" />
             </svg>

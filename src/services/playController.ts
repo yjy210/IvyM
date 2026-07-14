@@ -42,12 +42,13 @@ function makeEventId(): string {
 }
 
 function getErrorMessage(error?: string, platform?: string): string {
+  const platformName = platform === 'netease' ? '网易云音乐' : platform === 'qq' ? 'QQ音乐' : '音乐平台';
   const messages: Record<string, string> = {
     no_url: '无法获取播放链接',
     network_error: '网络错误，请检查连接',
     unavailable: '歌曲暂不可用',
     vip_required: '该歌曲需要VIP会员',
-    login_required: '请先登录',
+    login_required: `请登录${platformName}账号`,
   };
   return messages[error || ''] || '播放失败';
 }

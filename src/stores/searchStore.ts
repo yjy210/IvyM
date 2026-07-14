@@ -12,7 +12,6 @@ export interface SearchResultData {
   keyword: string;
   netease: PlatformResults;
   qq: PlatformResults;
-  kugou: PlatformResults;
 }
 
 const HISTORY_KEY = 'ivym_search_history';
@@ -33,7 +32,7 @@ interface SearchState {
 
   setKeyword: (kw: string) => void;
   search: (kw: string) => Promise<void>;
-  loadMore: (platform: 'netease' | 'qq' | 'kugou') => Promise<void>;
+  loadMore: (platform: 'netease' | 'qq') => Promise<void>;
   addHistory: (kw: string) => void;
   removeHistory: (kw: string) => void;
   clearHistory: () => void;
@@ -51,15 +50,13 @@ export const useSearchStore = create<SearchState>((set, get) => ({
     const trimmed = kw.trim();
     if (!trimmed) return;
 
-    const [neteaseRes, qqRes, kugouRes] = await Promise.allSettled([
+    const [neteaseRes, qqRes] = await Promise.allSettled([
       fetch(`${API_BASE}/api/netease/search?keyword=${encodeURIComponent(trimmed)}&limit=30&page=1`),
       fetch(`${API_BASE}/api/qq/search?keyword=${encodeURIComponent(trimmed)}&limit=30&page=1`),
-      fetch(`${API_BASE}/api/kugou/search?keyword=${encodeURIComponent(trimmed)}&limit=30&page=1`),
     ]);
 
     const netease = neteaseRes.status === 'fulfilled' ? await neteaseRes.value.json().catch(() => null) : null;
     const qq = qqRes.status === 'fulfilled' ? await qqRes.value.json().catch(() => null) : null;
-    const kugou = kugouRes.status === 'fulfilled' ? await kugouRes.value.json().catch(() => null) : null;
     const limit = 30;
 
     set({
@@ -68,7 +65,6 @@ export const useSearchStore = create<SearchState>((set, get) => ({
         keyword: trimmed,
         netease: { songs: netease?.code === 200 ? netease.data || [] : [], page: 1, hasMore: (netease?.total || 0) > limit, loading: false },
         qq: { songs: qq?.code === 200 ? qq.data || [] : [], page: 1, hasMore: (qq?.total || 0) > limit, loading: false },
-        kugou: { songs: kugou?.code === 200 ? kugou.data || [] : [], page: 1, hasMore: (kugou?.total || 0) > limit, loading: false },
       },
     });
   },

@@ -111,7 +111,7 @@
   gap: 16px;
   box-sizing: border-box;
   min-width: 0;
-  overflow: hidden;
+  overflow: visible;
 }
 
 /* ── 歌曲信息：左侧可伸缩区域 ── */
@@ -359,7 +359,7 @@
   pointer-events: auto;
 }
 
-/* 音量弹窗 — 始终在 DOM，hover 控制显隐 */
+/* 音量弹窗 — absolute 定位，父级 visible 避免裁切 */
 .volume-popover {
   position: absolute;
   bottom: calc(100% + 8px);

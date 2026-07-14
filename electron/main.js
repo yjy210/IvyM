@@ -10,14 +10,12 @@ const { startApiServer } = require('../server/index');
 const PLATFORM_LOGIN_URLS = {
   netease: 'https://music.163.com/#/login',
   qq: 'https://y.qq.com/n/ryqq/profile',
-  kugou: process.env.KUGOU_LOGIN_URL || 'https://www.kugou.com/login/',
 };
 
 // 各平台 partition（隔离 session，避免污染主窗口）
 const PLATFORM_PARTITIONS = {
   netease: 'persist:ivym-netease-login',
   qq: 'persist:ivym-qq-login',
-  kugou: 'persist:ivym-kugou-login',
 };
 
 // QQ 音乐关键 cookie：需要 uin AND music key 同时存在
@@ -33,7 +31,6 @@ function qqHasValidLogin(cookies) {
 const COOKIE_URLS = {
   netease: ['https://music.163.com', 'https://.music.163.com'],
   qq: ['https://y.qq.com', 'https://.y.qq.com', 'https://qq.com', 'https://.qq.com'],
-  kugou: ['https://www.kugou.com', 'https://.kugou.com', 'https://kugou.com', 'https://m.kugou.com'],
 };
 
 let mainWin = null;
@@ -123,13 +120,6 @@ function hasLoginCookies(platform, cookies) {
   const names = cookies.map(c => c.name);
   if (platform === 'netease') return names.includes('MUSIC_U');
   if (platform === 'qq') return qqHasValidLogin(cookies);
-  // 酷狗：真正登录后会产生 KugooID / UserName / a_id 三个 cookie
-  // kg_mid 是设备指纹（打开网页自动生成），不能作为登录依据
-  // 要求 KugooID 有非空值（防止误判空 cookie）
-  if (platform === 'kugou') {
-    const kg = cookies.find(c => c.name === 'KugooID');
-    return !!(kg && kg.value && names.includes('UserName'));
-  }
   return false;
 }
 
@@ -267,20 +257,6 @@ async function getUserInfo(platform, cookieStr) {
   const cookies = await getPlatformCookies(platform);
   const userId = getUserIdFromCookies(platform, cookies);
 
-  if (platform === 'kugou') {
-    // ★ kugou fallback = 昵称用 KugooID 占位（真正的用户资料由 CDP 在 login_by_token_get 里捕获）
-    const kugooId = cookies.find(c => c.name === 'KugooID')?.value || '';
-    return {
-      platform: 'kugou',
-      nickname: kugooId ? `酷狗${kugooId.slice(-6)}` : '酷狗用户',
-      avatar: '',
-      userId: kugooId || userId || '',
-      vip: false,
-      vipName: '',
-      membership: { status: 'normal', provider: 'kugou', level: null, name: null, icon: null },
-    };
-  }
-
   // ===== 网易云 =====
   if (platform === 'netease') {
     try {
@@ -355,260 +331,9 @@ async function getUserInfo(platform, cookieStr) {
   return null;
 }
 
-// ==================== 酷狗 QR 独立登录流程 ====================
-
-/**
- * 酷狗 QR 登录完整流程（独立 handler，前端 LoginDropdown 主动调用）。
- * 不走 BrowserWindow，直接：
- *   1. getQRKey → 前端展示二维码
- *   2. 轮询 checkQR → status=4 时有 {token,userid,cookie[]}
- *   3. createKugouSession → 组装 session 落盘
- *   4. fetch /api/kugou/user → 拉取 nickname/avatar
- *   5. AccountManager.upsertAccount → 账号落库
- *   6. 发送 login:result
- */
-// ★ kugou QR 流程状态机（模块级，唯一实例）
-let _kugouQrState = null; // { sigx, dfid, settled, timeoutId, resultPromise, finish }
-
-/**
- * 清理当前 QR session（关闭窗口 / 登录完成 / 超时时调用）
- * ★ 不调用 resetKugouSession：登录成功后还要用 token/userid 查 VIP
- *   只有解绑 / 重新扫码开始 / 凭证失效时才清 session
- */
-function cleanupKugouQrState() {
-  if (_kugouQrState?.timeoutId) {
-    clearTimeout(_kugouQrState.timeoutId);
-  }
-  _kugouQrState = null;
-  // ★ 绝不在这里 resetKugouSession() — 登录态由 unbind / restart QR 流程管理
-  console.log('[IvyM] kugou QR session cleaned up (login state preserved)');
-}
-
-async function executeKugouQrLogin() {
-  console.log('[IvyM] executeKugouQrLogin called');
-
-  // ★ 每次启动新 QR 流程前，强制清理旧 session（避免状态污染）
-  cleanupKugouQrState();
-
-  // 获取二维码
-  let qrResult;
-  try {
-    const { kugouQrLogin } = require('../server/kugou');
-    qrResult = await kugouQrLogin();
-  } catch (e) {
-    return { platform: 'kugou', success: false, msg: '无法连接本地 API 服务: ' + e.message };
-  }
-  if (qrResult.code !== 200) {
-    return { platform: 'kugou', success: false, msg: qrResult.msg || '获取二维码失败' };
-  }
-  const qrimg = qrResult.qrimg || qrResult.data?.qrimg;
-  const sigx  = qrResult.sigx  || qrResult.data?.sigx;
-  const dfid  = qrResult.dfid  || qrResult.data?.dfid  || _kugouQrState?.dfid;
-  mainWin?.webContents.send('login:kugou-qr-img', { platform: 'kugou', qrimg, sigx, dfid });
-
-  // 构造新的 Promise 返回给所有并发调用者
-  let resolvePromise;
-  const resultPromise = new Promise((resolve) => { resolvePromise = resolve; });
-
-  const finish = (result) => {
-    if (_kugouQrState) {
-      _kugouQrState.settled = true;
-      mainWin?.webContents.send('login:result', result);
-      // ★ 只清本地状态，不清 login session（cleanupKugouQrState 已不含 reset）
-      _kugouQrState = null;
-    }
-    resolvePromise(result);
-  };
-
-  _kugouQrState = {
-    sigx,
-    dfid,
-    settled: false,
-    startTime: Date.now(),
-    timeoutId: setTimeout(() => {
-      finish({ platform: 'kugou', success: false, msg: '二维码已过期' });
-    }, 120000),
-    finish,
-    resultPromise,
-  };
-
-  return resultPromise;
-}
-
-// kugou QR check handler（注册一次，由 polling 调用）
-async function handleKugouQrCheck(sigx, dfid) {
-  const state = _kugouQrState;
-  if (!state || state.settled) return { status: state ? -1 : 0, msg: '无活跃登录流程' };
-  const elapsed = Date.now() - state.startTime;
-  console.log('[KUGOU_QR_CHECK_CALL]', JSON.stringify({ incomingSigx: sigx, stateSigx: state?.sigx, sigxMatch: sigx === state?.sigx, elapsedMs: elapsed }));
-
-  try {
-    const { kugouQrCheck, createKugouSession } = require('../server/kugou');
-    const check = await kugouQrCheck(sigx, dfid);
-    const status = check.status;
-
-    // ★ QR 打开 < 3 秒内如果收到 status=4，视为旧 session 残留，强制忽略
-    if (status === 4 && elapsed < 3000) {
-      console.log('[KUGOU_QR_CHECK] ignored stale status=4 within first 3s, elapsed=', elapsed);
-      return { status: 1, msg: 'stale session, ignoring' };
-    }
-
-    if (status === 0) {
-      state.finish({ platform: 'kugou', success: false, msg: '二维码已过期' });
-      return check;
-    }
-    if (status === 2) {
-      mainWin?.webContents.send('login:kugou-qr-status', { platform: 'kugou', status: 'scanned' });
-    }
-    if (status === 4) {
-      try {
-        // ★ 新版 kugou QR check 直接在顶层返回 nickname / avatar / token / userid，无需 cookie 解析
-        const nickname = check?.nickname || '';
-        const avatar = check?.avatar || '';
-        const token = String(check?.token || '');
-        // ★ userid 禁止回退成 token — token 是认证字符串，userid 是数字 ID
-        const userid = String(
-          check?.userid
-          || check?.user_id
-          || check?.uid
-          || check?.userinfo?.userid
-          || check?.user_info?.userid
-          || ''
-        );
-
-        console.log('[KUGOU_QR_USER]', JSON.stringify({ nickname, userid, avatar: avatar?.slice(0, 50), token: token?.slice(0, 20) }));
-
-        // 保存 session（用 token + userid，不需要 cookies 数组）
-        if (token && userid && /^\d+$/.test(userid)) {
-          createKugouSession({ token, userid: String(userid), cookies: [] });
-        } else {
-          console.error('[KUGOU_AUTH_INVALID] userid is not a valid number', { userid, token: token?.slice(0, 20) });
-          state.finish({ platform: 'kugou', success: false, msg: '酷狗登录成功但未获取到有效 userid' });
-          return check;
-        }
-
-        // ★ DEBUG: VIP 字段探测 — 在 finish() 之前抓取快照，避免 cleanup 清空 cookies
-        try {
-          const dbg = require('../server/kugou');
-          // ㊣ 关键: 在 createKugouSession 之后、finish() 之前立即保存快照
-          if (dbg.captureDebugCookies) dbg.captureDebugCookies();
-          // 保存完整 status=4 响应
-          if (dbg.setDebugRawQrStatus4) dbg.setDebugRawQrStatus4(check);
-          // 启动 60s 被动扫描窗口
-          if (dbg.startDebugScanner) dbg.startDebugScanner();
-          // 主动探测用户信息接口 + 60s 后 dump
-          (async () => {
-            try { if (dbg.kugouVipProbe) await dbg.kugouVipProbe(); } catch { /* ignore */ }
-            setTimeout(() => { if (dbg.dumpKugouVipProbe) dbg.dumpKugouVipProbe('auto'); }, 60000);
-          })();
-        } catch { /* ignore */ }
-
-        // ★ QR 登录目前无法获取 vip_type / vip_token
-        //   - CoolGoo 服务端不在 QR status=4 响应里返回会员信息
-        //   - /user/vip/detail 等独立 VIP 接口在 CoolGoo 已失效 (20010/20017)
-        //   - login_by_token (v5) 仅兼容手机/密码登录的 token，QR token 不兼容
-        //   → 当前 vip 置为 null（非 false），表示"API 无法判断"
-        //   → 待抓包逆向酷狗 APP 新接口后，只替换此函数内部实现即可
-        //   ★ vip 三态: true=已确认VIP / false=已确认非VIP / null=未知
-        let vip = null;
-        let vipName = '';
-        let membership = { status: 'unknown', provider: 'kugou', level: null, name: null, icon: null };
-        try {
-          const { kugouVipInfo, parseKugouMembership } = require('../server/kugou');
-          const vipData = await kugouVipInfo();
-          if (vipData) {
-            console.log('[KUGOU_VIP_RAW]', JSON.stringify(vipData));
-            const info = vipData.data || vipData;
-            const parsed = parseKugouMembership(info);
-            vip = parsed.status === 'vip';
-            vipName = parsed.name || '';
-            membership = parsed;
-          }
-        } catch { /* VIP 获取失败不影响登录 */ }
-
-        const account = {
-          platform: 'kugou',
-          nickname,
-          avatar,
-          userId: String(userid),
-          vip,
-          vipName,
-          membership,
-        };
-        console.log('[KUGOU_ACCOUNT_SAVE]', JSON.stringify(account));
-        AccountManager.upsertAccount(account);
-        // ★ DEBUG: 保存最终返回给前端的 account 快照（跨源合并后的最终数据）
-        try {
-          const dbg = require('../server/kugou');
-          if (dbg.addDebugFinalAccountSnapshot) dbg.addDebugFinalAccountSnapshot({ account, check });
-        } catch { /* ignore */ }
-        state.finish({ platform: 'kugou', success: true, user: account, cookie: token ? `token=${token};userid=${userid}` : `userid=${userid}` });
-      } catch (e) {
-        console.error('[IvyM] final kugou check error:', e.message);
-        state.finish({ platform: 'kugou', success: false, msg: '登录完成但获取用户信息失败: ' + e.message });
-      }
-    }
-    return check;
-  } catch (e) {
-    console.error('[IvyM] kugou check error:', e.message);
-    return { status: 1, msg: e.message };
-  }
-}
-
-// ★ handlers 注册一次
-ipcMain.handle('login:kugou-qr-start', () => executeKugouQrLogin());
-ipcMain.handle('login:kugou-qr-check', async (_e, { sigx, dfid } = {}) => {
-  // 前端 polling 调用：传 { sigx, dfid } 或仅 sigx
-  const effectiveSigx = sigx || (_kugouQrState && _kugouQrState.sigx);
-  const effectiveDfid = dfid || (_kugouQrState && _kugouQrState.dfid);
-  return handleKugouQrCheck(effectiveSigx, effectiveDfid);
-});
-ipcMain.on('login:kugou-qr-cancel', () => {
-  // ★ 用户关闭 QR 弹窗时调用，清除旧 session 避免下次重新打开 QR 时状态污染
-  console.log('[IvyM] kugou QR login cancelled by user');
-  cleanupKugouQrState();
-});
-
-// ★ 酷狗会员信息查询（VIP 账号 fallback）
-ipcMain.handle('login:kugou-qr-vip', async () => {
-  try {
-    const { kugouUserInfo } = require('../server/kugou');
-    const info = await kugoUserInfo();
-    if (!info) return { code: 401, msg: '未登录' };
-    return { code: 200, data: info };
-  } catch (e) {
-    return { code: -1, msg: e.message };
-  }
-});
-
-// ==================== ★ DEBUG 抓包工具 (仅 DEBUG_KUGOO=1 时生效) ====================
-ipcMain.handle('kugoo:debug:dump', async (_e, label) => {
-  try {
-    const { dumpKugouDebugLog, clearKugouDebugLog } = require('../server/kugou');
-    const file = dumpKugouDebugLog(label);
-    return { ok: true, file };
-  } catch (e) {
-    return { ok: false, msg: e.message };
-  }
-});
-ipcMain.handle('kugoo:debug:clear', async () => {
-  try {
-    const { clearKugouDebugLog } = require('../server/kugou');
-    clearKugouDebugLog();
-    return { ok: true };
-  } catch (e) {
-    return { ok: false, msg: e.message };
-  }
-});
-
 // ==================== 登录入口 ====================
 ipcMain.handle('login:open', async (event, platform) => {
   console.log(`[IvyM] login:open called for platform: ${platform}`);
-
-  // ★ 酷狗走独立 QR 路径
-  if (platform === 'kugou') {
-    return executeKugouQrLogin();
-  }
 
   const url = PLATFORM_LOGIN_URLS[platform];
   const partition = PLATFORM_PARTITIONS[platform];
@@ -623,7 +348,7 @@ ipcMain.handle('login:open', async (event, platform) => {
       height: 680,
       minWidth: 700,
       minHeight: 500,
-      title: `绑定${platform === 'netease' ? '网易云音乐' : platform === 'kugou' ? '酷狗音乐' : 'QQ音乐'}账号`,
+      title: `绑定${platform === 'netease' ? '网易云音乐' : 'QQ音乐'}账号`,
       autoHideMenuBar: true,
       icon: path.join(__dirname, '../build/logo.png'),
       webPreferences: {
@@ -634,87 +359,11 @@ ipcMain.handle('login:open', async (event, platform) => {
       },
     });
 
-    // ★ 酷狗：模拟 Chrome UA（防 Electron 检测拦截）
-    if (platform === 'kugou') {
-      loginWin.webContents.setUserAgent(
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      );
-    }
-
     const finish = async (result) => {
       if (settled) return;
       settled = true;
       if (pollTimer) clearInterval(pollTimer);
       pollTimer = null;
-      // ★ kugou: CDP 捕获 login_by_token_get 的响应体
-      // 注意：必须等 loadingFinished 再 getResponseBody，否则 buffer 会被释放
-      if (platform === 'kugou' && result?.success && loginWin && !loginWin.isDestroyed()) {
-        try {
-          // 确保 debugger 已 attach + Network.enable
-          try { loginWin.webContents.debugger.attach('1.3'); } catch {}
-          try { loginWin.webContents.debugger.sendCommand('Network.enable'); } catch {}
-
-          let pendingRequestId = null;
-
-          // 设置监听器：responseReceived 只存 ID；loadingFinished 才读 body
-          loginWin.webContents.debugger.on('message', async (_evt, method, params) => {
-            if (method === 'Network.responseReceived') {
-              const url = params?.response?.url || '';
-              if (url.includes('login_by_token_get') || url.includes('get_userinfo_qrcode')) {
-                pendingRequestId = params.requestId;
-                console.log('[KUGOU_REQ]', url.slice(0, 150));
-              }
-            } else if (method === 'Network.loadingFinished' && params.requestId === pendingRequestId) {
-              try {
-                const body = await loginWin.webContents.debugger.sendCommand('Network.getResponseBody', { requestId: pendingRequestId });
-                const raw = body?.body || '';
-                console.log('[KUGOU_USER_RESPONSE]', raw.slice(0, 600));
-                const j = JSON.parse(raw);
-                const d = typeof j.data === 'object' ? j.data : null;
-                if (d && (d.nickname || d.username || d.userid)) {
-                  const vipT = Number(d.vip_type || d.viptype || d.vip || 0);
-                  const isVip = vipT > 0;
-                  const svipLevel = Number(d.svip_level || 0);
-                  const level = svipLevel >= 1 ? 'svip' : 'vip';
-                  const name = !isVip ? null : (level === 'svip' ? 'SVIP' : 'VIP');
-                  result.user = {
-                    platform: 'kugou',
-                    nickname: d.nickname || d.username || '',
-                    avatar: d.avatar || d.pic || d.headpic || d.headurl || '',
-                    userId: String(d.userid || d.uid || ''),
-                    vip: isVip,
-                    vipName: name || '',
-                    membership: {
-                      status: isVip ? 'vip' : 'normal',
-                      provider: 'kugou',
-                      level: isVip ? level : null,
-                      name,
-                      icon: isVip ? '/icons/vip-kugou.svg' : null,
-                    },
-                  };
-                  console.log('[KUGOU_USER_OK]', JSON.stringify(result.user));
-                }
-              } catch (e) {
-                console.warn('[KUGOU_USER_RESPONSE_err]', e.message);
-              }
-            }
-          });
-
-          // 等最多 6s
-          await new Promise((resolve) => {
-            const timeout = setTimeout(resolve, 6000);
-            const check = setInterval(() => {
-              if (result.user?.nickname) { clearInterval(check); clearTimeout(timeout); resolve(undefined); }
-            }, 300);
-          });
-
-          // 清理
-          try { loginWin.webContents.debugger.sendCommand('Network.disable'); } catch {}
-          try { loginWin.webContents.debugger.detach(); } catch {}
-        } catch (e) {
-          console.warn('[KUGOU_CDP_err]', e.message);
-        }
-      }
       // 登录成功 → 持久化
       if (result?.success && result.cookie) {
         try {
@@ -724,9 +373,6 @@ ipcMain.handle('login:open', async (event, platform) => {
           } else if (platform === 'qq') {
             const { saveQQCookie } = require('../server/qq');
             saveQQCookie(result.cookie);
-          } else if (platform === 'kugou') {
-            const { saveKugouCookies } = require('../server/kugou');
-            saveKugouCookies(result.cookie);
           }
         } catch { /* ignore */ }
         if (result.user?.userId) {
@@ -747,57 +393,12 @@ ipcMain.handle('login:open', async (event, platform) => {
       resolve(result);
     };
 
-    if (platform === 'kugou') {
-      // ★ 监听 login_by_token_get 接口返回 = 真正用户信息
-      const kgSes = loginWin.webContents.session;
-      const kgUserUrl = 'https://loginservice.kugou.com/v1/login_by_token_get';
-      const kgFilter = { urls: ['*://loginservice.kugou.com/*'] };
-      // 用 devtools 的 debugger 读 responseBody
-      // ★ CDP 已废弃 —— 改为 session cookie 直调 API（无竞态 / 无 body-release 问题）
-      // 详见 debug history: CDP getResponseBody 因 buffer 释放导致 "No data found"
-      loginWin.webContents.on('did-start-loading', () => console.log('[KUGOU_LOADING] start'));
-      loginWin.webContents.on('did-finish-load', () => console.log('[KUGOU_LOADING] finish'));
-      loginWin.webContents.on('did-fail-load', (_, code, desc, url) => console.error('[KUGOU_LOADING] FAIL', code, desc, url));
-      loginWin.webContents.session.cookies.on('changed', (_e, cookie, cause, removed) => {
-        console.log(`[KUGOU_COOKIE_CHANGED] ${cause} | ${cookie.name}=${cookie.value.slice(0,30)} | removed=${removed}`);
-      });
-      // CDP 抓包：找出登录后 kogou 网页自身调用的用户信息接口
-      try {
-        loginWin.webContents.debugger.attach('1.3');
-        loginWin.webContents.debugger.on('message', (_event, method, params) => {
-          if (method !== 'Network.requestWillBeSent') return;
-          const url = params?.request?.url || '';
-          // 只抓 kugou.com 域名的非静态请求
-          if (!/kugou\.com|kugimg\.com|kgou\.com/i.test(url)) return;
-          if (/\.(js|css|png|jpg|jpeg|gif|svg|woff2?|mp3|webp|ico|avif|wasm)(\?|$)/i.test(url)) return;
-          console.log(`[KUGOU_API] ${params.request.method} ${url.slice(0, 250)}`);
-        });
-        loginWin.webContents.debugger.sendCommand('Network.enable');
-        loginWin.once('closed', () => {
-          try { loginWin.webContents.debugger.detach(); } catch {}
-        });
-      } catch (e) {
-        console.warn('[KUGOU_CDP_err]', e.message);
-      }
-    }
-
     pollTimer = setInterval(async () => {
       try {
         if (loginWin.isDestroyed()) return;
         const cookies = await getPlatformCookies(platform);
-        if (platform === 'kugou') {
-          const allNames = cookies.map(c => `${c.name}=${c.value.slice(0, 12)}`).join('; ');
-          console.log('[KUGOU_poll]', allNames);
-        }
         if (hasLoginCookies(platform, cookies)) {
           const fullCookie = cookies.map(c => `${c.name}=${c.value}`).join('; ');
-          console.log('[KUGOU_SUCCESS]', JSON.stringify(cookies.map(c => ({name:c.name, val:c.value.slice(0,20)}))));
-          const fs = require('fs');
-          const path = require('path');
-          fs.writeFileSync(
-            path.join(__dirname, '../server/.kg-cookie.json'),
-            JSON.stringify({ cookie: fullCookie, time: Date.now() }, null, 2),
-          );
           // 从完整 cookie 串里提取昵称头像
           const cookieStr = fullCookie;
           const userInfo = await getUserInfo(platform, cookieStr);
@@ -805,20 +406,12 @@ ipcMain.handle('login:open', async (event, platform) => {
             finish({ platform, success: true, cookie: cookieStr, user: userInfo });
           }
         }
-      } catch (e) { console.warn('[KUGOU_poll_err]', e.message); }
+      } catch (e) { console.warn('[IvyM] login poll err:', e.message); }
     }, 1000);
 
     loginWin.on('closed', async () => {
       if (settled) return;
       finish({ platform, success: false, msg: '已取消登录' });
-    });
-
-    // ★ 诊断：打印页面加载失败的原因（kugou.com 打不开的具体错误码）
-    loginWin.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
-      console.error('[KUGOU_LOAD_FAIL]', errorCode, errorDescription);
-    });
-    loginWin.webContents.on('did-finish-load', () => {
-      console.log('[KUGOU_LOAD_OK] 页面加载完成');
     });
 
     loginWin.loadURL(url).then(() => {
@@ -876,8 +469,6 @@ ipcMain.handle('login:qr-user', async () => {
     return { code: -1, msg: e.message };
   }
 });
-
-// ★ 酷狗音乐：走官方 BrowserWindow 登录（与 QQ/网易云一致），不再走 KuGouMusicApi QR 轮询
 
 // QQ音乐：网页登录（BrowserWindow 方式）
 
@@ -1032,17 +623,10 @@ ipcMain.handle('login:clear', async (event, platform) => {
     try { fs.unlinkSync(path.join(__dirname, '../server/.netease-cookie.json')); } catch {}
   } else if (platform === 'qq') {
     try { fs.unlinkSync(path.join(__dirname, '../server/.qq-cookie.json')); } catch {}
-  } else if (platform === 'kugou') {
-    try { fs.unlinkSync(path.join(__dirname, '../server/.kg-cookie.json')); } catch {}
   }
 
   // 2) 清除 Electron partition session
   await clearPlatformSession(platform);
-
-  // 3) ★ 解绑酷狗时，同时清理 QR session 状态机（避免下次打开扫码时状态污染）
-  if (platform === 'kugou') {
-    cleanupKugouQrState();
-  }
 
   return { ok: true };
 });
@@ -1054,8 +638,6 @@ ipcMain.handle('login:switch-account', async (event, platform) => {
     try { fs.unlinkSync(path.join(__dirname, '../server/.netease-cookie.json')); } catch {}
   } else if (platform === 'qq') {
     try { fs.unlinkSync(path.join(__dirname, '../server/.qq-cookie.json')); } catch {}
-  } else if (platform === 'kugou') {
-    try { fs.unlinkSync(path.join(__dirname, '../server/.kg-cookie.json')); } catch {}
   }
   await clearPlatformSession(platform);
 
@@ -1083,7 +665,7 @@ function ipcEmitLoginWindow(platform) {
     height: 680,
     minWidth: 700,
     minHeight: 500,
-    title: `绑定${platform === 'netease' ? '网易云音乐' : platform === 'kugou' ? '酷狗音乐' : 'QQ音乐'}账号`,
+    title: `绑定${platform === 'netease' ? '网易云音乐' : 'QQ音乐'}账号`,
     autoHideMenuBar: true,
     icon: path.join(__dirname, '../build/logo.png'),
     webPreferences: {

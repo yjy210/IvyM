@@ -34,13 +34,13 @@ function getAccountsFile() {
 const ALLOWED_FIELDS = ['platform', 'nickname', 'avatar', 'userId', 'vip', 'vipName', 'membership', 'bindTime'];
 
 // 合法的 provider 值（membership.provider）
-const VALID_PROVIDERS = ['qq', 'netease', 'kugou'];
+const VALID_PROVIDERS = ['qq', 'netease'];
 
 // 合法的 level 值（跨 provider）— 与 parseXXMembership 返回的 level 保持一致
 const VALID_LEVELS = [
   'super_vip', 'green_diamond',                   // QQ（超级会员 / 豪华绿钻）
   'black_vip', 'black_svip',                      // 网易云（黑胶VIP / 黑胶SVIP）
-  'vip', 'svip', 'music_vip',                     // 酷狗（VIP / SVIP / 音乐VIP）
+  'vip', 'svip', 'music_vip',
 ];
 
 // ============ 数据清洗 ============

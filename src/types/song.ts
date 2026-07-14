@@ -5,7 +5,7 @@ export interface Song {
   artists: string;
   album?: string;
   duration?: number;
-  platform: 'netease' | 'qq' | 'kugou';
+  platform: 'netease' | 'qq';
   cover: string;
   source?: string;
   mid?: string;
