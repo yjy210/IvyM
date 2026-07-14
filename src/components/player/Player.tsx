@@ -47,7 +47,9 @@ export default function Player() {
   const toastTimerRef = useRef<number | null>(null);
   const currentUrl = usePlayerStore(s => s.currentUrl);
   const toggleCover = usePlayerStore(s => s.toggleCover);
-  const { gsapRef, visible } = useAutoHidePlayer();
+  const coverOpen = usePlayerStore(s => s.coverOpen);
+  const [playerHidden, setPlayerHidden] = useState(false);
+  const { gsapRef } = useAutoHidePlayer(coverOpen, setPlayerHidden);
 
   // 喜欢的歌曲
   const [likes, setLikes] = useState<string[]>(() => {
@@ -490,7 +492,7 @@ export default function Player() {
       </div>{/* ★ end player-bar-anim-wrapper */}
 
       {/* ★ 迷你进度条：纯黑色，仅播放器隐藏时显示 */}
-      {!visible && (
+      {playerHidden && (
         <div className="player-mini-progress" style={{ width: `${progressPct}%` }} />
       )}
     </>
