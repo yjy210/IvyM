@@ -1,10 +1,13 @@
-/* ── 搜索容器 ── */
+/* ── 搜索容器 ──
+ * no-drag：让 Electron 不把该区域当拖拽区，使 input 能正常 blur/聚焦，
+ * 下拉面板的点击也能正常触发 */
 .search-bar-container {
   position: fixed;
   top: 1.25rem;
   left: 50%;
   transform: translateX(-50%);
   z-index: 1000;
+  -webkit-app-region: no-drag;
 }
 
 /* ── 搜索框（常驻） ── */
