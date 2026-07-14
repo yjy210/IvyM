@@ -63,15 +63,17 @@ export default function SearchBar() {
   // ★ 输入即触发联想（防抖逻辑在 store 内部）
   useEffect(() => {
     fetchSuggestions(keyword);
-    // 有输入时没结果也要开面板显示联想热区，无输入时暂停面板
-    if (!hasKeyword) setPanelOpen(false);
+    if (!hasKeyword) {
+      setPanelOpen(false);
+    } else if (searchRef.current && document.activeElement === searchRef.current) {
+      // 有输入且搜索框已聚焦（如结果页继续输入）→ 立即开面板显联想
+      setPanelOpen(true);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [keyword, fetchSuggestions]);
 
-  // 焦点：无输入且有历史/热搜 → 打开面板
-  const handleFocus = useCallback(() => {
-    if (!hasKeyword) setPanelOpen(true);
-  }, [hasKeyword]);
+  // ★ 聚焦：一律开面板（无输入→历史热搜；有输入→联想）
+  const handleFocus = useCallback(() => setPanelOpen(true), []);
 
   // 点击外部关闭
   useEffect(() => {
