@@ -23,7 +23,7 @@
   height: 100% !important;
   background: transparent !important;
   border-radius: inherit;
-  pointer-events: none;
+  /* ★ 不设置 pointer-events:none — 会打断子级事件链导致搜索框局部不可点击 */
 }
 
 .search-island .glass-surface__content {
