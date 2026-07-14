@@ -102,16 +102,15 @@
   display: block;
 }
 
-/* ── 主内容区 ★ 相对定位，三组绝对定位 ── */
+/* ── 主内容区 ── */
 .player-main {
-  position: relative;
   display: flex;
   align-items: center;
   flex: 1;
   padding: 0 20px;
+  gap: 16px;
   box-sizing: border-box;
   min-width: 0;
-  height: 100%;
   overflow: visible;
 }
 
@@ -169,40 +168,42 @@
   will-change: transform;
 }
 
-/* ★ 左工具组：绝对定位左侧 */
+/* ── 控制区：中间永远可见 ── */
+.player-layout {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(3px, 0.5vw, 8px);
+  height: 100%;
+}
+
+/* 左工具组 */
 .player-left-tools {
-  position: absolute;
-  left: 20px;
-  top: 50%;
-  transform: translateY(-50%);
   display: flex;
   align-items: center;
   gap: clamp(3px, 0.5vw, 8px);
-  z-index: 2;
+  height: 100%;
+  flex-shrink: 0;
 }
 
-/* ★ 中间播放控制：永远正中心 */
+/* 右工具组 */
+.player-right-tools {
+  display: flex;
+  align-items: center;
+  gap: clamp(3px, 0.5vw, 8px);
+  height: 100%;
+  flex-shrink: 0;
+}
+
+/* 播放控制组：水平居中 */
 .player-play-group {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
   display: flex;
   align-items: center;
   gap: clamp(3px, 0.5vw, 8px);
   z-index: 3;
-}
-
-/* ★ 右工具组：绝对定位右侧 */
-.player-right-tools {
-  position: absolute;
-  right: 20px;
-  top: 50%;
-  transform: translateY(-50%);
-  display: flex;
-  align-items: center;
-  gap: clamp(3px, 0.5vw, 8px);
-  z-index: 2;
+  flex-shrink: 0;
+  pointer-events: auto;
 }
 
 /* 响应式：缩小时间距缩小，最小 3px */

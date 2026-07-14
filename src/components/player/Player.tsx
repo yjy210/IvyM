@@ -326,72 +326,75 @@ export default function Player() {
             </div>
           </div>
 
-          {/* ★ 左侧工具：喜欢 + 歌词（绝对定位左对齐） */}
-          <div className="player-left-tools">
-            <button className={`player-btn${isLiked ? ' liked' : ''}`} onClick={toggleLike} title="喜欢">
-              <i className="iconfont icon-xihuan" />
-            </button>
-            <button className={`player-btn${popup === 'lyrics' ? ' active' : ''}`} data-popup-btn onClick={() => setPopup(p => p === 'lyrics' ? null : 'lyrics')} title="歌词">
-              <i className="iconfont icon-bold icon-geci32" />
-            </button>
-          </div>
+          {/* 工具组（左右等分，播放按钮绝对居中不受影响） */}
+          <div className="player-layout">
+            {/* 左侧：喜欢 + 歌词 */}
+            <div className="player-left-tools">
+              <button className={`player-btn${isLiked ? ' liked' : ''}`} onClick={toggleLike} title="喜欢">
+                <i className="iconfont icon-xihuan" />
+              </button>
+              <button className={`player-btn${popup === 'lyrics' ? ' active' : ''}`} data-popup-btn onClick={() => setPopup(p => p === 'lyrics' ? null : 'lyrics')} title="歌词">
+                <i className="iconfont icon-bold icon-geci32" />
+              </button>
+            </div>
 
-          {/* ★ 中间播放控制（绝对居中，不受歌曲信息宽度影响） */}
-          <div className="player-play-group">
-            <button className={`player-btn${playMode !== 'sequence' ? ' active' : ''}`} onClick={togglePlayMode} title={playMode === 'sequence' ? '顺序播放' : playMode === 'loop' ? '单曲循环' : '随机播放'}>
-              {playMode === 'sequence' && <i className="iconfont icon-a-shunxupoppy_icon_positive_order" />}
-              {playMode === 'loop' && <i className="iconfont icon-a-25px" />}
-              {playMode === 'shuffle' && <i className="iconfont icon-suiji" />}
-            </button>
-            <button className="player-btn" onClick={playPrev} title="上一首">
-              <svg viewBox="0 0 24 24"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5"/></svg>
-            </button>
-            <button className="player-btn player-btn-play" onClick={() => isPlaying ? pause() : handlePlay()} title={isPlaying ? '暂停' : '播放'}>
-              {isPlaying ? (
-                <svg viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
-              ) : (
-                <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-              )}
-            </button>
-            <button className="player-btn" onClick={playNext} title="下一首">
-              <svg viewBox="0 0 24 24"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg>
-            </button>
-            <button className="player-btn playlist-btn" data-popup-btn onClick={() => setPopup(p => p === 'playlist' ? null : 'playlist')} title="播放列表">
-              <svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
-            </button>
-          </div>
-
-          {/* ★ 右侧工具：收藏 + 音量（绝对定位右对齐） */}
-          <div className="player-right-tools">
-            <button className="player-btn player-btn-save" data-popup-btn onClick={() => setPopup(p => p === 'save' ? null : 'save')} title="收藏到歌单">
-              <img src="/icons/jiahaojilu.svg" alt="收藏" className="player-save-icon" />
-            </button>
-            <div className="player-volume-wrapper">
-              <button
-                ref={volumeBtnRef}
-                className="player-btn"
-                onClick={() => {
-                  if (volume > 0) {
-                    prevVolumeRef.current = volume;
-                    setVolume(0);
-                  } else {
-                    setVolume(prevVolumeRef.current || 70);
-                  }
-                }}
-                title={volume === 0 ? '取消静音' : '静音'}
-              >
-                {volume === 0 ? (
-                  <img src="/icons/sound.svg" alt="静音" className="volume-icon" />
-                ) : volume >= 50 ? (
-                  <svg viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+            {/* 中间：播放控制（绝对居中） */}
+            <div className="player-play-group">
+              <button className={`player-btn${playMode !== 'sequence' ? ' active' : ''}`} onClick={togglePlayMode} title={playMode === 'sequence' ? '顺序播放' : playMode === 'loop' ? '单曲循环' : '随机播放'}>
+                {playMode === 'sequence' && <i className="iconfont icon-a-shunxupoppy_icon_positive_order" />}
+                {playMode === 'loop' && <i className="iconfont icon-a-25px" />}
+                {playMode === 'shuffle' && <i className="iconfont icon-suiji" />}
+              </button>
+              <button className="player-btn" onClick={playPrev} title="上一首">
+                <svg viewBox="0 0 24 24"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5"/></svg>
+              </button>
+              <button className="player-btn player-btn-play" onClick={() => isPlaying ? pause() : handlePlay()} title={isPlaying ? '暂停' : '播放'}>
+                {isPlaying ? (
+                  <svg viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
                 ) : (
-                  <svg viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+                  <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
                 )}
               </button>
-              <div className="volume-popover">
-                <span className="volume-value">{volume}%</span>
-                <div className="volume-panel">
-                  <VolumeSlider value={volume} onChange={setVolume} />
+              <button className="player-btn" onClick={playNext} title="下一首">
+                <svg viewBox="0 0 24 24"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19"/></svg>
+              </button>
+              <button className="player-btn playlist-btn" data-popup-btn onClick={() => setPopup(p => p === 'playlist' ? null : 'playlist')} title="播放列表">
+                <svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+              </button>
+            </div>
+
+            {/* 右侧：收藏 + 音量 */}
+            <div className="player-right-tools">
+              <button className="player-btn player-btn-save" data-popup-btn onClick={() => setPopup(p => p === 'save' ? null : 'save')} title="收藏到歌单">
+                <img src="/icons/jiahaojilu.svg" alt="收藏" className="player-save-icon" />
+              </button>
+              <div className="player-volume-wrapper">
+                <button
+                  ref={volumeBtnRef}
+                  className="player-btn"
+                  onClick={() => {
+                    if (volume > 0) {
+                      prevVolumeRef.current = volume;
+                      setVolume(0);
+                    } else {
+                      setVolume(prevVolumeRef.current || 70);
+                    }
+                  }}
+                  title={volume === 0 ? '取消静音' : '静音'}
+                >
+                  {volume === 0 ? (
+                    <img src="/icons/sound.svg" alt="静音" className="volume-icon" />
+                  ) : volume >= 50 ? (
+                    <svg viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+                  ) : (
+                    <svg viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+                  )}
+                </button>
+                <div className="volume-popover">
+                  <span className="volume-value">{volume}%</span>
+                  <div className="volume-panel">
+                    <VolumeSlider value={volume} onChange={setVolume} />
+                  </div>
                 </div>
               </div>
             </div>
