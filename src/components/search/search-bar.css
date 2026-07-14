@@ -260,6 +260,7 @@
   width: 22px;
   height: 22px;
   display: block;
+  object-fit: contain; /* 避免不同比例 SVG 被拉伸 */
 }
 
 /* ── 热搜项（带序号） ── */

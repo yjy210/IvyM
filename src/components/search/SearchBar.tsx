@@ -81,9 +81,9 @@ export default function SearchBar() {
   // ★ 高亮：匹配输入的前缀段显示灰色
   const renderSuggestLabel = useCallback((label: string) => {
     const kw = keyword.trim();
-    if (!kw) return <span>{label}</span>;
+    if (!kw) return <span className="search-suggest-text">{label}</span>;
     const idx = label.toLowerCase().indexOf(kw.toLowerCase());
-    if (idx === -1) return <span>{label}</span>;
+    if (idx === -1) return <span className="search-suggest-text">{label}</span>;
     const before = label.slice(0, idx);
     const matched = label.slice(idx, idx + kw.length);
     const after = label.slice(idx + kw.length);
