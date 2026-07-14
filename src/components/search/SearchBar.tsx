@@ -25,6 +25,24 @@ export default function SearchBar() {
 
   // 面板显隐（由 store 派生不再单独 state）
   const [panelOpen, setPanelOpen] = useState(false);
+  // ★ tooltip（只在文本被截断时显示完整内容，跟随鼠标）
+  const [tooltip, setTooltip] = useState<{ text: string; x: number; y: number } | null>(null);
+
+  // 进入词条：判断 scrollWidth > clientWidth → 显示
+  const handleTooltipEnter = useCallback((e: React.MouseEvent, text: string) => {
+    const el = e.currentTarget as HTMLElement;
+    if (el.scrollWidth > el.clientWidth) {
+      setTooltip({ text, x: e.clientX, y: e.clientY });
+    }
+  }, []);
+
+  // 鼠标移动：更新位置
+  const handleTooltipMove = useCallback((e: React.MouseEvent) => {
+    setTooltip(t => (t ? { ...t, x: e.clientX, y: e.clientY } : null));
+  }, []);
+
+  // 离开：隐藏
+  const handleTooltipLeave = useCallback(() => setTooltip(null), []);
 
   const hasKeyword = keyword.trim().length > 0;
   const hotList = hotItems[hotPlatform];
@@ -79,20 +97,26 @@ export default function SearchBar() {
   }, [setKeyword, submitSearch]);
 
   // ★ 高亮：匹配输入的前缀段显示灰色
+  const suggestTooltipHandlers = useMemo(() => ({
+    onMouseEnter: (e: React.MouseEvent, text: string) => handleTooltipEnter(e, text),
+    onMouseMove: handleTooltipMove,
+    onMouseLeave: handleTooltipLeave,
+  }), [handleTooltipEnter, handleTooltipMove, handleTooltipLeave]);
+
   const renderSuggestLabel = useCallback((label: string) => {
     const kw = keyword.trim();
-    if (!kw) return <span className="search-suggest-text">{label}</span>;
+    if (!kw) return <span className="search-suggest-text" {...suggestTooltipHandlers} onMouseEnter={e => suggestTooltipHandlers.onMouseEnter(e, label)}>{label}</span>;
     const idx = label.toLowerCase().indexOf(kw.toLowerCase());
-    if (idx === -1) return <span className="search-suggest-text">{label}</span>;
+    if (idx === -1) return <span className="search-suggest-text" {...suggestTooltipHandlers} onMouseEnter={e => suggestTooltipHandlers.onMouseEnter(e, label)}>{label}</span>;
     const before = label.slice(0, idx);
     const matched = label.slice(idx, idx + kw.length);
     const after = label.slice(idx + kw.length);
     return (
-      <span className="search-suggest-text">
+      <span className="search-suggest-text" {...suggestTooltipHandlers} onMouseEnter={e => suggestTooltipHandlers.onMouseEnter(e, label)}>
         {before}<span className="search-suggest-match">{matched}</span>{after}
       </span>
     );
-  }, [keyword]);
+  }, [keyword, suggestTooltipHandlers]);
 
   // 平台切换
   const toggleHotPlatform = useCallback((p: HotPlatform) => {
@@ -143,7 +167,12 @@ export default function SearchBar() {
               <div className="search-grid">
                 {history.map((kw, i) => (
                   <div key={`h-${i}`} className="search-grid-item search-history-item" onClick={() => selectHistory(kw)}>
-                    <span className="search-history-text">{kw}</span>
+                    <span
+                      className="search-history-text"
+                      onMouseEnter={e => handleTooltipEnter(e, kw)}
+                      onMouseMove={handleTooltipMove}
+                      onMouseLeave={handleTooltipLeave}
+                    >{kw}</span>
                     <button className="search-history-remove" onClick={(e) => { e.stopPropagation(); removeHistory(kw); }}>×</button>
                   </div>
                 ))}
@@ -167,13 +196,23 @@ export default function SearchBar() {
                 {hotList.map((item, i) => (
                   <div key={`hot-${i}`} className="search-grid-item search-hot-item" onClick={() => selectHistory(item)}>
                     <span className={`search-hot-rank rank-${i + 1}`}>{i + 1}</span>
-                    <span className="search-hot-text">{item}</span>
+                    <span
+                      className="search-hot-text"
+                      onMouseEnter={e => handleTooltipEnter(e, item)}
+                      onMouseMove={handleTooltipMove}
+                      onMouseLeave={handleTooltipLeave}
+                    >{item}</span>
                   </div>
                 ))}
               </div>
             </>
           )}
         </div>
+      )}
+
+      {/* ★ tooltip 挂载点：跟随鼠标，仅截断时显示 */}
+      {tooltip && (
+        <div className="search-tooltip" style={{ left: tooltip.x + 12, top: tooltip.y + 12 }}>{tooltip.text}</div>
       )}
 
       {/* ★ 搜索联想：仅有输入时显示，三者不并存 */}
