@@ -433,23 +433,39 @@ async function qqSuggest(keyword) {
     const json = await qqSuggestFetch(keyword);
     if (!json || json.code !== 0 || !json.data) return [];
     const data = json.data;
-    const out = [];
     const seen = new Set();
-    // 优先 keyword 联想词，再取歌手/歌名去重
+    const out = [];
+
+    const push = (label) => {
+      if (!label || seen.has(label)) return;
+      seen.add(label);
+      out.push(label);
+    };
+
+    // ★ 优先级 1: 歌手名（完整艺术家，显示名） —— 始终排在第一位
+    if (Array.isArray(data.singer?.itemlist)) {
+      for (const it of data.singer.itemlist) { if (out.length >= 12) break; push(it.name); }
+    }
+    // ★ 优先级 2: 歌曲名（保留纯歌名，不拼歌手；若接口给了 singer 但 user 搜的是歌名片段也保留）
+    if (Array.isArray(data.song?.itemlist)) {
+      for (const it of data.song.itemlist) {
+        if (out.length >= 12) break;
+        push(it.name);
+      }
+    }
+    // ★ 优先级 3: 专辑名
+    if (Array.isArray(data.album?.itemlist)) {
+      for (const it of data.album.itemlist) { if (out.length >= 12) break; push(it.name); }
+    }
+    // ★ 优先级 4: keyword 联想（引擎推荐的完整短语，兜底）
     if (Array.isArray(data.keyword?.itemlist)) {
-      for (const it of data.keyword.itemlist) {
-        if (out.length >= 12) break;
-        if (it.name && !seen.has(it.name)) { seen.add(it.name); out.push(it.name); }
-      }
+      for (const it of data.keyword.itemlist) { if (out.length >= 12) break; push(it.name); }
     }
-    for (const key of ['song', 'singer', 'album', 'mv']) {
-      if (!Array.isArray(data[key]?.itemlist)) continue;
-      for (const it of data[key].itemlist) {
-        if (out.length >= 12) break;
-        const label = it.name && it.singer ? `${it.name} - ${it.singer}` : (it.name || '');
-        if (label && !seen.has(label)) { seen.add(label); out.push(label); }
-      }
+    // ★ 最后补 MV（通常较少用到）
+    if (Array.isArray(data.mv?.itemlist)) {
+      for (const it of data.mv.itemlist) { if (out.length >= 12) break; push(it.name); }
     }
+
     return out.slice(0, 9);
   } catch { return []; }
 }

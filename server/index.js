@@ -84,12 +84,26 @@ const server = http.createServer(async (req, res) => {
       res.end(JSON.stringify(data.body || data));
       return;
     }
-    // 网易云 搜索联想  NeteaseCloudMusicApi.search_suggest → { body: { result: { allMatch: [{ keyword }] } } }
+    // ★ 网易云 搜索联想  search_suggest → 按 alg 相关性重排后返回（歌手 > 专辑 > 歌名 > 兜底）
     if (url.pathname === '/api/netease/search/suggest') {
       const keyword = url.searchParams.get('keyword') || '';
       const data = await api.search_suggest({ keywords: keyword, type: 'mobile' });
+      const body = data.body || data;
+      const allMatch = body && body.result && Array.isArray(body.result.allMatch) ? body.result.allMatch : [];
+      // 评分: alg 含 'Artist' > 含 'Album' > 其它；同分保留原序（服务端原始顺序本身合理）
+      const kw = keyword.trim().toLowerCase();
+      const scored = allMatch.map((it, idx) => {
+        const alg = (it.alg || '').toLowerCase();
+        let s = 0;
+        if (alg.includes('artist')) s += 100;   // 歌手标签优先
+        if (alg.includes('album')) s += 50;     // 专辑次之
+        if (it.keyword && it.keyword.trim().toLowerCase() === kw) s += 200; // 精确匹配最优先
+        return { it, s, idx };
+      });
+      scored.sort((a, b) => (b.s - a.s) || (a.idx - b.idx));
+      body.result.allMatch = scored.map(x => x.it);
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(data.body || data));
+      res.end(JSON.stringify(body));
       return;
     }
     // ★ QQ音乐 热搜榜（provider：优先 musicu 新接口 / fallback gethotkey + 5分钟缓存）
