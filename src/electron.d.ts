@@ -30,6 +30,9 @@ declare global {
       switchAccount: (platform: 'netease' | 'qq') => Promise<void>;
       onAccountRemoved: (callback: (data: { platform: string }) => void) => () => void;
       clearPlatformSession: (platform: 'netease' | 'qq') => Promise<void>;
+      // ★ 拖拽 blur 桥: 主进程通知"窗口拖拽开始/结束", App blur .s-input
+      onWindowDragStart: (callback: () => void) => () => void;
+      onWindowDragEnd: (callback: () => void) => () => void;
     };
   }
 }

@@ -67,6 +67,7 @@ function createWindow() {
 
   mainWin.once('ready-to-show', () => mainWin.show());
   registerIpcHandlers(mainWin);
+  // ★ preload mousedown → IPC('window:drag-start') → main relay → App.tsx blur .s-input (in ipc.js)
 }
 
 async function initServer() {

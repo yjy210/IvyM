@@ -25,6 +25,17 @@ export default function App() {
   const currentView = usePlayerStore(s => s.currentView);
   const setCurrentView = usePlayerStore(s => s.setCurrentView);
 
+  // ★ Electron 拖拽失焦桥: 窗口拖拽开始/结束时由 preload IPC 广播, 这里 blur 搜索框
+  useEffect(() => {
+    if (!window.electronAPI?.onWindowDragStart) return;
+    const offStart = window.electronAPI.onWindowDragStart(() => {
+      const el = document.activeElement as HTMLElement | null;
+      if (el && el.classList && el.classList.contains('s-input')) el.blur();
+    });
+    const offEnd = window.electronAPI.onWindowDragEnd(() => {});
+    return () => { offStart?.(); offEnd?.(); };
+  }, []);
+
   // ★ 封面主色提取（监听 currentSong.cover）
   useCoverColor();
   const setCoverOpen = usePlayerStore(s => s.setCoverOpen);

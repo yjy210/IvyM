@@ -1,5 +1,23 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
+// ★ 拖拽 blur 桥: 在 document 层捕获冒泡 mousedown
+//    仅当路径经过 [data-window-drag-start] (titlebar 空白 spacer) 时,
+//    ipc 通知主进程 → 主进程 send 'window:drag-start' → App.tsx blur .s-input
+//    功能按钮(.app-region-no-drag 内部)点击时冒泡经过, 但因为同时经过 .app-region-no-drag,
+//    我们跳过. 顶部 logo 文字本身也不 blur.
+document.addEventListener(
+  'mousedown',
+  (e) => {
+    const t = e.target as HTMLElement | null;
+    const inDragBlock = !!(t && t.closest && t.closest('[data-window-drag-start]'));
+    const inNoDrag = !!(t && t.closest && t.closest('.app-region-no-drag'));
+    // 命中 drag-only 空白 spacer, 且不经过 no-drag 功能区, 才触发 blur
+    if (inDragBlock && !inNoDrag) ipcRenderer.send('window:drag-start');
+  },
+  true, // capture phase, 早于 React合成事件处理, 确保 blur 发生在 focus 变化之前
+);
+document.addEventListener('mouseup', () => ipcRenderer.send('window:drag-end'), true);
+
 contextBridge.exposeInMainWorld('electronAPI', {
   // --- 窗口控制 ---
   minimize: () => ipcRenderer.send('window:minimize'),
@@ -45,4 +63,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAccounts: () => ipcRenderer.invoke('account:get'),
   upsertAccount: (account) => ipcRenderer.invoke('account:upsert', account),
   removeAccount: (platform) => ipcRenderer.invoke('account:remove', platform),
+
+  // ★ 窗口拖拽 IPC 订阅: 主进程通知渲染进程"窗口开始拖拽/结束拖拽"
+  onWindowDragStart: (callback) => {
+    const listener = () => callback();
+    ipcRenderer.on('window:drag-start', listener);
+    return () => ipcRenderer.removeListener('window:drag-start', listener);
+  },
+  onWindowDragEnd: (callback) => {
+    const listener = () => callback();
+    ipcRenderer.on('window:drag-end', listener);
+    return () => ipcRenderer.removeListener('window:drag-end', listener);
+  },
 });

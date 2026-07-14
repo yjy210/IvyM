@@ -40,6 +40,15 @@ function registerIpcHandlers(win) {
   });
 
   ipcMain.handle('window:isMaximized', () => isMaxed);
+
+  // ★ 拖拽 blur 桥: preload 通知主进程 "drag 区被 mousedown", 主进程 relay 给渲染进程
+  //    App.tsx 订阅 onWindowDragStart/onWindowDragEnd, 仅 blur 搜索输入框 (.s-input)
+  ipcMain.on('window:drag-start', () => {
+    win.webContents.send('window:drag-start');
+  });
+  ipcMain.on('window:drag-end', () => {
+    win.webContents.send('window:drag-end');
+  });
 }
 
 module.exports = { registerIpcHandlers };
