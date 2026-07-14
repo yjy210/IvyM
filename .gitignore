@@ -5,16 +5,18 @@ dist-app/
 .DS_Store
 build/icon.ico
 
-# Session / cookie files (per-user secrets)
+# Session / cookie files (per-user secrets) — 登录态/Cookie，永不入库
 server/.kg-cookie.json
 server/.kg-session.json
 server/.netease-cookie.json
 server/.qq-cookie.json
 server/.mm-cookie.json
 
-# User account data (real accounts, personal info)
-data/accounts.json
-data/accounts.local.json
+# User account data (real accounts, personal info) — 活账号/调试文件永不入库
+data/
+server/.accounts.json
+server/.accounts.local.json
+server/.qq-debug-*.json
 
 # Debug / test artifacts
 server/.kugoo-dump-*.json
