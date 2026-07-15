@@ -81,17 +81,6 @@ const LyricsPage = () => {
 
     useEffect(() => { if (visible) setMounted(true) }, [visible])
 
-    useEffect(() => {
-        if (!mounted || !contentRef.current) return
-        if (visible) {
-            gsap.fromTo(contentRef.current,
-                { opacity: 0, y: 30, filter: 'blur(8px)' },
-                { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.6, ease: 'power3.out' })
-        } else {
-            gsap.to(contentRef.current, { opacity: 0, duration: 0.2 })
-        }
-    }, [visible, mounted])
-
     // 歌词行切换动画
     useEffect(() => {
         if (!lineRef.current) return
