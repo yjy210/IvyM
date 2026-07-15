@@ -8,7 +8,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 document.addEventListener(
   'mousedown',
   (e) => {
-    const t = e.target as HTMLElement | null;
+    const t = e.target;
     const inDragBlock = !!(t && t.closest && t.closest('[data-window-drag-start]'));
     const inNoDrag = !!(t && t.closest && t.closest('.app-region-no-drag'));
     // 命中 drag-only 空白 spacer, 且不经过 no-drag 功能区, 才触发 blur
@@ -72,10 +72,10 @@ contextBridge.exposeInMainWorld('electron', {
     minimize: () => ipcRenderer.send('window:minimize'),
     maximize: () => ipcRenderer.send('window:maximize'),
     close: () => ipcRenderer.send('window:close'),
-    onMaximize: (callback: () => void) => {
+    onMaximize: (callback) => {
       ipcRenderer.on('window:maximized', () => callback())
     },
-    onUnmaximize: (callback: () => void) => {
+    onUnmaximize: (callback) => {
       ipcRenderer.on('window:unmaximized', () => callback())
     },
   },
