@@ -76,18 +76,20 @@ const LyricsPage = () => {
     const curr = lines[activeIdx] || lines[0]
 
     const [mounted, setMounted] = useState(false)
+    const [ready, setReady] = useState(false)  // ★ Curve 完成后才 true
     const contentRef = useRef<HTMLDivElement>(null)
     const lineRef = useRef<HTMLDivElement>(null)
 
-    useEffect(() => { if (visible) setMounted(true) }, [visible])
+    useEffect(() => {
+      if (visible) { setReady(false); setMounted(true) }
+    }, [visible])
 
-    // ★ 内容淡入只由 GSAP 控制 (delay 等 Curve 完成)
     useEffect(() => {
         if (!mounted || !contentRef.current) return
         if (visible) {
             gsap.fromTo(contentRef.current,
                 { opacity: 0 },
-                { opacity: 1, duration: 0.45, delay: 0.35, ease: 'power2.out' })
+                { opacity: 1, duration: 0.45, ease: 'power2.out' })
         } else {
             gsap.to(contentRef.current, { opacity: 0, duration: 0.2 })
         }
@@ -130,16 +132,21 @@ const LyricsPage = () => {
             className={`lyrics-page ${visible ? 'is-open' : 'is-closing'}`}
             style={{ color: palette.text }}
         >
-            <div className="lyrics-bg" style={{ background: palette.background }} />
+            {/* ★ 背景: Curve 完成后 (ready) 才显示 */}
+            <div
+              className={`lyrics-bg ${ready ? 'show' : ''}`}
+              style={{ background: palette.background }}
+            />
 
-            {/* Curve Swipe 揭幕 */}
+            {/* Curve 揭幕: onOpened → ready=true, onClosed → ready=false + unmount */}
             <CurveTransition
                 active={visible}
                 color={palette.bgDark}
-                onClosed={() => setMounted(false)}
+                onOpened={() => setReady(true)}
+                onClosed={() => { setReady(false); setMounted(false) }}
             />
 
-            <div ref={contentRef} className="lyrics-content">
+            <div ref={contentRef} className={`lyrics-content ${ready ? 'show' : ''}`}>
                 <button className="lyrics-close" onClick={close} aria-label="关闭" style={{ color: palette.text }}>
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
                         <path d="M6 6L18 18M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
