@@ -33,7 +33,7 @@ const CurveTransition = ({ active, color = '#000', onOpened, onClosed }: Props) 
 
   // ★ 只初始化一次 (空依赖)
   useEffect(() => {
-    if (!pathRef.current) return
+    if (!pathRef.current || !svgRef.current) return
     tlRef.current = gsap
       .timeline({
         paused: true,

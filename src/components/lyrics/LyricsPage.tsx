@@ -8,7 +8,6 @@ import './lyrics-page.css'
 
 interface LyricLine { time: number; text: string; tr?: string }
 
-/** 极简 LRC 解析 */
 function parseLrc(lrc?: string, tlrc?: string): LyricLine[] {
   if (!lrc) return []
   const parse = (raw: string) => {
@@ -45,8 +44,9 @@ const LyricsPage = () => {
 
   const currentSong = usePlayerStore((s) => s.currentSong)
   const currentTime = usePlayerStore((s) => s.currentTime)
-  const lyric  = (usePlayerStore as any)?.getState?.().lyric  as string | undefined
-  const tlyric = (usePlayerStore as any)?.getState?.().tlyric as string | undefined
+
+  // 安全读取 lyric/tlyric (可能不存在于 store)
+
 
   const cover  = currentSong?.cover
   const palette = useDominantColor(cover)
@@ -56,10 +56,7 @@ const LyricsPage = () => {
   const contentRef = useRef<HTMLDivElement>(null)
   const lineRef   = useRef<HTMLDivElement>(null)
 
-  const lines = useMemo(() => {
-    const parsed = parseLrc(lyric, tlyric)
-    return parsed.length ? parsed : DUMMY_LYRICS
-  }, [lyric, tlyric])
+  const lines = DUMMY_LYRICS  // 阶段1用静态假数据
 
   const activeIdx = useMemo(() => {
     if (!lines.length) return 0
@@ -79,17 +76,17 @@ const LyricsPage = () => {
   onOpenedRef.current = () => setRevealed(true)
   onClosedRef.current = () => { setRevealed(false); setMounted(false) }
 
-  useEffect(() => { if (visible) { setRevealed(false); setMounted(true) } }, [visible])
+  useEffect(() => {
+    if (visible) { setRevealed(false); setMounted(true) }
+  }, [visible])
 
   // 内容淡入/淡出
   useEffect(() => {
-    if (!mounted) return
-    if (contentRef.current) {
-      if (revealed) {
-        gsap.fromTo(contentRef.current, { opacity: 0 }, { opacity: 1, duration: 0.4, ease: 'power2.out' })
-      } else {
-        gsap.to(contentRef.current, { opacity: 0, duration: 0.2 })
-      }
+    if (!mounted || !contentRef.current) return
+    if (revealed) {
+      gsap.fromTo(contentRef.current, { opacity: 0 }, { opacity: 1, duration: 0.4, ease: 'power2.out' })
+    } else {
+      gsap.to(contentRef.current, { opacity: 0, duration: 0.2 })
     }
     if (lineRef.current) {
       gsap.fromTo(lineRef.current,
@@ -110,19 +107,28 @@ const LyricsPage = () => {
   pushIf('Lyrics by',    (currentSong as any)?.lyricist)
   pushIf('Composer',     (currentSong as any)?.composer)
   pushIf('Written by',   (currentSong as any)?.writer)
-  pushIf('Visual Design',(currentSong as any)?.visualDesign)
 
   return (
     <div className="lyrics-page" style={{ color: palette.text }}>
-      {/* 背景: Curve 完全打开后才显示 */}
+      {/* ★ 背景: Curve 完全打开 (revealed) 后才显示 */}
       <div className={`lyrics-bg ${revealed ? 'show' : ''}`} style={{ background: palette.background }} />
 
-      {/* Curve Swipe 揭幕层 */}
-      <CurveTransition active={visible && !closing} color={palette.bgDark} />
+      {/* Curve 揭幕层 */}
+      <CurveTransition
+        active={visible}
+        color={palette.bgDark}
+        onOpened={() => setRevealed(true)}
+        onClosed={() => { setRevealed(false); setMounted(false) }}
+      />
 
-      {/* 内容层 */}
-      <div ref={contentRef} className="lyrics-content" style={{ opacity: 0 }}>
-        <button className="lyrics-close" onClick={() => { setRevealed(false); close() }} aria-label="关闭" style={{ color: palette.text }}>
+      {/* 内容 */}
+      <div ref={contentRef} className="lyrics-content" style={{ color: palette.text }}>
+        <button
+          className="lyrics-close"
+          onClick={() => { setRevealed(false); close() }}
+          aria-label="关闭"
+          style={{ color: palette.text }}
+        >
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
             <path d="M6 6L18 18M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
           </svg>
@@ -158,6 +164,16 @@ const LyricsPage = () => {
           </div>
         </section>
       </div>
+
+      {/* ★ SVG gradient def */}
+      <svg width="0" height="0" style={{ position: 'absolute' }}>
+        <defs>
+          <linearGradient id="lyricsGrad" x1="0" y1="0" x2="99" y2="99" gradientUnits="userSpaceOnUse">
+            <stop offset="0.2" stopColor={palette.primary} />
+            <stop offset="0.7" stopColor={palette.bgDark} />
+          </linearGradient>
+        </defs>
+      </svg>
     </div>
   )
 }
