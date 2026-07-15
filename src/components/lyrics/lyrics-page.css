@@ -1,32 +1,25 @@
+/* ── 全屏歌词页 ── */
 .lyrics-page {
   position: fixed;
   inset: 0;
   z-index: 9000;
   overflow: hidden;
-  animation: lyricsRise .55s cubic-bezier(.2,.7,.2,1) both;
   -webkit-app-region: no-drag;
 }
-.lyrics-page.is-closing {
-  animation: lyricsFall .5s cubic-bezier(.6,0,.8,.3) both;
-}
-@keyframes lyricsRise   { from { transform: translateY(100%) } to { transform: translateY(0) } }
-@keyframes lyricsFall { from { transform: translateY(0) }    to { transform: translateY(100%) } }
+/* ★ 不写 transform 动画：空间移动由 Curve SVG 负责, 避免"页面推上去 + 曲线升起"的双重动画 */
 
-/* ★ 背景层 */
 .lyrics-bg {
-  position: absolute;
-  inset: 0;
+  position: absolute; inset: 0;
   z-index: 0;
-  filter: blur(40px) saturate(1.2);
-  transform: scale(1.15); /* 避免边缘露出 */
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .2s ease;
 }
+.lyrics-bg.show { opacity: 1; }
 
-/* Curve 转场（在背景之上、内容之下） */
 .lyrics-curve {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
   z-index: 1;
   pointer-events: none;
 }
@@ -37,81 +30,147 @@
   display: flex;
   width: 100%;
   height: 100%;
-  padding: 6vh 6vw 8vh;
+  padding: 7vh 7vw 8vh;
   box-sizing: border-box;
-  transition: opacity .25s;
+  gap: 4vw;
+  will-change: opacity, transform;
+  opacity: 0;
 }
 
 .lyrics-close {
   position: absolute;
-  top: 18px;
-  right: 22px;
-  z-index: 5;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: rgba(255,255,255,.1);
-  color: inherit;
-  border: 0;
+  top: 22px; right: 26px;
+  width: 40px; height: 40px;
+  display: flex; align-items: center; justify-content: center;
+  border: 0; border-radius: 50%;
+  background: transparent;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background .2s;
+  opacity: .7;
   -webkit-app-region: no-drag;
+  transition: opacity .2s, background .2s;
+  z-index: 3;
 }
-.lyrics-close:hover { background: rgba(255,255,255,.2); }
+.lyrics-close:hover { opacity: 1; background: rgba(127,127,127,0.18); }
 
+/* ── 左：单句歌词 ── */
 .lyrics-left {
-  flex: 0 0 60%;
+  flex: 0 0 58%;
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  padding-right: 4vw;
+  padding-left: 2vw;
 }
-.lyrics-triplet {
+.lyrics-single {
+  max-width: 90%;
   display: flex;
   flex-direction: column;
-  gap: 3.2vh;
-  width: 100%;
-  font-family: -apple-system, "PingFang SC", "Helvetica Neue", "Segoe UI", sans-serif;
+  gap: 18px;
 }
-.lyrics-triplet .line { transition: all .35s cubic-bezier(.2,.7,.2,1); }
-.lyrics-triplet .line .l1 { line-height: 1.35; }
-.lyrics-triplet .prev, .lyrics-triplet .next {
-  opacity: .45;
-  font-size: 22px;
-  font-weight: 500;
-  filter: blur(.3px);
-}
-.lyrics-triplet .current {
-  opacity: 1;
-  font-size: 42px;
+.lyric-en {
+  font-family: "Times New Roman", "Noto Serif SC", "Songti SC", serif;
   font-weight: 800;
-  letter-spacing: .01em;
+  font-size: clamp(38px, 5.2vw, 76px);
+  line-height: 1.05;
+  letter-spacing: -0.01em;
+  word-break: break-word;
 }
-.lyrics-empty { opacity: .55; font-size: 20px; }
+.lyric-cn {
+  font-family: "Noto Serif SC", "Songti SC", "SimSun", serif;
+  font-weight: 700;
+  font-size: clamp(24px, 2.6vw, 40px);
+  line-height: 1.25;
+  margin-top: 8px;
+  letter-spacing: 0.02em;
+}
+.lyric-verse {
+  margin-top: 42px;
+  font-family: "Times New Roman", serif;
+  font-style: italic;
+  font-size: 14px;
+  opacity: .8;
+}
 
+/* ── 右：封面 + 元信息 ── */
 .lyrics-right {
-  flex: 0 0 40%;
+  flex: 0 0 38%;
   display: flex;
-  flex-direction: column;
   align-items: flex-start;
-  justify-content: center;
-  gap: 10px;
-  padding-left: 3vw;
-  border-left: 1px solid currentColor;
-  border-left-color: rgba(128,128,128,.25);
+  justify-content: flex-start;
+}
+.lyrics-right-inner {
+  display: grid;
+  grid-template-columns: 1fr 1.05fr;
+  grid-template-rows: auto auto auto;
+  column-gap: 22px;
+  row-gap: 20px;
+  width: 100%;
+  padding-top: 4px;
 }
 .lyrics-cover {
-  width: 240px;
-  max-width: 60%;
-  aspect-ratio: 1/1;
-  border-radius: 10px;
-  box-shadow: 0 20px 40px rgba(0,0,0,.35);
-  margin-bottom: 18px;
-  user-select: none;
+  grid-column: 1;
+  grid-row: 1;
+  width: 100%;
+  max-width: 220px;
+  aspect-ratio: 1 / 1;
   object-fit: cover;
+  border-radius: 4px;
+  box-shadow: 0 20px 40px rgba(0,0,0,.25);
+  user-select: none;
 }
-.meta-title  { font-size: 26px; font-weight: 800; line-height: 1.25; }
-.meta-artist { font-size: 15px; opacity: .85; }
+.song-head {
+  grid-column: 2;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding-top: 4px;
+  font-family: "Times New Roman", "Noto Serif SC", serif;
+}
+.song-title {
+  font-size: clamp(20px, 1.9vw, 28px);
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  line-height: 1.15;
+}
+.song-title-dot { font-weight: 400; margin-right: 4px; }
+.song-artist {
+  font-size: clamp(14px, 1.15vw, 17px);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+.song-album {
+  font-size: clamp(14px, 1.15vw, 17px);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  opacity: .95;
+}
+.song-extra {
+  grid-column: 1;
+  grid-row: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  font-family: "Times New Roman", "Noto Serif SC", serif;
+  margin-top: 4px;
+}
+.extra-block { display: flex; flex-direction: column; gap: 2px; }
+.extra-label { font-size: 13px; font-style: italic; opacity: .9; }
+.extra-value { font-size: 15px; font-weight: 800; line-height: 1.25; white-space: pre-line; }
+.song-label {
+  grid-column: 1 / span 2;
+  grid-row: 3;
+  align-self: end;
+  justify-self: end;
+  font-family: "Times New Roman", serif;
+  font-style: italic;
+  font-size: 13px;
+  margin-top: 20px;
+}
+
+@media (max-width: 1080px) {
+  .lyrics-content { flex-direction: column; padding: 6vh 6vw; gap: 24px; }
+  .lyrics-left, .lyrics-right { flex: 1 1 auto; padding: 0; }
+  .lyric-en { font-size: clamp(30px, 8vw, 54px); }
+  .lyrics-right-inner { grid-template-columns: 120px 1fr; }
+  .lyrics-cover { max-width: 120px; }
+}

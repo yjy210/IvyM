@@ -87,7 +87,7 @@ const LyricsPage = () => {
         if (visible) {
             gsap.fromTo(contentRef.current,
                 { opacity: 0 },
-                { opacity: 1, duration: 0.45, ease: 'power2.out' })
+                { opacity: 1, duration: 0.45, delay: 0.35, ease: 'power2.out' })
         } else {
             gsap.to(contentRef.current,
                 { opacity: 0, duration: 0.2 })
@@ -131,8 +131,11 @@ const LyricsPage = () => {
             className={`lyrics-page ${visible ? 'is-open' : 'is-closing'}`}
             style={{ color: palette.text }}
         >
-            {/* 专辑主色渐变背景 */}
-            <div className="lyrics-bg" style={{ background: palette.background }} />
+            {/* ★ 背景: visible 前 opacity 0, Curve 打开后才显示 */}
+            <div
+              className={`lyrics-bg ${visible ? 'show' : ''}`}
+              style={{ background: palette.background }}
+            />
 
             {/* Curve Swipe 揭幕（用暗化色，揭开全屏） */}
             <CurveTransition
