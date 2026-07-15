@@ -76,18 +76,18 @@ const LyricsPage = () => {
     const curr = lines[activeIdx] || lines[0]
 
     const [mounted, setMounted] = useState(false)
+    const [opened, setOpened] = useState(false)
     const contentRef = useRef<HTMLDivElement>(null)
     const lineRef = useRef<HTMLDivElement>(null)
 
-    useEffect(() => { if (visible) setMounted(true) }, [visible])
+    useEffect(() => { if (visible) { setOpened(false); setMounted(true) } }, [visible])
 
-    // ★ 内容只负责淡入/淡出（空间移动由 Curve 负责, 避免双重动画）
     useEffect(() => {
         if (!mounted || !contentRef.current) return
-        if (visible) {
+        if (opened) {
             gsap.fromTo(contentRef.current,
                 { opacity: 0 },
-                { opacity: 1, duration: 0.45, delay: 0.35, ease: 'power2.out' })
+                { opacity: 1, duration: 0.45, ease: 'power2.out' })
         } else {
             gsap.to(contentRef.current,
                 { opacity: 0, duration: 0.2 })
@@ -141,11 +141,12 @@ const LyricsPage = () => {
             <CurveTransition
                 active={visible}
                 color={palette.bgDark}
-                onClosed={() => setMounted(false)}
+                onOpened={() => setOpened(true)}
+                onClosed={() => { setOpened(false); setMounted(false) }}
             />
 
-            {/* 内容层 */}
-            <div ref={contentRef} className="lyrics-content">
+            {/* 内容层: Curve 打开(opened)后才显示 */}
+            <div ref={contentRef} className={`lyrics-content ${opened ? 'show' : ''}`}>
                 <button className="lyrics-close" onClick={close} aria-label="关闭" style={{ color: palette.text }}>
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
                         <path d="M6 6L18 18M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />

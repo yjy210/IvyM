@@ -12,10 +12,7 @@
   position: absolute; inset: 0;
   z-index: 0;
   pointer-events: none;
-  opacity: 0;
-  transition: opacity .2s ease;
 }
-.lyrics-bg.show { opacity: 1; }
 
 .lyrics-curve {
   position: absolute; inset: 0;
@@ -36,6 +33,7 @@
   will-change: opacity, transform;
   opacity: 0;
 }
+.lyrics-content.show { opacity: 1; }
 
 .lyrics-close {
   position: absolute;
