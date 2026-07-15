@@ -23,18 +23,14 @@ export default function App() {
   const [entered, setEntered] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const currentView = usePlayerStore(s => s.currentView);
-  const setCurrentView = usePlayerStore(s => s.setCurrentView);
 
-
-  // ★ 封面主色提取（监听 currentSong.cover）
   useCoverColor();
   const setCoverOpen = usePlayerStore(s => s.setCoverOpen);
   const coverOpen = usePlayerStore(s => s.coverOpen);
   const currentSong = usePlayerStore(s => s.currentSong);
-  // ★ 切歌时收回封面（用 ref 跟踪上一首 id，避免首帧误触发）
   const prevSongIdRef = useRef<string | null>(null);
   useEffect(() => {
-    const id = currentSong ? `${currentSong.source}-${currentSong.id || currentSong.mid}` : null;
+    const id = currentSong ? `${currentSong.source}-${currentSong.id || (currentSong as any).mid}` : null;
     const prev = prevSongIdRef.current;
     prevSongIdRef.current = id;
     if (prev !== null && id !== prev) setCoverOpen(false);
@@ -52,12 +48,26 @@ export default function App() {
     window.electronAPI?.onUnmaximize(() => document.body.classList.remove('maximized'));
   }, []);
 
+  useEffect(() => {
+    const shield = document.getElementById('boot-shield');
+    if (!shield) return;
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        shield.classList.add('fade-out');
+        setTimeout(() => shield.remove(), 600);
+      });
+    });
+  }, []);
+
   return (
     <>
       {!entered && <LogoAnimation onEnter={() => setEntered(true)} />}
 
-      <div className="w-full h-full flex flex-col relative overflow-hidden">
-        {/* Grainient 流动背景 - 全屏 */}
+      <div
+        className="w-full h-full flex flex-col relative overflow-hidden"
+        style={{ visibility: entered ? 'visible' : 'hidden' }}
+        aria-hidden={!entered}
+      >
         <div className="absolute inset-0 z-0">
           <Grainient
             color1="#ffffff" color2="#f5f5dc" color3="#766A5E"
@@ -67,46 +77,37 @@ export default function App() {
           />
         </div>
 
+        {/* ★ TitleBar 里已包含 IvyM 胶囊 —— 不再在 App 中重复渲染 */}
         <TitleBar />
 
-        {/* 搜索框 - 常驻；封面升起时隐藏，避免浮在彩色背景之上 */}
         <div className={coverOpen ? 'hidden' : ''}>
           <SearchBar />
         </div>
 
-        {/* 左上角 Logo — 点击返回主页；封面升起时隐藏 */}
-        <button
-          className={`absolute top-3 left-4 z-50 px-3 h-8 flex items-center justify-center rounded-lg bg-black/40 backdrop-blur-sm hover:bg-black/60 transition-colors${coverOpen ? ' hidden' : ''}`}
-          style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
-          onClick={() => setCurrentView('home')}
-          title="返回主页"
+        {/* ★ 主内容区 —— 唯一滚动容器 */}
+        <div
+          className="flex-1 overflow-y-auto z-10 px-6"
+          style={{ paddingTop: 8, paddingBottom: 24 }}
         >
-          <span className="text-white text-sm font-bold tracking-wide">IvyM</span>
-        </button>
-
-        <div className="flex-1 overflow-y-auto z-10 px-6 pt-2">
           {currentView === 'search' && <Search />}
           {currentView === 'home' && <Home />}
-          {/* 底部留白 — 播放器高86px+底边距12px，确保内容不被遮挡 */}
-          <div className="h-28 shrink-0" />
+          <div className="h-24 shrink-0" aria-hidden />
         </div>
 
-        {/* 返回顶部按钮 */}
         <BackToTop />
 
-        {/* 播放控制栏 */}
         <Player />
 
-        {/* ★ 沉浸封面背景 —— 曲线升起层（z-750，播放器保持在它之上） */}
         <CoverTransition />
 
-        {/* ★ 全屏歌词页 —— 点击播放器封面打开 */}
         <LyricsPage />
 
-        {/* ★ 右上角登录按钮 — 窗口控制已迁入 TitleBar（保留右上角登录入口） */}
-        <div className="absolute top-4 right-4 z-50 flex items-center gap-3" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
+        <div
+          className="absolute top-1.5 right-4 z-50 flex items-center gap-3"
+          style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}
+        >
           <div className="login-btn-wrapper" onMouseEnter={() => setShowDropdown(true)}>
-            <button className="px-4 py-2 rounded-full bg-black/60 backdrop-blur-sm text-white text-xs font-medium hover:bg-black/80 transition-colors">
+            <button className="px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-sm text-white text-xs font-medium hover:bg-black/80 transition-colors">
               登录
             </button>
             {showDropdown && <LoginDropdown onClose={() => setShowDropdown(false)} />}

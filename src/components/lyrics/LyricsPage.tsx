@@ -51,13 +51,14 @@ const LyricsPage = () => {
 
     const currentSong = usePlayerStore((s) => s.currentSong)
     const currentTime = usePlayerStore((s) => s.currentTime)
-    // 尝试读取真歌词 / 翻译；没有字段就 fallback 假数据
+    const duration = usePlayerStore((s) => s.duration)
+    const playerHidden = usePlayerStore((s) => s.playerHidden)
+
     const lyric = (usePlayerStore as any)((s: any) => s.lyric) as string | undefined
     const tlyric = (usePlayerStore as any)((s: any) => s.tlyric) as string | undefined
 
     const cover = currentSong?.cover
     const palette = useDominantColor(cover)
-    console.log('[LyricsPage] palette =', palette, 'cover =', cover)
 
     const lines = useMemo(() => {
         const parsed = parseLrc(lyric, tlyric)
@@ -77,25 +78,37 @@ const LyricsPage = () => {
     const curr = lines[activeIdx] || lines[0]
 
     const [mounted, setMounted] = useState(false)
+    const [curveDone, setCurveDone] = useState(false)
     const contentRef = useRef<HTMLDivElement>(null)
     const lineRef = useRef<HTMLDivElement>(null)
 
-    useEffect(() => { if (visible) setMounted(true) }, [visible])
-
-    // ★ 内容淡入淡出 (与 Curve 同步: 打开延迟等 Curve, 关闭先淡出)
     useEffect(() => {
-        if (!contentRef.current) return
         if (visible) {
-            gsap.fromTo(contentRef.current,
-                { opacity: 0 },
-                { opacity: 1, duration: 0.5, delay: 0.7, ease: 'power2.out' })
-        } else {
-            gsap.to(contentRef.current,
-                { opacity: 0, duration: 0.35, ease: 'power2.in' })
+            setMounted(true)
+            setCurveDone(false)
         }
     }, [visible])
 
-    // 歌词行切换动画
+    useEffect(() => {
+        if (!contentRef.current) return
+        if (visible) {
+            gsap.set(contentRef.current, { opacity: 0, y: 24 })
+            gsap.to(contentRef.current, {
+                opacity: 1,
+                y: 0,
+                duration: 0.55,
+                delay: 0.75,
+                ease: 'power2.out',
+                onStart: () => setCurveDone(true),
+            })
+        } else {
+            gsap.to(contentRef.current, {
+                opacity: 0, y: 12, duration: 0.32, ease: 'power2.in',
+                onComplete: () => setCurveDone(false),
+            })
+        }
+    }, [visible, mounted])
+
     useEffect(() => {
         if (!lineRef.current) return
         gsap.fromTo(lineRef.current,
@@ -103,7 +116,6 @@ const LyricsPage = () => {
             { opacity: 1, y: 0, filter: 'blur(0px)', duration: 0.5, ease: 'power2.out' })
     }, [activeIdx])
 
-    // Esc 关闭
     useEffect(() => {
         if (!visible) return
         const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close() }
@@ -125,43 +137,42 @@ const LyricsPage = () => {
     pushIf('Written by', (currentSong as any)?.writer)
     pushIf('Visual Design', (currentSong as any)?.visualDesign)
 
-    const verseLabel = (currentSong as any)?.verse || '(Verse I)'
+    const progressPct = duration && duration > 0
+        ? Math.min((currentTime / duration) * 100, 100)
+        : 0
 
     return (
         <div
-            className={`lyrics-page ${visible ? 'is-open' : 'is-closing'}`}
+            className={`lyrics-page ${visible ? 'is-open' : 'is-closing'} ${curveDone ? 'curve-done' : ''}`}
             style={{ color: palette.text }}
         >
-            {/* ★ Curve = 唯一背景 + 揭幕动画 (SVG fill 不支持 CSS gradient, 改用纯色) */}
+            {/* ★ 顶部拖动条——让 Electron 能拖动窗口 */}
+            <div className="lyrics-drag-strip" aria-hidden />
+
+            {/* ★ Curve = 唯一背景 + 揭幕动画 */}
             <CurveTransition
                 active={visible}
                 color={palette.bgDark}
                 onClosed={() => setMounted(false)}
             />
 
-            <div ref={contentRef} className="lyrics-content">
-                <button className="lyrics-close" onClick={close} aria-label="关闭" style={{ color: palette.text }}>
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                        <path d="M6 6L18 18M18 6L6 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                    </svg>
-                </button>
-
-                {/* ── 左：单句大字 ── */}
+            <div ref={contentRef} className="lyrics-content" style={{ color: palette.text }}>
                 <section className="lyrics-left">
                     <div ref={lineRef} className="lyrics-single">
-                        <div className="lyric-en">{curr?.text || ' '}</div>
-                        {curr?.tr && <div className="lyric-cn">{curr.tr}</div>}
-                        <div className="lyric-verse" style={{ color: palette.textDim }}>{verseLabel}</div>
+                        <div className="lyric-en" style={{ color: palette.text }}>{curr?.text || ' '}</div>
+                        {curr?.tr && <div className="lyric-cn" style={{ color: palette.text }}>{curr.tr}</div>}
+                        {/* ★ 已删除 (Verse I) 提示 */}
                     </div>
                 </section>
 
-                {/* ── 右：封面 + 元信息 ── */}
                 <section className="lyrics-right">
                     <div className="lyrics-right-inner">
                         <div className="song-head">
-                            <div className="song-title"><span className="song-title-dot">♪</span> {title}</div>
-                            <div className="song-artist">{artist}</div>
-                            {album && <div className="song-album">{album}</div>}
+                            <div className="song-title" style={{ color: palette.text }}>
+                                <span className="song-title-dot">♪</span> {title}
+                            </div>
+                            <div className="song-artist" style={{ color: palette.text }}>{artist}</div>
+                            {album && <div className="song-album" style={{ color: palette.text }}>{album}</div>}
                         </div>
 
                         {cover && <img className="lyrics-cover" src={cover} alt="" draggable={false} />}
@@ -171,16 +182,24 @@ const LyricsPage = () => {
                                 {extras.map((e) => (
                                     <div key={e.label} className="extra-block">
                                         <div className="extra-label" style={{ color: palette.textDim }}>{e.label}</div>
-                                        <div className="extra-value">{e.value}</div>
+                                        <div className="extra-value" style={{ color: palette.text }}>{e.value}</div>
                                     </div>
                                 ))}
                             </div>
                         )}
 
-                        <div className="song-label" style={{ color: palette.textDim }}>* 歌词页（演示）</div>
+                        {/* ★ 已删除 * 歌词页（演示）标签 */}
                     </div>
                 </section>
             </div>
+
+            {/* ★ 底部迷你进度条——仅播放器隐藏时显示；颜色随字色变化 */}
+            {playerHidden && (
+                <div
+                    className="lyrics-mini-progress"
+                    style={{ width: `${progressPct}%`, background: palette.text }}
+                />
+            )}
         </div>
     )
 }

@@ -2,10 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
-
 .login-btn-wrapper { position: relative; }
 
-/* === 全局基础样式 — 米白色主题 === */
 * {
   margin: 0;
   padding: 0;
@@ -22,67 +20,86 @@ html, body, #root {
   user-select: none;
 }
 
-/* === 窗口圆角（核心！） === */
 #root {
   border-radius: 16px;
   clip-path: inset(0 round 16px);
   overflow: hidden;
-  background: #F5F5DC;
+  background: transparent;
   display: flex;
   flex-direction: column;
 }
 
-/* 最大化时去掉圆角 */
 body.maximized #root {
   border-radius: 0 !important;
   clip-path: none !important;
 }
 
-/* === 滚动条美化 === */
-::-webkit-scrollbar {
-  width: 6px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.12);
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.2);
-}
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.12); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.2); }
 
-/* === 标题栏拖拽区域 === */
-.app-region-drag {
-  -webkit-app-region: drag;
-}
-.app-region-no-drag {
-  -webkit-app-region: no-drag;
-}
+.app-region-drag    { -webkit-app-region: drag; }
+.app-region-no-drag { -webkit-app-region: no-drag; }
 
-/* === 窗口控制按钮 === */
-.window-btn {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  border: none;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  display: flex;
+/* ═══════════ 左上角 IvyM 胶囊（TitleBar 内唯一 logo） ═══════════
+   - 与 .app-region-drag 组合 → 可拖动窗口
+   - onClick 依然生效（Electron: 短点击视为 click）
+   - 视觉：深色圆角胶囊，Hover 加深，Active 略缩 */
+.ivym-badge {
+  height: 28px;
+  padding: 0 12px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
+  border: none;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+  flex-shrink: 0;
 }
-.window-btn svg {
-  opacity: 0;
-  transition: opacity 0.15s ease;
+.ivym-badge:hover  { background: rgba(0, 0, 0, 0.75); }
+.ivym-badge:active { transform: scale(0.96); }
+
+.ivym-badge-text {
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  pointer-events: none;    /* 让整个胶囊本身接手 drag+click */
+  -webkit-user-select: none;
+  user-select: none;
 }
-.window-btn:hover svg {
-  opacity: 1;
+
+.window-btn {
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  border: none; cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex; align-items: center; justify-content: center;
 }
-.btn-close { background: #ff5f57; }
-.btn-close:hover { background: #ff3b30; }
-.btn-minimize { background: #ffbd2e; }
-.btn-minimize:hover { background: #f5a623; }
-.btn-maximize { background: #28c840; }
-.btn-maximize:hover { background: #1db954; }
+.window-btn svg { opacity: 0; transition: opacity 0.15s ease; }
+.window-btn:hover svg { opacity: 1; }
+.btn-close   { background: #ff5f57; } .btn-close:hover   { background: #ff3b30; }
+.btn-minimize{ background: #ffbd2e; } .btn-minimize:hover{ background: #f5a623; }
+.btn-maximize{ background: #28c840; } .btn-maximize:hover{ background: #1db954; }
+
+/* ═══════════ 全局响应式断点 ═══════════ */
+@media (max-width: 1280px) {
+  html { font-size: 15px; }
+}
+@media (max-width: 900px) {
+  html { font-size: 14px; }
+  #root { border-radius: 12px; clip-path: inset(0 round 12px); }
+}
+@media (max-width: 560px) {
+  html { font-size: 13px; }
+  #root { border-radius: 10px; clip-path: inset(0 round 10px); }
+  ::-webkit-scrollbar { width: 4px; }
+  .ivym-badge { padding: 0 9px; height: 24px; }
+  .ivym-badge-text { font-size: 11px; }
+}

@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { usePlayerStore } from '../../stores/playerStore';
 import { useSearchStore, HotPlatform } from '../../stores/searchStore';
 import GlassSurface from './GlassSurface';
@@ -23,92 +24,99 @@ export default function SearchBar() {
   const search = useSearchStore(s => s.search);
   const setCurrentView = usePlayerStore(s => s.setCurrentView);
 
-  // 面板显隐（由 store 派生不再单独 state）
   const [panelOpen, setPanelOpen] = useState(false);
-  // ★ tooltip（只在文本被截断时显示完整内容，跟随鼠标）
   const [tooltip, setTooltip] = useState<{ text: string; x: number; y: number } | null>(null);
-  // ★ 边界翻转标志（出界就放到鼠标左侧/上侧）
   const [tooltipFlip, setTooltipFlip] = useState<{ x: boolean; y: boolean }>({ x: false, y: false });
 
-  // 进入词条：判断 scrollWidth > clientWidth → 显示
+  // ★ tooltip 强制隐藏——点击/回车/失焦等操作立即抹掉
+  const hideTooltip = useCallback(() => setTooltip(null), []);
+
   const handleTooltipEnter = useCallback((e: React.MouseEvent, text: string) => {
     const el = e.currentTarget as HTMLElement;
     if (el.scrollWidth > el.clientWidth) {
       setTooltip({ text, x: e.clientX, y: e.clientY });
-      // 初始进入时按默认右下方向；实际翻转由 effect 监听鼠标移动来决定
       setTooltipFlip({ x: false, y: false });
     }
   }, []);
 
-  // 鼠标移动：更新位置 + 依据 tooltip 实际尺寸判断是否出界翻转
   const handleTooltipMove = useCallback((e: React.MouseEvent) => {
     const x = e.clientX, y = e.clientY;
     setTooltip(t => (t ? { ...t, x, y } : null));
-    // tooltip 文字通常不会超长，按经验宽度估约 320 / 高 30 已足够；精算可在容器 ref 测量
     const W = 320, H = 30;
     const flipX = x + 8 + W > window.innerWidth;
     const flipY = y + 8 + H > window.innerHeight;
     setTooltipFlip(f => (f.x === flipX && f.y === flipY) ? f : { x: flipX, y: flipY });
   }, []);
 
-  // 离开：隐藏
   const handleTooltipLeave = useCallback(() => setTooltip(null), []);
 
   const hasKeyword = keyword.trim().length > 0;
   const hotList = hotItems[hotPlatform];
 
-  // ★ 落地拉取默认平台热搜；切换平台时懒加载
   useEffect(() => { fetchHot('netease'); }, [fetchHot]);
 
-  // ★ 输入即触发联想（防抖逻辑在 store 内部）
+  // ★ 输入触发联想；关键修改：不再因空 keyword 而强制关闭面板，
+  //   保留搜索页仍可"点空白框弹历史"的能力
   useEffect(() => {
     fetchSuggestions(keyword);
-    if (!hasKeyword) {
-      setPanelOpen(false);
-    } else if (searchRef.current && document.activeElement === searchRef.current) {
-      // 有输入且搜索框已聚焦（如结果页继续输入）→ 立即开面板显联想
+    if (hasKeyword && searchRef.current && document.activeElement === searchRef.current) {
       setPanelOpen(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [keyword, fetchSuggestions]);
 
-  // ★ 聚焦：一律开面板（无输入→历史热搜；有输入→联想）
+  // 聚焦：一律打开面板；无输入→历史/热搜，有输入→联想
   const handleFocus = useCallback(() => setPanelOpen(true), []);
 
-  // 点击外部关闭
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       const t = e.target as Node;
       if (panelRef.current && !panelRef.current.contains(t) &&
-          searchRef.current && !searchRef.current.contains(t)) setPanelOpen(false);
+          searchRef.current && !searchRef.current.contains(t)) {
+        setPanelOpen(false);
+        hideTooltip();
+      }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, []);
+  }, [hideTooltip]);
 
-  // Esc 关闭
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') setPanelOpen(false); };
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { setPanelOpen(false); hideTooltip(); }
+    };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, []);
+  }, [hideTooltip]);
 
-  // 启动搜索（回车 / 点历史 / 点联想）
+  // ★ Electron 拖拽区 mousedown 桥——补漏点（拖拽区吞了 mousedown 事件）
+  useEffect(() => {
+    const anyWin = window as any;
+    if (!anyWin.electronAPI?.onDragStart) return;
+    const off = anyWin.electronAPI.onDragStart(() => {
+      setPanelOpen(false);
+      hideTooltip();
+      searchRef.current?.blur();
+    });
+    return () => { if (typeof off === 'function') off(); };
+  }, [hideTooltip]);
+
   const submitSearch = useCallback((kw: string) => {
     const trimmed = kw.trim();
     if (!trimmed) return;
     setPanelOpen(false);
+    hideTooltip();
     addHistory(trimmed);
     search(trimmed);
     setCurrentView('search');
-  }, [addHistory, search, setCurrentView]);
+  }, [addHistory, search, setCurrentView, hideTooltip]);
+
   const selectHistory = submitSearch;
   const selectSuggestion = useCallback((sug: string) => {
     setKeyword(sug);
     submitSearch(sug);
   }, [setKeyword, submitSearch]);
 
-  // ★ 高亮：匹配输入的前缀段显示灰色
   const suggestTooltipHandlers = useMemo(() => ({
     onMouseEnter: (e: React.MouseEvent, text: string) => handleTooltipEnter(e, text),
     onMouseMove: handleTooltipMove,
@@ -117,26 +125,23 @@ export default function SearchBar() {
 
   const renderSuggestLabel = useCallback((label: string) => {
     const kw = keyword.trim();
-    if (!kw) return <span className="search-suggest-text" {...suggestTooltipHandlers} onMouseEnter={e => suggestTooltipHandlers.onMouseEnter(e, label)}>{label}</span>;
+    const commonProps = { onMouseMove: suggestTooltipHandlers.onMouseMove, onMouseLeave: suggestTooltipHandlers.onMouseLeave };
+    if (!kw) return <span className="search-suggest-text" {...commonProps} onMouseEnter={e => handleTooltipEnter(e, label)}>{label}</span>;
     const idx = label.toLowerCase().indexOf(kw.toLowerCase());
-    if (idx === -1) return <span className="search-suggest-text" {...suggestTooltipHandlers} onMouseEnter={e => suggestTooltipHandlers.onMouseEnter(e, label)}>{label}</span>;
+    if (idx === -1) return <span className="search-suggest-text" {...commonProps} onMouseEnter={e => handleTooltipEnter(e, label)}>{label}</span>;
     const before = label.slice(0, idx);
     const matched = label.slice(idx, idx + kw.length);
     const after = label.slice(idx + kw.length);
     return (
-      <span className="search-suggest-text" {...suggestTooltipHandlers} onMouseEnter={e => suggestTooltipHandlers.onMouseEnter(e, label)}>
+      <span className="search-suggest-text" {...commonProps} onMouseEnter={e => handleTooltipEnter(e, label)}>
         {before}<span className="search-suggest-match">{matched}</span>{after}
       </span>
     );
-  }, [keyword, suggestTooltipHandlers]);
+  }, [keyword, suggestTooltipHandlers, handleTooltipEnter]);
 
-  // 平台切换
-  const toggleHotPlatform = useCallback((p: HotPlatform) => {
-    setHotPlatform(p);
-  }, [setHotPlatform]);
+  const toggleHotPlatform = useCallback((p: HotPlatform) => setHotPlatform(p), [setHotPlatform]);
 
   const showHistoryHot = panelOpen && !hasKeyword && (history.length > 0 || hotList.length > 0);
-  // ★ 三项互斥：搜索联想只在面板开启 + 有输入 + 有结果时显示（提交/失焦后 panelOpen=false，自然消失）
   const showSuggest = panelOpen && hasKeyword && suggestions.length > 0;
 
   return (
@@ -161,16 +166,16 @@ export default function SearchBar() {
               onKeyDown={e => { if (e.key === 'Enter') submitSearch(keyword); }}
             />
             {keyword && (
-              <button type="button" className="s-clear-btn" onClick={(e) => { e.stopPropagation(); setKeyword(''); searchRef.current?.focus(); }} title="清空">×</button>
+              <button type="button" className="s-clear-btn" onClick={(e) => {
+                e.stopPropagation(); setKeyword(''); searchRef.current?.focus();
+              }} title="清空">×</button>
             )}
           </div>
         </GlassSurface>
       </div>
 
-      {/* ★ 搜索历史 + 热搜：仅无输入时显示 */}
       {showHistoryHot && (
         <div ref={panelRef} className="search-history-popover">
-          {/* 搜索历史 */}
           {history.length > 0 && (
             <>
               <div className="search-history-header">
@@ -193,7 +198,6 @@ export default function SearchBar() {
             </>
           )}
 
-          {/* 热搜 */}
           {hotList.length > 0 && (
             <>
               <div className="search-hot-header">
@@ -223,19 +227,17 @@ export default function SearchBar() {
         </div>
       )}
 
-      {/* ★ tooltip 挂载点：跟随鼠标，仅截断时显示；出界时翻转 */}
-      {tooltip && (() => {
-        const OFFSET = 8;
-        const style: React.CSSProperties = {};
-        // 默认右下角；右侧或底部溢出则翻到左/上
+      {/* ★ Tooltip 走 Portal，脱离 .search-bar-container 的 transform 影响 */}
+      {tooltip && createPortal((() => {
+        const OFFSET = 12;
+        const style: React.CSSProperties = { position: 'fixed' };
         if (tooltipFlip.x) style.right = window.innerWidth - tooltip.x + OFFSET;
         else style.left = tooltip.x + OFFSET;
         if (tooltipFlip.y) style.bottom = window.innerHeight - tooltip.y + OFFSET;
         else style.top = tooltip.y + OFFSET;
         return <div className="search-tooltip" style={style}>{tooltip.text}</div>;
-      })()}
+      })(), document.body)}
 
-      {/* ★ 搜索联想：仅有输入时显示，三者不并存 */}
       {showSuggest && (
         <div ref={panelRef} className="search-history-popover">
           <div className="search-suggest-list">

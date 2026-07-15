@@ -1,24 +1,21 @@
 /* ── 搜索容器 ──
- * no-drag：让 Electron 不把该区域当拖拽区，使 input 能正常 blur/聚焦，
- * 下拉面板的点击也能正常触发 */
+ * ★ top 从 1.25rem 下移到 2.4rem——离开 TitleBar 拖拽区（现 36px 高），
+ *   点击搜索框附近空白可以让 input 正常 blur。 */
 .search-bar-container {
   position: fixed;
-  top: 1.25rem;
+  top: 2.4rem;
   left: 50%;
   transform: translateX(-50%);
   z-index: 1000;
   -webkit-app-region: no-drag;
 }
 
-/* ── 搜索框（常驻） ── */
 .search-bar-static {
   position: relative;
-  width: 360px;
-  max-width: 90vw;
+  width: clamp(240px, 40vw, 420px);
   height: 40px;
 }
 
-/* ★ 玻璃表面：只负责视觉效果，所有事件穿透 */
 .search-island.glass-surface,
 .search-island.glass-surface--fallback,
 .search-island.glass-surface--svg {
@@ -29,7 +26,6 @@
   pointer-events: none;
 }
 
-/* 内容层：视觉填充，事件仍穿透给下面的 input */
 .search-island .glass-surface__content {
   padding: 0;
   width: 100%;
@@ -39,7 +35,6 @@
   inset: 0;
 }
 
-/* ── 输入区域 ── */
 .s-input-area {
   position: absolute;
   inset: 0;
@@ -63,45 +58,31 @@
   color: #1a1a2e;
   font-family: inherit;
   pointer-events: auto;
+  min-width: 0;
 }
+.s-input::placeholder { color: rgba(0, 0, 0, 0.35); }
 
-.s-input::placeholder {
-  color: rgba(0, 0, 0, 0.35);
-}
-
-/* ── 清空按钮 ── */
 .s-clear-btn {
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  background: transparent;
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  border: none; background: transparent;
   color: rgba(0, 0, 0, 0.4);
-  font-size: 16px;
-  cursor: pointer;
+  font-size: 16px; cursor: pointer;
   border-radius: 50%;
   flex-shrink: 0;
   pointer-events: auto;
   transition: all 0.12s;
 }
+.s-clear-btn:hover { background: rgba(0, 0, 0, 0.06); color: rgba(0, 0, 0, 0.7); }
 
-.s-clear-btn:hover {
-  background: rgba(0, 0, 0, 0.06);
-  color: rgba(0, 0, 0, 0.7);
-}
-
-/* ── 历史面板（Popover） ── */
 .search-history-popover {
   position: absolute;
   top: calc(100% + 8px);
   left: 50%;
   transform: translateX(-50%);
   z-index: 900;
-  width: 360px;
-  max-width: 90vw;
-  max-height: 300px;
+  width: clamp(280px, 40vw, 420px);
+  max-height: 320px;
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(20px) saturate(1.8);
   -webkit-backdrop-filter: blur(20px) saturate(1.8);
@@ -114,14 +95,8 @@
 }
 
 @keyframes popoverIn {
-  from {
-    opacity: 0;
-    transform: translateX(-50%) translateY(-4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-  }
+  from { opacity: 0; transform: translateX(-50%) translateY(-4px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
 
 .search-history-header {
@@ -133,29 +108,18 @@
   margin-bottom: 0.2rem;
 }
 
-.search-history-title {
-  font-size: 11px;
-  font-weight: 600;
-  color: rgba(0, 0, 0, 0.35);
-}
+.search-history-title { font-size: 11px; font-weight: 600; color: rgba(0, 0, 0, 0.35); }
 
 .search-history-clear-all {
   font-size: 10px;
   color: rgba(0, 0, 0, 0.35);
-  border: none;
-  background: transparent;
-  cursor: pointer;
+  border: none; background: transparent; cursor: pointer;
   padding: 2px 6px;
   border-radius: 4px;
   transition: all 0.12s;
 }
+.search-history-clear-all:hover { background: rgba(0, 0, 0, 0.05); color: rgba(0, 0, 0, 0.6); }
 
-.search-history-clear-all:hover {
-  background: rgba(0, 0, 0, 0.05);
-  color: rgba(0, 0, 0, 0.6);
-}
-
-/* ★ grid：三列，列优先填充（竖着填：1→2→3 往下，再回头往第2列 4→5→6，再第3列 7→8→9）*/
 .search-grid {
   display: grid;
   grid-template-rows: repeat(3, auto);
@@ -173,18 +137,11 @@
   border-radius: 6px;
   cursor: pointer;
   transition: background 0.12s;
-  min-width: 0; /* 允许子项 overflow 截断 */
+  min-width: 0;
 }
+.search-grid-item:hover { background: rgba(0, 0, 0, 0.04); }
 
-.search-grid-item:hover {
-  background: rgba(0, 0, 0, 0.04);
-}
-
-/* ── 搜索历史项（无序号） ── */
-.search-history-item {
-  position: relative;
-  padding-right: 1.4rem; /* 给右侧 x 留位 */
-}
+.search-history-item { position: relative; padding-right: 1.4rem; }
 
 .search-history-text {
   flex: 1;
@@ -200,13 +157,9 @@
   right: 0.3rem;
   top: 50%;
   transform: translateY(-50%);
-  width: 18px;
-  height: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  background: transparent;
+  width: 18px; height: 18px;
+  display: flex; align-items: center; justify-content: center;
+  border: none; background: transparent;
   color: rgba(0, 0, 0, 0.2);
   font-size: 12px;
   cursor: pointer;
@@ -214,36 +167,19 @@
   opacity: 0;
   transition: all 0.12s;
 }
+.search-history-item:hover .search-history-remove { opacity: 1; }
+.search-history-remove:hover { background: rgba(0, 0, 0, 0.06); color: rgba(0, 0, 0, 0.5); }
 
-.search-history-item:hover .search-history-remove {
-  opacity: 1;
-}
-
-.search-history-remove:hover {
-  background: rgba(0, 0, 0, 0.06);
-  color: rgba(0, 0, 0, 0.5);
-}
-
-/* ── 热搜头：平台切换 + 标题 ── */
 .search-hot-header {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  display: flex; align-items: center; gap: 6px;
   padding: 0.4rem 0.5rem 0.2rem;
   border-top: 1px solid rgba(0, 0, 0, 0.04);
   margin-top: 0.2rem;
 }
-
-.search-hot-title {
-  font-size: 11px;
-  font-weight: 600;
-  color: rgba(0, 0, 0, 0.35);
-  margin-left: auto;
-}
+.search-hot-title { font-size: 11px; font-weight: 600; color: rgba(0, 0, 0, 0.35); margin-left: auto; }
 
 .search-hot-platform {
-  display: inline-flex;
-  align-items: center;
+  display: inline-flex; align-items: center;
   padding: 2px 6px;
   border: 1px solid transparent;
   border-radius: 4px;
@@ -252,24 +188,14 @@
   transition: all 0.12s;
   opacity: 0.5;
 }
-
 .search-hot-platform.active {
   opacity: 1;
   border-color: rgba(0, 0, 0, 0.1);
   background: rgba(0, 0, 0, 0.03);
 }
+.hot-platform-logo { width: 22px; height: 22px; display: block; object-fit: contain; }
 
-.hot-platform-logo {
-  width: 22px;
-  height: 22px;
-  display: block;
-  object-fit: contain; /* 避免不同比例 SVG 被拉伸 */
-}
-
-/* ── 热搜项（带序号） ── */
-.search-hot-item {
-  gap: 4px;
-}
+.search-hot-item { gap: 4px; }
 
 .search-hot-rank {
   display: inline-block;
@@ -280,13 +206,9 @@
   color: rgba(0, 0, 0, 0.35);
   flex-shrink: 0;
 }
-
-/* ★ 前三名红色 */
 .search-hot-rank.rank-1,
 .search-hot-rank.rank-2,
-.search-hot-rank.rank-3 {
-  color: #ec4141;
-}
+.search-hot-rank.rank-3 { color: #ec4141; }
 
 .search-hot-text {
   flex: 1;
@@ -297,30 +219,18 @@
   text-overflow: ellipsis;
 }
 
-/* ── 搜索联想 ── */
-.search-suggest-list {
-  padding: 0.3rem 0;
-}
+.search-suggest-list { padding: 0.3rem 0; }
 
 .search-suggest-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  display: flex; align-items: center; gap: 8px;
   padding: 0.5rem 0.9rem;
   border-radius: 6px;
   cursor: pointer;
   transition: background 0.12s;
   margin: 0 0.3rem;
 }
-
-.search-suggest-item:hover {
-  background: rgba(0, 0, 0, 0.04);
-}
-
-.search-suggest-item svg {
-  color: rgba(0, 0, 0, 0.25);
-  flex-shrink: 0;
-}
+.search-suggest-item:hover { background: rgba(0, 0, 0, 0.04); }
+.search-suggest-item svg { color: rgba(0, 0, 0, 0.25); flex-shrink: 0; }
 
 .search-suggest-text {
   flex: 1;
@@ -330,30 +240,26 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.search-suggest-match { color: rgba(0, 0, 0, 0.3); }
 
-/* ★ 联想词命中前缀：灰色（与用户输入相同的文本段） */
-.search-suggest-match {
-  color: rgba(0, 0, 0, 0.3);
-}
-
-/* ★ 自定义 tooltip：跟随鼠标，仅词条被截断时显示（Win11 浅色胶囊风） */
+/* ★ Tooltip：已迁到 body 下（React Portal），不再受父级 transform 影响 */
 .search-tooltip {
   position: fixed;
   padding: 6px 14px;
-  border-radius: 999px;          /* 胶囊 */
+  border-radius: 999px;
   background: #ffffff;
   color: #222;
   font-size: 13px;
   line-height: 1.5;
-  white-space: nowrap;           /* 单行 */
+  white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;       /* 超长省略，不挤出窗口 */
+  text-overflow: ellipsis;
   max-width: 320px;
   box-shadow:
     0 4px 16px rgba(0, 0, 0, 0.14),
     0 0 0 1px rgba(0, 0, 0, 0.06);
-  pointer-events: none;          /* 不挡点击 */
-  z-index: 9999;                 /* 高于弹窗 */
+  pointer-events: none;
+  z-index: 99999;
   font-family: inherit;
   animation: tooltipIn 0.1s ease-out;
 }
@@ -361,4 +267,26 @@
 @keyframes tooltipIn {
   from { opacity: 0; transform: translateY(2px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ═══════════ 响应式 ═══════════ */
+@media (max-width: 1080px) {
+  .search-bar-static { width: clamp(220px, 45vw, 360px); }
+  .search-history-popover { width: clamp(260px, 55vw, 380px); }
+}
+@media (max-width: 780px) {
+  .search-bar-static { width: clamp(200px, 55vw, 320px); }
+  .search-history-popover { width: clamp(240px, 70vw, 340px); }
+  .search-grid { grid-template-rows: repeat(4, auto); }
+}
+@media (max-width: 520px) {
+  .search-bar-container { top: 2.6rem; }
+  .search-bar-static { width: 78vw; }
+  .search-history-popover { width: 90vw; max-height: 60vh; }
+  .search-grid {
+    grid-template-rows: none;
+    grid-auto-flow: row;
+    grid-template-columns: 1fr 1fr;
+  }
+  .search-tooltip { max-width: 80vw; }
 }

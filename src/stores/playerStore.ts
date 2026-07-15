@@ -6,7 +6,16 @@ export const DEFAULT_QUALITY: AudioQuality = 'standard';
 
 export type { ViewType } from '../types';
 
-export const usePlayerStore = create<PlayerState>((set, get) => ({
+/**
+ * ★ 播放器隐藏状态提升到全局：
+ *   - Player 是唯一写入方（通过 setPlayerHidden）
+ *   - LyricsPage / 其他组件订阅只读
+ *   避免在多个组件里重复挂 useAutoHidePlayer 导致状态不一致 / 内容不显现。
+ */
+export const usePlayerStore = create<PlayerState & {
+  playerHidden: boolean;
+  setPlayerHidden: (hidden: boolean) => void;
+}>((set, get) => ({
   currentSong: null,
   currentUrl: null,
   isPlaying: false,
@@ -18,9 +27,12 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   currentView: 'home',
   currentQuality: DEFAULT_QUALITY,
 
-  // ★ 沉浸封面背景（GSAP 曲线升起）
   coverOpen: false,
   coverColor: 'rgb(120, 70, 110)',
+
+  // ★ 新增：全局播放器隐藏状态
+  playerHidden: false,
+  setPlayerHidden: (hidden: boolean) => set({ playerHidden: hidden }),
 
   play: (song, url) => set({ currentSong: song, isPlaying: true, currentTime: 0, currentUrl: url ?? null }),
   pause: () => set({ isPlaying: false }),
@@ -33,7 +45,6 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   setCurrentUrl: (url) => set({ currentUrl: url }),
   setCurrentQuality: (q: AudioQuality) => set({ currentQuality: q }),
 
-  // ★ 沉浸封面背景
   toggleCover: () => set(s => ({ coverOpen: !s.coverOpen })),
   setCoverOpen: (open: boolean) => set({ coverOpen: open }),
   setCoverColor: (color: string) => set({ coverColor: color }),

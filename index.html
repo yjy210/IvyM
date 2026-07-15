@@ -6,8 +6,44 @@
     <link rel="stylesheet" href="/iconfont/iconfont.css" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>IvyM Music</title>
+    <!--
+      ★ 内联首帧样式：Electron 从 ready-to-show 到 React 挂载有一段窗口空白期。
+      过去这段时间会先渲染 body 默认色 → 再渲染 #root 米白色 → 再挂 App → 再挂 splash，
+      视觉上就是"闪一秒陌生页面"。这里用一层内联的深色渐变遮罩把这段窗口完全盖住，
+      直到 React 挂载完成、splash 首帧绘制后，js 会移除 #boot-shield。
+    -->
+    <style>
+      html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; }
+      #root { width: 100%; height: 100%; background: transparent; }
+      #boot-shield {
+        position: fixed;
+        inset: 0;
+        z-index: 999999;
+        background:
+          radial-gradient(120% 90% at 30% 20%, #d9d0be 0%, #776a5e 60%, #2a251f 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+        transition: opacity .5s ease;
+      }
+      #boot-shield.fade-out { opacity: 0; }
+      #boot-shield img {
+        width: 96px;
+        height: 96px;
+        border-radius: 22px;
+        box-shadow: 0 20px 60px rgba(0,0,0,.4);
+        animation: bootPulse 1.6s ease-in-out infinite;
+      }
+      @keyframes bootPulse {
+        0%,100% { transform: scale(1); opacity: .95; }
+        50%     { transform: scale(1.04); opacity: 1; }
+      }
+    </style>
   </head>
   <body>
+    <!-- ★ 遮罩：深色渐变 + 中央 logo，React 挂载完成后由 App.tsx 移除 -->
+    <div id="boot-shield"><img src="/logo.png" alt="IvyM" /></div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

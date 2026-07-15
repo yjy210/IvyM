@@ -33,6 +33,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onUnmaximize: (callback) => {
     ipcRenderer.on('window:unmaximized', () => callback());
   },
+  onDragStart: (callback) => {
+    const listener = () => callback();
+    ipcRenderer.on('window:drag-start', listener);
+    return () => ipcRenderer.removeListener('window:drag-start', listener);
+  },
 
   // --- 平台账号登录（打开官方登录页） ---
   openPlatformLogin: (platform) => ipcRenderer.invoke('login:open', platform),
