@@ -81,6 +81,19 @@ const LyricsPage = () => {
 
     useEffect(() => { if (visible) setMounted(true) }, [visible])
 
+    // ★ 内容淡入淡出 (与 Curve 同步: 打开延迟等 Curve, 关闭先淡出)
+    useEffect(() => {
+        if (!contentRef.current) return
+        if (visible) {
+            gsap.fromTo(contentRef.current,
+                { opacity: 0 },
+                { opacity: 1, duration: 0.5, delay: 0.7, ease: 'power2.out' })
+        } else {
+            gsap.to(contentRef.current,
+                { opacity: 0, duration: 0.35, ease: 'power2.in' })
+        }
+    }, [visible])
+
     // 歌词行切换动画
     useEffect(() => {
         if (!lineRef.current) return
