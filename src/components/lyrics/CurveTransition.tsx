@@ -34,8 +34,8 @@ const CurveTransition = ({ active, color = '#000', onClosed }: Props) => {
         paused: true,
         onReverseComplete: () => onClosedRef.current?.(),
       })
-      .to(pathRef.current, { duration: 0.42, morphSVG: MID, ease: 'power2.in' })
-      .to(pathRef.current, { duration: 0.5, morphSVG: FULL, ease: 'power2.out' }, '<0.02')
+      .to(pathRef.current, { duration: 0.65, morphSVG: MID, ease: 'power2.in' })
+      .to(pathRef.current, { duration: 0.65, morphSVG: FULL, ease: 'power3.out' })
     return () => { tlRef.current?.kill(); tlRef.current = null }
   }, [])
 
