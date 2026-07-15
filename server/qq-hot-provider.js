@@ -98,6 +98,38 @@ async function tryMusicuHot() {
   return hk.data.map(it => (typeof it === 'string' ? it : (it.k || it.keyword || ''))).filter(Boolean);
 }
 
+/**
+ * ★ 新增策略1.5：jsososo/QQMusicApi 本地服务 /search/hot
+ *    这个包底层走的是 QQ 客户端实际接口（经逆向），比 gethotkey.fcg 更接近客户端热搜
+ *    成功 -> 直接返回字符串数组；失败 -> 继续 fallback
+ */
+async function tryQQMusicApiHot() {
+  const url = 'http://localhost:3200/search/hot';
+  if (typeof globalThis.fetch !== 'function') return null; // Node <18 不支持
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), 5000);
+  let resp;
+  try {
+    resp = await globalThis.fetch(url, { signal: ac.signal });
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+  if (!resp.ok) return null;
+  const json = await resp.json().catch(() => null);
+  // QQMusicApi 返回格式：{ result: 100, data: [{k, n}, ...] }
+  const list = resp && resp.data;
+  if (!Array.isArray(list)) return [];
+  const out = [];
+  for (const it of list) {
+    if (out.length >= 9) break;
+    const k = (it && (it.k || it.keyword || it.name) || '').trim();
+    if (k) { out.push(k); }
+  }
+  return out;
+}
+
 /** 策略2 (fallback)：官方 gethotkey.fcg（稳定可用, 但为搜索热词而非完整榜单结构） */
 async function tryGetHotKey() {
   const url = 'https://c.y.qq.com/splcloud/fcgi-bin/gethotkey.fcg?format=json&inCharset=utf-8&outCharset=utf-8&platform=yqq&new_format=1';
@@ -108,13 +140,19 @@ async function tryGetHotKey() {
 }
 
 async function fetchQQHotNoCache() {
-  // 优先新版接口
+  // 优先本地 QQMusicApi 服务
+  try {
+    const v = await tryQQMusicApiHot();
+    if (v && v.length > 0) return v;
+  } catch { /* fall through */ }
+
+  // 备选: musicu 接口（多数环境会失败）
   try {
     const v1 = await tryMusicuHot();
     if (v1 && v1.length > 0) return v1.slice(0, 9);
   } catch { /* fall through */ }
 
-  // fallback: gethotkey
+  // 最终 fallback: gethotkey
   try {
     const v2 = await tryGetHotKey();
     if (v2 && v2.length > 0) return v2;
@@ -141,4 +179,4 @@ async function getQQHotSearch() {
 /** 强制刷新缓存（调试用） */
 function invalidateHotCache() { _cache = { items: [], ts: 0 }; }
 
-module.exports = { getQQHotSearch, invalidateHotCache, _internal: { tryMusicuHot, tryGetHotKey, fetchQQHotNoCache } };
+module.exports = { getQQHotSearch, invalidateHotCache, _internal: { tryQQMusicApiHot, tryMusicuHot, tryGetHotKey, fetchQQHotNoCache } };

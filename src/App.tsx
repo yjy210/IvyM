@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
 import { TitleBar } from './components/TitleBar';
-import { WindowControls } from './components/WindowControls';
 import { LogoAnimation } from './components/splash/LogoAnimation';
 import Grainient from './components/grainient/Grainient';
 import LoginDropdown from './components/login-dropdown/LoginDropdown';
@@ -110,7 +109,7 @@ export default function App() {
         {/* ★ 沉浸封面背景 —— 曲线升起层（z-750，播放器保持在它之上） */}
         <CoverTransition />
 
-        {/* 右上角控制 - 登录 + 窗口控制 */}
+        {/* ★ 右上角登录按钮 — 窗口控制已迁入 TitleBar（保留右上角登录入口） */}
         <div className="absolute top-4 right-4 z-50 flex items-center gap-3" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>
           <div className="login-btn-wrapper" onMouseEnter={() => setShowDropdown(true)}>
             <button className="px-4 py-2 rounded-full bg-black/60 backdrop-blur-sm text-white text-xs font-medium hover:bg-black/80 transition-colors">
@@ -118,7 +117,6 @@ export default function App() {
             </button>
             {showDropdown && <LoginDropdown onClose={() => setShowDropdown(false)} />}
           </div>
-          <WindowControls />
         </div>
       </div>
     </>
