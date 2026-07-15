@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef } from 'react'
 import { gsap } from 'gsap'
 import { MorphSVGPlugin } from 'gsap/MorphSVGPlugin'
 
@@ -31,8 +31,8 @@ const CurveTransition = ({ active, color = '#000', onOpened, onClosed }: Props) 
   const MID  = 'M 0 100 V 50  Q 50 0   100 50  V 100 z'
   const FULL = 'M 0 100 V 0   Q 50 0   100 0   V 100 z'
 
-  // ★ 只初始化一次 (空依赖)
-  useEffect(() => {
+  // ★ 只初始化一次 (空依赖) — useLayoutEffect 在 paint 前启动 Curve
+  useLayoutEffect(() => {
     if (!pathRef.current || !svgRef.current) return
     tlRef.current = gsap
       .timeline({
@@ -41,7 +41,7 @@ const CurveTransition = ({ active, color = '#000', onOpened, onClosed }: Props) 
         onReverseComplete: () => onClosedRef.current?.(),
       })
       .to(pathRef.current, { duration: 0.42, morphSVG: MID, ease: 'power2.in' })
-      .to(pathRef.current, { duration: 0.35, morphSVG: FULL, ease: 'power2.out' }, '>-0.05')
+      .to(pathRef.current, { duration: 0.5, morphSVG: FULL, ease: 'power2.out' }, '<0.02')
     return () => { tlRef.current?.kill(); tlRef.current = null }
   }, [])
 
