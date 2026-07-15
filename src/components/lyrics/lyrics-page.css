@@ -24,6 +24,11 @@
   padding: 7vh 7vw 8vh;
   box-sizing: border-box;
   gap: 4vw;
+
+  /* ★ 进入动画初始态: GSAP 从这开始 */
+  opacity: 0;
+  transform: translateY(30px);
+  filter: blur(8px);
 }
 
 .lyrics-close {
