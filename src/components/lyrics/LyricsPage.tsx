@@ -57,6 +57,7 @@ const LyricsPage = () => {
 
     const cover = currentSong?.cover
     const palette = useDominantColor(cover)
+    console.log('[LyricsPage] palette =', palette, 'cover =', cover)
 
     const lines = useMemo(() => {
         const parsed = parseLrc(lyric, tlyric)
