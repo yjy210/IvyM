@@ -7,24 +7,19 @@ gsap.registerPlugin(MorphSVGPlugin)
 interface Props {
   active: boolean
   color?: string
-  onOpened?: () => void
   onClosed?: () => void
 }
 
 /**
- * Curve Swipe — 单 timeline + play()/reverse() 切换
- *  - MID → FULL (打开) / FULL → MID (关闭)
- *  - 空依赖创建, ref 持有回调避免重建
+ * Curve Swipe — 歌词页背景揭幕动画
+ *  - REST(底线) → MID(弧拱) → FULL(全屏) — 让页面从底部升起
+ *  - 反向 FULL→MID→REST = 收回
  */
-const CurveTransition = ({ active, color = '#000', onOpened, onClosed }: Props) => {
+const CurveTransition = ({ active, color = '#000', onClosed }: Props) => {
   const pathRef = useRef<SVGPathElement>(null)
   const svgRef = useRef<SVGSVGElement>(null)
   const tlRef = useRef<gsap.core.Timeline | null>(null)
-
-  // ★ ref 持有最新回调, 避免 useEffect 因依赖变化重建 timeline
-  const onOpenedRef = useRef(onOpened)
   const onClosedRef = useRef(onClosed)
-  useEffect(() => { onOpenedRef.current = onOpened }, [onOpened])
   useEffect(() => { onClosedRef.current = onClosed }, [onClosed])
 
   const REST = 'M 0 100 V 100 Q 50 100 100 100 V 100 z'
@@ -37,7 +32,6 @@ const CurveTransition = ({ active, color = '#000', onOpened, onClosed }: Props) 
     tlRef.current = gsap
       .timeline({
         paused: true,
-        onComplete: () => onOpenedRef.current?.(),
         onReverseComplete: () => onClosedRef.current?.(),
       })
       .to(pathRef.current, { duration: 0.42, morphSVG: MID, ease: 'power2.in' })
