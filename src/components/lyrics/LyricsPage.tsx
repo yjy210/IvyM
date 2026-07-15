@@ -132,10 +132,10 @@ const LyricsPage = () => {
             className={`lyrics-page ${visible ? 'is-open' : 'is-closing'}`}
             style={{ color: palette.text }}
         >
-            {/* ★ Curve = 唯一背景 + 揭幕动画 */}
+            {/* ★ Curve = 唯一背景 + 揭幕动画 (SVG fill 不支持 CSS gradient, 改用纯色) */}
             <CurveTransition
                 active={visible}
-                color={palette.background}
+                color={palette.bgDark}
                 onClosed={() => setMounted(false)}
             />
 
