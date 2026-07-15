@@ -31,9 +31,7 @@
   box-sizing: border-box;
   gap: 4vw;
   will-change: opacity, transform;
-  opacity: 0;
 }
-.lyrics-content.show { opacity: 1; }
 
 .lyrics-close {
   position: absolute;
