@@ -27,10 +27,9 @@ const CurveTransition = ({ active, color = '#000', onOpened, onClosed }: Props) 
   useEffect(() => { onOpenedRef.current = onOpened }, [onOpened])
   useEffect(() => { onClosedRef.current = onClosed }, [onClosed])
 
-  // ★ FULL 全屏遮罩, MID 半屏弧拱, REST 贴底线 (0面积 = 完全显露)
-  const FULL = 'M 0 100 V 0   Q 50 0   100 0   V 100 z'
-  const MID  = 'M 0 100 V 50  Q 50 0   100 50  V 100 z'
   const REST = 'M 0 100 V 100 Q 50 100 100 100 V 100 z'
+  const MID  = 'M 0 100 V 50  Q 50 0   100 50  V 100 z'
+  const FULL = 'M 0 100 V 0   Q 50 0   100 0   V 100 z'
 
   // ★ 只初始化一次 (空依赖)
   useEffect(() => {
@@ -41,9 +40,8 @@ const CurveTransition = ({ active, color = '#000', onOpened, onClosed }: Props) 
         onComplete: () => onOpenedRef.current?.(),
         onReverseComplete: () => onClosedRef.current?.(),
       })
-      // ★ 方向: FULL → REST = 揭幕 (页面从底部显露)
-      .to(pathRef.current, { duration: 0.35, morphSVG: MID, ease: 'power2.out' })
-      .to(pathRef.current, { duration: 0.42, morphSVG: REST, ease: 'power2.in' }, '>-0.05')
+      .to(pathRef.current, { duration: 0.42, morphSVG: MID, ease: 'power2.in' })
+      .to(pathRef.current, { duration: 0.35, morphSVG: FULL, ease: 'power2.out' }, '>-0.05')
     return () => { tlRef.current?.kill(); tlRef.current = null }
   }, [])
 
@@ -62,7 +60,7 @@ const CurveTransition = ({ active, color = '#000', onOpened, onClosed }: Props) 
       preserveAspectRatio="xMidYMin slice"
       aria-hidden
     >
-      <path ref={pathRef} d={FULL} fill={color} />
+      <path ref={pathRef} d={REST} fill={color} />
     </svg>
   )
 }
