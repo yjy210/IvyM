@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { usePlayerStore } from '../../stores/playerStore';
+import { useLyricsStore } from '../../store/lyricsStore';
 import GlassSurface from './GlassSurface';
 import VolumeSlider from './VolumeSlider';
 import Toast from './Toast';
@@ -46,7 +47,7 @@ export default function Player() {
   const [toastMsg, setToastMsg] = useState<{ id: string; message: string } | null>(null);
   const toastTimerRef = useRef<number | null>(null);
   const currentUrl = usePlayerStore(s => s.currentUrl);
-  const toggleCover = usePlayerStore(s => s.toggleCover);
+  const openLyrics = useLyricsStore((s) => s.open);
   const coverOpen = usePlayerStore(s => s.coverOpen);
   const [playerHidden, setPlayerHidden] = useState(false);
   const { gsapRef } = useAutoHidePlayer(coverOpen, setPlayerHidden);
@@ -320,8 +321,8 @@ export default function Player() {
           <div className="player-song-info">
             <div
               className="player-cover-hit"
-              onClick={(e) => { e.stopPropagation(); toggleCover(); }}
-              title="查看封面"
+              onClick={(e) => { e.stopPropagation(); openLyrics(); }}
+              title="查看歌词"
             >
               {currentSong?.cover ? (
                 <img src={currentSong.cover} alt="" className="player-cover" />

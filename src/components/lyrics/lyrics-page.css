@@ -1,0 +1,117 @@
+.lyrics-page {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  overflow: hidden;
+  animation: lyricsRise .55s cubic-bezier(.2,.7,.2,1) both;
+  -webkit-app-region: no-drag;
+}
+.lyrics-page.is-closing {
+  animation: lyricsFall .5s cubic-bezier(.6,0,.8,.3) both;
+}
+@keyframes lyricsRise   { from { transform: translateY(100%) } to { transform: translateY(0) } }
+@keyframes lyricsFall { from { transform: translateY(0) }    to { transform: translateY(100%) } }
+
+/* ★ 背景层 */
+.lyrics-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  filter: blur(40px) saturate(1.2);
+  transform: scale(1.15); /* 避免边缘露出 */
+}
+
+/* Curve 转场（在背景之上、内容之下） */
+.lyrics-curve {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.lyrics-content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  width: 100%;
+  height: 100%;
+  padding: 6vh 6vw 8vh;
+  box-sizing: border-box;
+  transition: opacity .25s;
+}
+
+.lyrics-close {
+  position: absolute;
+  top: 18px;
+  right: 22px;
+  z-index: 5;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.1);
+  color: inherit;
+  border: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .2s;
+  -webkit-app-region: no-drag;
+}
+.lyrics-close:hover { background: rgba(255,255,255,.2); }
+
+.lyrics-left {
+  flex: 0 0 60%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding-right: 4vw;
+}
+.lyrics-triplet {
+  display: flex;
+  flex-direction: column;
+  gap: 3.2vh;
+  width: 100%;
+  font-family: -apple-system, "PingFang SC", "Helvetica Neue", "Segoe UI", sans-serif;
+}
+.lyrics-triplet .line { transition: all .35s cubic-bezier(.2,.7,.2,1); }
+.lyrics-triplet .line .l1 { line-height: 1.35; }
+.lyrics-triplet .prev, .lyrics-triplet .next {
+  opacity: .45;
+  font-size: 22px;
+  font-weight: 500;
+  filter: blur(.3px);
+}
+.lyrics-triplet .current {
+  opacity: 1;
+  font-size: 42px;
+  font-weight: 800;
+  letter-spacing: .01em;
+}
+.lyrics-empty { opacity: .55; font-size: 20px; }
+
+.lyrics-right {
+  flex: 0 0 40%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 10px;
+  padding-left: 3vw;
+  border-left: 1px solid currentColor;
+  border-left-color: rgba(128,128,128,.25);
+}
+.lyrics-cover {
+  width: 240px;
+  max-width: 60%;
+  aspect-ratio: 1/1;
+  border-radius: 10px;
+  box-shadow: 0 20px 40px rgba(0,0,0,.35);
+  margin-bottom: 18px;
+  user-select: none;
+  object-fit: cover;
+}
+.meta-title  { font-size: 26px; font-weight: 800; line-height: 1.25; }
+.meta-artist { font-size: 15px; opacity: .85; }

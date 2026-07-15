@@ -11,28 +11,26 @@ function registerIpcHandlers(win) {
     win.minimize();
   });
 
+  // ★ toggle 最大化 / 还原 (单一 channel, 图标跟随状态自动切换)
   ipcMain.on('window:maximize', () => {
-    if (isMaxed) return;
-    // 保存正常尺寸
-    savedBounds = win.getBounds();
-    // 最大化到工作区
-    const workArea = screen.getPrimaryDisplay().workArea;
-    win.setBounds(workArea);
-    isMaxed = true;
-    win.webContents.send('window:maximized');
-  });
-
-  ipcMain.on('window:unmaximize', () => {
-    if (!isMaxed) return;
-    // 还原到保存的正常尺寸
-    if (savedBounds) {
-      win.setBounds(savedBounds);
+    if (isMaxed) {
+      // 还原
+      if (savedBounds) {
+        win.setBounds(savedBounds);
+      } else {
+        win.setSize(1200, 720);
+        win.center();
+      }
+      isMaxed = false;
+      win.webContents.send('window:unmaximized');
     } else {
-      win.setSize(1200, 720);
-      win.center();
+      // 保存 → 最大化
+      savedBounds = win.getBounds();
+      const workArea = screen.getPrimaryDisplay().workArea;
+      win.setBounds(workArea);
+      isMaxed = true;
+      win.webContents.send('window:maximized');
     }
-    isMaxed = false;
-    win.webContents.send('window:unmaximized');
   });
 
   ipcMain.on('window:close', () => {
@@ -40,15 +38,6 @@ function registerIpcHandlers(win) {
   });
 
   ipcMain.handle('window:isMaximized', () => isMaxed);
-
-  // ★ 拖拽 blur 桥: preload 通知主进程 "drag 区被 mousedown", 主进程 relay 给渲染进程
-  //    App.tsx 订阅 onWindowDragStart/onWindowDragEnd, 仅 blur 搜索输入框 (.s-input)
-  ipcMain.on('window:drag-start', () => {
-    win.webContents.send('window:drag-start');
-  });
-  ipcMain.on('window:drag-end', () => {
-    win.webContents.send('window:drag-end');
-  });
 }
 
 module.exports = { registerIpcHandlers };

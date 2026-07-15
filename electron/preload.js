@@ -63,16 +63,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAccounts: () => ipcRenderer.invoke('account:get'),
   upsertAccount: (account) => ipcRenderer.invoke('account:upsert', account),
   removeAccount: (platform) => ipcRenderer.invoke('account:remove', platform),
+});
 
-  // ★ 窗口拖拽 IPC 订阅: 主进程通知渲染进程"窗口开始拖拽/结束拖拽"
-  onWindowDragStart: (callback) => {
-    const listener = () => callback();
-    ipcRenderer.on('window:drag-start', listener);
-    return () => ipcRenderer.removeListener('window:drag-start', listener);
-  },
-  onWindowDragEnd: (callback) => {
-    const listener = () => callback();
-    ipcRenderer.on('window:drag-end', listener);
-    return () => ipcRenderer.removeListener('window:drag-end', listener);
+// ★ 窗口控制 — 独立命名空间 (Win11 风格自绘标题栏)
+//   渲染进程通过 window.electron.windowControls.minimize/maximize/close 调用
+contextBridge.exposeInMainWorld('electron', {
+  windowControls: {
+    minimize: () => ipcRenderer.send('window:minimize'),
+    maximize: () => ipcRenderer.send('window:maximize'),
+    close: () => ipcRenderer.send('window:close'),
+    onMaximize: (callback: () => void) => {
+      ipcRenderer.on('window:maximized', () => callback())
+    },
+    onUnmaximize: (callback: () => void) => {
+      ipcRenderer.on('window:unmaximized', () => callback())
+    },
   },
 });

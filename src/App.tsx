@@ -5,6 +5,7 @@ import Grainient from './components/grainient/Grainient';
 import LoginDropdown from './components/login-dropdown/LoginDropdown';
 import SearchBar from './components/search/SearchBar';
 import Player from './components/player/Player';
+import LyricsPage from './components/lyrics/LyricsPage';
 import CoverTransition from './components/player/CoverTransition';
 import { useCoverColor } from './components/player/useCoverColor';
 import Search from './pages/Search';
@@ -24,16 +25,6 @@ export default function App() {
   const currentView = usePlayerStore(s => s.currentView);
   const setCurrentView = usePlayerStore(s => s.setCurrentView);
 
-  // ★ Electron 拖拽失焦桥: 窗口拖拽开始/结束时由 preload IPC 广播, 这里 blur 搜索框
-  useEffect(() => {
-    if (!window.electronAPI?.onWindowDragStart) return;
-    const offStart = window.electronAPI.onWindowDragStart(() => {
-      const el = document.activeElement as HTMLElement | null;
-      if (el && el.classList && el.classList.contains('s-input')) el.blur();
-    });
-    const offEnd = window.electronAPI.onWindowDragEnd(() => {});
-    return () => { offStart?.(); offEnd?.(); };
-  }, []);
 
   // ★ 封面主色提取（监听 currentSong.cover）
   useCoverColor();
@@ -108,6 +99,9 @@ export default function App() {
 
         {/* ★ 沉浸封面背景 —— 曲线升起层（z-750，播放器保持在它之上） */}
         <CoverTransition />
+
+        {/* ★ 全屏歌词页 —— 点击播放器封面打开 */}
+        <LyricsPage />
 
         {/* ★ 右上角登录按钮 — 窗口控制已迁入 TitleBar（保留右上角登录入口） */}
         <div className="absolute top-4 right-4 z-50 flex items-center gap-3" style={{ WebkitAppRegion: 'no-drag' } as React.CSSProperties}>

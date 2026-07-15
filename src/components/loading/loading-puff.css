@@ -1,0 +1,16 @@
+/* ── LoadingPuff: 黑白灰渐变 + GSAP 弹跳 ── */
+
+.loading-puff {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 1.5rem 0;
+}
+
+.puff-box {
+  border-radius: 4px;
+  background: linear-gradient(135deg, #111 0%, #555 50%, #eee 100%);
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+}

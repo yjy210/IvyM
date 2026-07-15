@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { usePlayerStore } from '../stores/playerStore';
 import { useSearchStore } from '../stores/searchStore';
 import { usePlaySong } from '../hooks/usePlaySong';
+import LoadingPuff from '../components/loading/LoadingPuff';
 import type { Song } from '../types/song';
 import './search-page.css';
 
@@ -10,6 +11,8 @@ type Platform = 'all' | 'netease' | 'qq';
 export default function Search() {
   const results = useSearchStore(s => s.results);
   const loadMore = useSearchStore(s => s.loadMore);
+  const neteaseLoading = useSearchStore(s => s.results?.netease?.loading);
+  const qqLoading = useSearchStore(s => s.results?.qq?.loading);
   const { playSong } = usePlaySong();
 
   const [activeFilter, setActiveFilter] = useState<Platform>('all');
@@ -99,6 +102,8 @@ export default function Search() {
           </div>
         ))}
         <div ref={sentinelRef} className="scroll-sentinel" />
+        {/* ★ Lazy load 指示器：下一页请求中 */}
+        {(neteaseLoading || qqLoading) && <LoadingPuff />}
       </div>
     </div>
   );

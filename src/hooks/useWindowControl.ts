@@ -16,34 +16,28 @@ declare global {
 
 export function useWindowControl() {
   const [isMaximized, setIsMaximized] = useState(false);
-  const isElectron = !!window.electronAPI;
+  const isElectron = !!(window.electron?.windowControls);
+
+  const controls = window.electron?.windowControls;
 
   useEffect(() => {
-    if (!isElectron) return;
-
-    // 初始化时查询一次最大化状态
-    window.electronAPI!.isMaximized().then(setIsMaximized);
-
-    // 监听最大化/还原事件
-    window.electronAPI!.onMaximize(() => setIsMaximized(true));
-    window.electronAPI!.onUnmaximize(() => setIsMaximized(false));
-  }, [isElectron]);
+    if (!controls) return;
+    // 监听最大化/还原事件（图标切换）
+    controls.onMaximize(() => setIsMaximized(true));
+    controls.onUnmaximize(() => setIsMaximized(false));
+  }, [controls]);
 
   const minimize = useCallback(() => {
-    window.electronAPI?.minimize();
-  }, []);
+    controls?.minimize();
+  }, [controls]);
 
   const toggleMaximize = useCallback(() => {
-    if (isMaximized) {
-      window.electronAPI?.unmaximize();
-    } else {
-      window.electronAPI?.maximize();
-    }
-  }, [isMaximized]);
+    controls?.maximize();
+  }, [controls]);
 
   const close = useCallback(() => {
-    window.electronAPI?.close();
-  }, []);
+    controls?.close();
+  }, [controls]);
 
   return { isMaximized, isElectron, minimize, toggleMaximize, close };
 }
