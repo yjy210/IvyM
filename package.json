@@ -17,7 +17,6 @@
   "type": "commonjs",
   "dependencies": {
     "@gsap/react": "^2.1.2",
-    "electron": "^43.0.0",
     "electron-store": "^11.0.2",
     "gsap": "^3.15.0",
     "motion": "^12.42.2",
@@ -35,6 +34,7 @@
     "@vitejs/plugin-react": "^6.0.3",
     "autoprefixer": "^10.5.2",
     "concurrently": "^10.0.3",
+    "electron": "^43.0.0",
     "electron-builder": "^26.15.3",
     "postcss": "^8.5.16",
     "tailwindcss": "^3.4.19",
@@ -51,7 +51,10 @@
     "files": [
       "electron/**/*",
       "dist/**/*",
-      "server/**/*"
+      "server/**/*",
+      "build/logo.png",
+      "build/icon.ico",
+      "build/thumbar-icons/*.png"
     ],
     "win": {
       "target": "nsis",
@@ -61,7 +64,11 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
+      "createStartMenuShortcut": true,
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico",
+      "shortcutName": "IvyM"
     }
   }
 }
